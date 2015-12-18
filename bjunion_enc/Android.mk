@@ -26,15 +26,9 @@ else
 LIBPLAYER_DIR:=$(TOP)/packages/amlogic/LibPlayer
 endif
 
-LOCAL_STATIC_LIBRARIES := libamcodec libamadec libamavutils
-LOCAL_SHARED_LIBRARIES  += libutils \
-						libmedia \
-						libdl \
-						libcutils \
-						libamsubdec \
-						libbinder \
-						libsystemwriteservice\
-						libion
+LOCAL_SHARED_LIBRARIES  += libcutils \
+						libion \
+						libamplayer
 
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \

@@ -20,9 +20,8 @@ endif
 LOCAL_C_INCLUDES := $(LIBPLAYER_DIR)/amcodec/include \
 					$(TOP)/hardware/amlogic/gralloc
 
-LOCAL_STATIC_LIBRARIES := libamcodec libamadec libamavutils
-LOCAL_SHARED_LIBRARIES  += libutils libmedia libdl libcutils libamsubdec libbinder libsystemwriteservice\
-					libion \
+LOCAL_SHARED_LIBRARIES  += libion \
+					libamplayer
 
 include $(BUILD_SHARED_LIBRARY)
 

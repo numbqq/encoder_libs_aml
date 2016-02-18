@@ -82,7 +82,7 @@ vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int h
     ret = initEncParams(mHandle, width, height, frame_rate, bit_rate, gop);
     if (ret < 0)
         goto exit;
-    ret = AML_HWEncInitialize(mHandle, &(mHandle->mEncParams), &has_mix, 0);
+    ret = AML_HWEncInitialize(mHandle, &(mHandle->mEncParams), &has_mix, 2);
     if (ret < 0)
         goto exit;
     mHandle->mSpsPpsHeaderReceived = false;
@@ -135,7 +135,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.bitrate = handle->mEncParams.bitrate;
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
-        videoInput.fmt = AMVENC_NV12;
+        videoInput.fmt = AMVENC_NV21;
         videoInput.YCbCr[0] = (unsigned)in;
         videoInput.YCbCr[1] = (unsigned)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
         videoInput.YCbCr[2] = 0;

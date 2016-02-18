@@ -38,11 +38,11 @@ typedef struct FastEncRateControl_s
     double  average_qp;
     bool    next_IDR;
     bool    reencode;
-    int     reencode_cnt;
-    int     last_IDR_bits;
-    int     last_pframe_bits;
-    double  actual_Qstep;
-    int64_t     buffer_fullness;
+    int		reencode_cnt;
+    int 	last_IDR_bits;
+    int 	last_pframe_bits;
+    double	actual_Qstep;
+    int64_t		buffer_fullness;
     int max_idr_qp;
     int max_p_qp;
     int last_IDR_qp_delta;
@@ -53,10 +53,10 @@ typedef struct FastEncRateControl_s
     bool force_IDR;
 } FastEncRateControl;
 
-extern AMVEnc_Status FastRCUpdateFrame(void *dev, void *rc, bool IDR, int *skip_num, int numFrameBits);
-extern AMVEnc_Status FastRCInitFrameQP(void *dev, void *rc, bool IDR, int bitrate, float frame_rate);
+extern AMVEnc_Status FastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, int numFrameBits);
+extern AMVEnc_Status FastRCInitFrameQP(void *dev, void *rc,bool IDR,int bitrate, float frame_rate);
 extern AMVEnc_Status FastRCUpdateBuffer(void *dev, void *rc, int timecode, bool force_IDR);
 extern void FastCleanupRateControlModule(void *rc);
-extern void *FastInitRateControlModule(amvenc_initpara_t *init_para);
+extern void* FastInitRateControlModule(amvenc_initpara_t* init_para);
 
 #endif

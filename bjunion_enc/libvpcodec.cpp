@@ -105,7 +105,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
     AMVEncHandle *handle = (AMVEncHandle *)codec_handle;
     if (!handle->mSpsPpsHeaderReceived)
     {
-        ret = AML_HWEncNAL(handle, (unsigned char *)*out, (unsigned int *)&in_size/*should be out sieze*/, &type);
+        ret = AML_HWEncNAL(handle, (unsigned char *)*out, (unsigned int *)&in_size/*should be out size*/, &type);
         if (ret == AMVENC_SUCCESS)
         {
             handle->mSPSPPSDataSize = 0;
@@ -135,7 +135,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.bitrate = handle->mEncParams.bitrate;
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
-        videoInput.fmt = AMVENC_NV21;
+        videoInput.fmt = AMVENC_NV12;
         videoInput.YCbCr[0] = (unsigned)in;
         videoInput.YCbCr[1] = (unsigned)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
         videoInput.YCbCr[2] = 0;
@@ -195,6 +195,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         {
             dataLength = 0;
         }
+
         if (ret < AMVENC_SUCCESS)
         {
             ALOGE("encoderStatus = %d at line %d, handle: %p", ret , __LINE__, (void *)handle);

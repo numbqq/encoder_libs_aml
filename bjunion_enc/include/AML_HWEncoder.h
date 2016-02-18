@@ -15,6 +15,7 @@ typedef struct amvenc_initpara_s
     uint32 bitrate;
     uint32 frame_rate;
     uint32 cpbSize;
+    bool bitrate_scale;
 } amvenc_initpara_t;
 
 typedef struct amvenc_hw_s
@@ -41,6 +42,12 @@ typedef struct FrameIO_s
     uint32 canvas;
     uint32 bitrate;
     float frame_rate;
+    uint32 scale_width;
+    uint32 scale_height;
+    uint32 crop_left;
+    uint32 crop_right;
+    uint32 crop_top;
+    uint32 crop_bottom;
 } AMVEncFrameIO;
 
 typedef struct EncParams_s
@@ -79,6 +86,7 @@ typedef struct EncParams_s
 
     AVCFlag out_of_band_param_set; /* flag to set whether param sets are to be retrieved up front or not */
     AVCFlag FreeRun;
+    AVCFlag BitrateScale;
 } AMVEncParams;
 
 typedef struct

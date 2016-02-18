@@ -175,6 +175,7 @@ typedef enum
     AMVENC_NEW_IDR = 3, /* upon getting this, users have to call PVAVCEncodeSPS and PVAVCEncodePPS to get a new SPS and PPS*/
     AMVENC_SKIPPED_PICTURE = 4, /* continuable error message */
     AMVENC_REENCODE_PICTURE = 5, /* reencode the picutre */
+    AMVENC_FORCE_IDR_NEXT = 6, /* force IDR next picutre */
 } AMVEnc_Status;
 
 typedef enum
@@ -257,6 +258,7 @@ typedef enum
 
 #define AMVEncFrameIO_NONE_FLAG 0x00000000
 #define AMVEncFrameIO_FORCE_IDR_FLAG 0x00000001
+#define AMVEncFrameIO_FORCE_SKIP_FLAG 0x00000002
 
 #define AMVENC_FLUSH_FLAG_INPUT             0x1
 #define AMVENC_FLUSH_FLAG_OUTPUT        0x2

@@ -193,6 +193,7 @@ AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, 
     info->hw_info.init_para.bitrate = info->bitrate;
     info->hw_info.init_para.frame_rate = info->frame_rate;
     info->hw_info.init_para.cpbSize = info->cpbSize;
+    info->hw_info.init_para.bitrate_scale = (encParam->BitrateScale == AVC_ON) ? true : false;
     status = InitAMVEncode(&info->hw_info, force_mode);
     if (status != AMVENC_SUCCESS)
     {
@@ -231,7 +232,7 @@ AMVEnc_Status AML_HWSetInput(AMVEncHandle *Handle, AMVEncFrameIO *input)
     uint frameNum;
     amvenc_info_t *info = (amvenc_info_t *)Handle->object;
     AMVEnc_Status status = AMVENC_FAIL;
-    unsigned yuv[4];
+    unsigned yuv[13];
     if (info == NULL)
     {
         ALOGE("AML_HWSetInput Fail: UNINITIALIZED. handle: %p", Handle);
@@ -260,6 +261,15 @@ AMVEnc_Status AML_HWSetInput(AMVEncHandle *Handle, AMVEncFrameIO *input)
     yuv[1] = input->YCbCr[1];
     yuv[2] = input->YCbCr[2];
     yuv[3] = input->canvas;
+    yuv[4] = (input->op_flag & AMVEncFrameIO_FORCE_SKIP_FLAG) ? 1 : 0;
+    yuv[5] = input->crop_top;
+    yuv[6] = input->crop_bottom;
+    yuv[7] = input->crop_left;
+    yuv[8] = input->crop_right;
+    yuv[9] = input->pitch;
+    yuv[10] = input->height;
+    yuv[11] = input->scale_width;
+    yuv[12] = input->scale_height;
     info->coding_order = frameNum;
 RECALL_INITFRAME:
     /* initialize and analyze the frame */

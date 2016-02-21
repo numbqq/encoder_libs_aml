@@ -67,6 +67,7 @@ int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, i
     handle->mEncParams.profile = AVC_BASELINE;
     handle->mEncParams.level = AVC_LEVEL4;
     handle->mEncParams.initQP = 30;
+    handle->mEncParams.BitrateScale = AVC_OFF;
     return 0;
 }
 

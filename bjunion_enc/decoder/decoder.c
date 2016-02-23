@@ -1,3 +1,7 @@
+//#define LOG_NDEBUG 0
+#define LOG_TAG "AMLDEC_API"
+#include <utils/Log.h>
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <codec.h>
@@ -7,6 +11,7 @@
 #include <ion/ion.h>
 #include <sys/mman.h>
 #include "vpcodec_1_0.h"
+#include <utils/Log.h>
 
 #define EXTERNAL_PTS    (1)
 #define SYNC_OUTSIDE    (2)
@@ -42,7 +47,7 @@ static int amsysfs_set_sysfs_str_1(const char *path, const char *val) {
         close(fd);
         return 0;
     } else {
-        printf("unable to open file %s,err: %s", path, strerror(errno));
+        ALOGE("unable to open file %s,err: %s", path, strerror(errno));
     }
     return -1;
 }
@@ -55,7 +60,7 @@ int AllocDmaBuffers() {
     int buffer_size = mDecOutWidth * OUT_BUFFER_HEIGHT * 3 / 2;
     mIonFd = ion_open();
     if (mIonFd < 0) {
-        printf("ion open failed!\n");
+        ALOGE("ion open failed!\n");
         return -1;
     }
     int i = 0;
@@ -63,25 +68,25 @@ int AllocDmaBuffers() {
         unsigned int ion_flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC;
         ret = ion_alloc(mIonFd, buffer_size, 0, ION_HEAP_CARVEOUT_MASK, ion_flags, &ion_hnd);
         if (ret) {
-            printf("ion alloc error");
+            ALOGE("ion alloc error");
             ion_close(mIonFd);
             return -1;
         }
         ret = ion_share(mIonFd, ion_hnd, &shared_fd);
         if (ret) {
-            printf("ion share error!\n");
+            ALOGE("ion share error!\n");
             ion_free(mIonFd, ion_hnd);
             ion_close(mIonFd);
             return -1;
         }
         void *cpu_ptr = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, shared_fd, 0);
         if (MAP_FAILED == cpu_ptr) {
-            printf("ion mmap error!\n");
+            ALOGE("ion mmap error!\n");
             ion_free(mIonFd, ion_hnd);
             ion_close(mIonFd);
             return -1;
         }
-        printf("AllocDmaBuffers__shared_fd=%d,mIonFd=%d\n",shared_fd, mIonFd);
+        ALOGD("AllocDmaBuffers__shared_fd=%d,mIonFd=%d\n",shared_fd, mIonFd);
         mOutBuffer[i].index = i;
         mOutBuffer[i].fd = shared_fd;
         mOutBuffer[i].pBuffer = NULL;
@@ -100,7 +105,7 @@ int FreeDmaBuffers() {
     while (i < OUT_BUFFER_COUNT) {
         munmap(mOutBuffer[i].fd_ptr, buffer_size);
         close(mOutBuffer[i].fd);
-        printf("FreeDmaBuffers_mOutBuffer[i].fd=%d,mIonFd=%d\n", mOutBuffer[i].fd, mIonFd);
+        ALOGD("FreeDmaBuffers_mOutBuffer[i].fd=%d,mIonFd=%d\n", mOutBuffer[i].fd, mIonFd);
         ion_free(mIonFd, mOutBuffer[i].ion_hnd);
         i++;
     }
@@ -135,6 +140,7 @@ void Yuv_Memcpy(char *Src, int Src_width,  int Src_height, char *Dst, int Dst_wi
  */
 vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
     /* **********init decoder***************/
+    ALOGD("vl_video_decoder_init");
     int ret = CODEC_ERROR_NONE;
     memset(&v_codec_para, 0, sizeof(codec_para_t));
     vpcodec = &v_codec_para;
@@ -157,7 +163,7 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
 
     ret = codec_init(vpcodec);
     if (ret != CODEC_ERROR_NONE) {
-        printf("codec init failed, ret=-0x%x", -ret);
+        ALOGE("codec init failed, ret=-0x%x", -ret);
         return -1;
     }
 
@@ -170,7 +176,7 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
     ret = amvideo_init(amvideo_dev, 0, OUT_BUFFER_WIDTH, OUT_BUFFER_HEIGHT, V4L2_PIX_FMT_NV21, OUT_BUFFER_COUNT);
 
     if (ret < 0) {
-        printf("amvideo_init failed =%d\n", ret);
+        ALOGE("amvideo_init failed =%d\n", ret);
         amvideo_release(amvideo_dev);
         amvideo_dev = NULL;
     }
@@ -182,17 +188,17 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
         vf.index = mOutBuffer[i].index;
         vf.fd = mOutBuffer[i].fd;
         vf.length = OUT_BUFFER_SIZE;
-        printf("main amlv4l_queuebuf i=%d, vf.index=%d, vf.fd=%d\n", i, vf.index, vf.fd);
+        ALOGD("main amlv4l_queuebuf i=%d, vf.index=%d, vf.fd=%d\n", i, vf.index, vf.fd);
         int ret = amlv4l_queuebuf(amvideo_dev, &vf);
         if (ret < 0) {
-            printf("amlv4l_queuebuf failed =%d\n", ret);
+            ALOGE("amlv4l_queuebuf failed =%d\n", ret);
         }
 
         if (i == 1) {
             ret = amvideo_start(amvideo_dev);
-            printf("amvideo_start ret=%d\n", ret);
+            ALOGD("amvideo_start ret=%d\n", ret);
             if (ret < 0) {
-                printf("amvideo_start failed =%d\n", ret);
+                ALOGE("amvideo_start failed =%d\n", ret);
                 amvideo_release(amvideo_dev);
                 amvideo_dev = NULL;
             }
@@ -214,11 +220,12 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
 int vl_video_decoder_decode(vl_codec_handle_t handle, char * in, int in_size, char ** out) {
     int isize = 0;
     int ret = 0;
+	ALOGD("vl_video_decoder_decode in_size = %d\n", in_size);
     do {
-        ret = codec_write(vpcodec, in+isize, in_size);
+        ret = codec_write(vpcodec, in+isize, in_size-isize);
         if (ret < 0) {
             if (errno != EAGAIN) {
-                printf("write data failed, errno %d\n", errno);
+                ALOGE("write data failed, errno %d\n", errno);
                 return -1;
             } else {
                 usleep(10000);
@@ -227,14 +234,13 @@ int vl_video_decoder_decode(vl_codec_handle_t handle, char * in, int in_size, ch
         } else {
             isize += ret;
         }
-        //printf("ret %d, isize %d\n", ret, isize);
     } while (isize < in_size);
     struct buf_status vbuf;
     ret = codec_get_vbuf_state(vpcodec, &vbuf);
     if (ret != 0) {
-        printf("codec_get_vbuf_state error: %x\n", -ret);
+        ALOGE("codec_get_vbuf_state error: %x\n", -ret);
     } else {
-        //printf("vbuf.data_len=%x\n",vbuf.data_len);
+        ALOGD("vbuf.data_len=%d\n",vbuf.data_len);
     }
 
     vframebuf_t vf;
@@ -254,17 +260,17 @@ int vl_video_decoder_decode(vl_codec_handle_t handle, char * in, int in_size, ch
         int height = vf.height;
         len = width*height*3/2;
         Yuv_Memcpy(cpu_ptr, OUT_BUFFER_WIDTH, OUT_BUFFER_HEIGHT, *out, width, height);
-        printf("__get one frame,out_num=%d, width=%d, height=%d, mOutBuffer[i].index=%d\n",out_num++, width, height, mOutBuffer[i].index);
+        ALOGD("__get one frame,out_num=%d, width=%d, height=%d, mOutBuffer[i].index=%d\n",out_num++, width, height, mOutBuffer[i].index);
         vf.index = mOutBuffer[i].index;
         vf.fd = mOutBuffer[i].fd;
         vf.length = OUT_BUFFER_SIZE;
         ret = amlv4l_queuebuf(amvideo_dev, &vf);
         if (ret < 0) {
-            printf("amlv4l_queuebuf failed =%d\n", ret);
+            ALOGD("amlv4l_queuebuf failed =%d\n", ret);
         }
         return len;
     }
-    printf("vl_video_decoder_decode have no output\n");
+    ALOGD("vl_video_decoder_decode have no output\n");
     return 0;
 }
 
@@ -282,7 +288,7 @@ int vl_video_decoder_destory(vl_codec_handle_t handle) {
     amsysfs_set_sysfs_str_1("/sys/class/vfm/map", "rm default");
     amsysfs_set_sysfs_str_1("/sys/class/vfm/map", "add default decoder ppmgr deinterlace amvideo");
 
-    printf("vl_video_decoder_destory\n");
+    ALOGD("vl_video_decoder_destory\n");
     FreeDmaBuffers();
     if (mOutBuffer != NULL) {
         free(mOutBuffer);

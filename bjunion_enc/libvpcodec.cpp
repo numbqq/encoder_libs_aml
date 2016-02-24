@@ -153,28 +153,30 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         if (ret == AMVENC_SUCCESS || ret == AMVENC_NEW_IDR)
         {
             ++(handle->mNumInputFrames);
+
+            if (ret == AMVENC_NEW_IDR)
+            {
+                outPtr = (uint8_t *) *out + handle->mSPSPPSDataSize;
+                dataLength  = /*should be out size */in_size - handle->mSPSPPSDataSize;
+            }
+            else
+            {
+                outPtr = (uint8_t *) *out;
+                dataLength  = /*should be out size */in_size;
+            }
         }
         else if (ret < AMVENC_SUCCESS)
         {
             ALOGE("encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             return -1;
         }
-        if (handle->mNumInputFrames == 1)
-        {
-            outPtr = (uint8_t *) *out + handle->mSPSPPSDataSize;
-            dataLength  = /*should be out size */in_size - handle->mSPSPPSDataSize;
-        }
-        else
-        {
-            outPtr = (uint8_t *) *out;
-            dataLength  = /*should be out size */in_size;
-        }
+
         ret = AML_HWEncNAL(handle, (unsigned char *)outPtr, (unsigned int *)&dataLength, &type);
         if (ret == AMVENC_PICTURE_READY)
         {
             if (type == AVC_NALTYPE_IDR)
             {
-                if (handle->mSPSPPSData && handle->mNumInputFrames == 1)
+                if (handle->mSPSPPSData)
                 {
                     memcpy((uint8_t *) *out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
                     dataLength += handle->mSPSPPSDataSize;

@@ -38,6 +38,20 @@ static out_buffer_t * mOutBuffer = NULL;
 static int mIonFd = 0;
 static int out_num = 0;
 
+const char* debugDumpES = "/data/DecoderInput.h264";
+FILE* dumpfd = NULL;
+
+bool dumpDecoderInput() {
+    bool result = false;
+    char value[92]; //PROPERTY_VALUE_MAX=92
+    property_get ("media.libvpcodec.decoderinput", value, NULL);
+    if (strcmp ("true", value) == 0)
+        result = true;
+    else
+        result = false;
+    return result;
+}
+
 static int amsysfs_set_sysfs_str_1(const char *path, const char *val) {
     int fd;
     int bytes;
@@ -205,6 +219,15 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
         }
         i++;
     }
+    if (dumpDecoderInput()) {
+        ALOGD("dumpDecoderInput = true");
+        if (dumpfd != NULL)
+            fclose(dumpfd);
+        dumpfd = fopen(debugDumpES,"wb");
+        if (!dumpfd) {
+            ALOGE("-- dump file create fail. %d----\n",errno);
+        }
+    }
     return 1;
 }
 
@@ -220,7 +243,9 @@ vl_codec_handle_t vl_video_decoder_init(vl_codec_id_t codec_id) {
 int vl_video_decoder_decode(vl_codec_handle_t handle, char * in, int in_size, char ** out) {
     int isize = 0;
     int ret = 0;
-	ALOGD("vl_video_decoder_decode in_size = %d\n", in_size);
+    ALOGD("vl_video_decoder_decode in_size = %d\n", in_size);
+    if (dumpfd !=NULL)
+        fwrite(in, 1, in_size, dumpfd);
     do {
         ret = codec_write(vpcodec, in+isize, in_size-isize);
         if (ret < 0) {
@@ -294,6 +319,9 @@ int vl_video_decoder_destory(vl_codec_handle_t handle) {
         free(mOutBuffer);
         mOutBuffer = NULL;
     }
+    if (dumpfd != NULL)
+        fclose(dumpfd);
+    dumpfd = NULL;
     return 1;
 }
 

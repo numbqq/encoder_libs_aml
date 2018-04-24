@@ -2,6 +2,8 @@
 #define AMLOGIC_ENCODER_DEFINE_
 
 #include <stdint.h>
+#include <malloc.h>
+#include <string.h>
 
 #define AVC_ABS(x)   (((x)<0)? -(x) : (x))
 #define AVC_MAX(x,y) ((x)>(y)? (x):(y))
@@ -25,7 +27,6 @@
 #define ENCODER_NON_IDR_DONE           10
 #define ENCODER_MB_HEADER_DONE         11
 #define ENCODER_MB_DATA_DONE           12
-
 
 /* defines for H.264 IntraPredMode */
 // 4x4 intra prediction modes
@@ -52,8 +53,8 @@
 #define HENC_PLANE_8       3
 
 /********************************************
-* defines for H.264 mb_type
-********************************************/
+ * defines for H.264 mb_type
+ ********************************************/
 #define HENC_MB_Type_PBSKIP                      0x0
 #define HENC_MB_Type_PSKIP                       0x0
 #define HENC_MB_Type_BSKIP_DIRECT                0x0
@@ -77,13 +78,15 @@
 #define HENC_MB_CBP_AUTO                         0xff
 #define HENC_SKIP_RUN_AUTO                     0xffff
 
-#define ENCODER_BUFFER_INPUT              0
+#define ENCODER_BUFFER_INPUT               0
 #define ENCODER_BUFFER_REF0                1
 #define ENCODER_BUFFER_REF1                2
-#define ENCODER_BUFFER_OUTPUT           3
-#define ENCODER_BUFFER_INTER_INFO    4
-#define ENCODER_BUFFER_INTRA_INFO    5
-#define ENCODER_BUFFER_QP                   6
+#define ENCODER_BUFFER_OUTPUT              3
+#define ENCODER_BUFFER_INTER_INFO          4
+#define ENCODER_BUFFER_INTRA_INFO          5
+#define ENCODER_BUFFER_QP                  6
+#define ENCODER_BUFFER_DUMP                7
+#define ENCODER_BUFFER_CBR                 8
 
 #define I_FRAME   2
 
@@ -93,13 +96,13 @@ typedef int16_t int16;
 typedef uint32_t uint32;
 typedef int32_t int32;
 typedef unsigned int uint;
+typedef unsigned long ulong;
 
 typedef enum
 {
     NO_DEFINE = -1,
-    M8_FAST = 0,
-    M8 = 1,
-    MAX_DEV = 2,
+    M8 = 0,
+    MAX_DEV = 1,
 } ENC_DEV_TYPE;
 
 typedef enum
@@ -186,7 +189,7 @@ typedef enum
     AMVEnc_Analyzing_Frame,
     AMVEnc_WaitingForBuffer,  // pending state
     AMVEnc_Encoding_Frame,
-} AMVEnc_State ;
+} AMVEnc_State;
 
 typedef enum
 {
@@ -233,7 +236,8 @@ typedef enum
     AVC_NALTYPE_AUD = 9,    /* access unit delimiter */
     AVC_NALTYPE_EOSEQ = 10, /* end of sequence */
     AVC_NALTYPE_EOSTREAM = 11, /* end of stream */
-    AVC_NALTYPE_FILL = 12   /* filler data */
+    AVC_NALTYPE_FILL = 12, /* filler data */
+    AVC_NALTYPE_EMPTY = 0xff /* Empty Nal */
 } AVCNalUnitType;
 
 typedef enum
@@ -265,6 +269,8 @@ typedef enum
 #define AMVENC_FLUSH_FLAG_REFERENCE         0x4
 #define AMVENC_FLUSH_FLAG_INTRA_INFO    0x8
 #define AMVENC_FLUSH_FLAG_INTER_INFO    0x10
-#define AMVENC_FLUSH_FLAG_QP                0x20
+#define AMVENC_FLUSH_FLAG_QP            0x20
+#define AMVENC_FLUSH_FLAG_DUMP		0x40
+#define AMVENC_FLUSH_FLAG_CBR		0x80
 
 #endif

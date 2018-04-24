@@ -1,8 +1,10 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "AMLVENC_API"
+#ifdef MAKEANDROID
 #include <utils/Log.h>
-
+#endif
+#include <unistd.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -13,70 +15,55 @@
 #include <fcntl.h>
 
 #include "enc_api.h"
-#include <cutils/properties.h>
-
-#include "enc/m8_enc_fast/m8venclib_fast.h"
-#include "enc/m8_enc_fast/rate_control_m8_fast.h"
-#include "enc/m8_enc/m8venclib.h"
-#include "enc/m8_enc/rate_control_m8.h"
+//#include <cutils/properties.h>
+//#if !defined(__aarch64__)
+//#include "enc/m8_enc_fast/m8venclib_fast.h"
+//#include "enc/m8_enc_fast/rate_control_m8_fast.h"
+//#include "enc/m8_enc/m8venclib.h"
+//#include "enc/m8_enc/rate_control_m8.h"
+//#endif
+#include "enc/gx_enc_fast/gxvenclib_fast.h"
+#include "enc/gx_enc_fast/rate_control_gx_fast.h"
 
 #define ENCODER_PATH       "/dev/amvenc_avc"
 
-#define AMVENC_DEVINFO_M8_FAST "AML-M8-FAST"
-#define AMVENC_DEVINFO_M8 "AML-M8"
+#define AMVENC_DEVINFO_M8     "AML-M8"
+#define AMVENC_DEVINFO_G9     "AML-G9"
+#define AMVENC_DEVINFO_GXBB   "AML-GXBB"
+#define AMVENC_DEVINFO_GXTVBB "AML-GXTVBB"
 
 #define AMVENC_AVC_IOC_MAGIC  'E'
 #define AMVENC_AVC_IOC_GET_DEVINFO              _IOW(AMVENC_AVC_IOC_MAGIC, 0xf0, unsigned int)
+#ifdef MAKEANDROID
+	#define LOGAPI LOGAPI
+#else
+	#define LOGAPI printf
+#endif
 
-const AMVencHWFuncPtr m8_fast_dev =
-{
-    InitFastEncode,
-    FastEncodeInitFrame,
-    FastEncodeSPS_PPS,
-    FastEncodeSlice,
-    FastEncodeCommit,
-    UnInitFastEncode,
+const AMVencHWFuncPtr gx_fast_dev = {
+    GxInitFastEncode,
+    GxFastEncodeInitFrame,
+    GxFastEncodeSPS_PPS,
+    GxFastEncodeSlice,
+    GxFastEncodeCommit,
+    GxUnInitFastEncode,
 };
 
-const AMVencHWFuncPtr m8_dev =
-{
-    InitM8VEncode,
-    M8VEncodeInitFrame,
-    M8VEncodeSPS_PPS,
-    M8VEncodeSlice,
-    M8VEncodeCommit,
-    UnInitM8VEncode,
+const AMVencRCFuncPtr gx_fast_rc = {
+    GxFastInitRateControlModule,
+    GxFastRCUpdateBuffer,
+    GxFastRCUpdateFrame,
+    GxFastRCInitFrameQP,
+    GxFastCleanupRateControlModule,
 };
 
-const AMVencHWFuncPtr *gdev[] =
-{
-    &m8_fast_dev,
-    &m8_dev,
+const AMVencHWFuncPtr *gdev[] = {
+    &gx_fast_dev,
     NULL,
 };
 
-const AMVencRCFuncPtr m8_fast_rc =
-{
-    FastInitRateControlModule,
-    FastRCUpdateBuffer,
-    FastRCUpdateFrame,
-    FastRCInitFrameQP,
-    FastCleanupRateControlModule,
-};
-
-const AMVencRCFuncPtr m8_rc =
-{
-    M8InitRateControlModule,
-    M8RCUpdateBuffer,
-    M8RCUpdateFrame,
-    M8RCInitFrameQP,
-    M8CleanupRateControlModule,
-};
-
-const AMVencRCFuncPtr *grc[] =
-{
-    &m8_fast_rc,
-    &m8_rc,
+const AMVencRCFuncPtr *grc[] = {
+    &gx_fast_rc,
     NULL,
 };
 
@@ -88,9 +75,9 @@ AMVEnc_Status AMInitRateControlModule(amvenc_hw_t *hw_info)
         return AMVENC_FAIL;
     if (grc[hw_info->dev_id]->Initialize != NULL)
         hw_info->rc_data = grc[hw_info->dev_id]->Initialize(&hw_info->init_para);
-    if (!hw_info->rc_data)
-    {
-        ALOGD("AMInitRateControlModule Fail, dev type:%d. fd:%d", hw_info->dev_id, hw_info->dev_fd);
+
+    if (!hw_info->rc_data) {
+        LOGAPI("AMInitRateControlModule Fail, dev type:%d. fd:%d",hw_info->dev_id, hw_info->dev_fd);
         return AMVENC_FAIL;
     }
     return AMVENC_SUCCESS;
@@ -150,65 +137,18 @@ AMVEnc_Status InitAMVEncode(amvenc_hw_t *hw_info, int force_mode)
         return AMVENC_MEMORY_FAIL;
     hw_info->dev_fd = -1;
     hw_info->dev_data = NULL;
+
     fd = open(ENCODER_PATH, O_RDWR);
-    if (fd < 0)
-    {
+    if (fd<0) {
         return AMVENC_FAIL;
     }
-    memset(dev_info, 0, sizeof(dev_info));
-#if 0//need debug
-    iret = ioctl(fd, AMVENC_AVC_IOC_GET_DEVINFO, &dev_info[0]);
-    if ((iret < 0) || (strcmp(dev_info, (char *)AMVENC_DEVINFO_MT) == 0) || (dev_info[0] == 0))
-    {
-        if ((iret < 0) || (dev_info[0] == 0))
-            ALOGD("The old encoder driver, not support query the dev info. set as MT type!");
-        hw_info->dev_id = MT;
-    }
-    else if (strcmp(dev_info, (char *)AMVENC_DEVINFO_M8) == 0)
-    {
-        hw_info->dev_id = M8;
-    }
-    else
-    {
-        hw_info->dev_id = NO_DEFINE;
-    }
-#else
-    if ((hw_info->init_para.enc_width >= 1280) && (hw_info->init_para.enc_height >= 720))
-        hw_info->dev_id = M8_FAST;
-    else
-        hw_info->dev_id = M8;
-    if (1 == force_mode)
-    {
-        hw_info->dev_id = M8_FAST;
-    }
-    else if (2 == force_mode)
-    {
-        hw_info->dev_id = M8;
-    }
-    char prop[PROPERTY_VALUE_MAX];
-    int value = 0;
-    memset(prop, 0, sizeof(prop));
-    if (property_get("hw.encoder.forcemode", prop, NULL) > 0)
-    {
-        sscanf(prop, "%d", &value);
-    }
-    else
-    {
-        value = 0;
-    }
-    if (1 == value)
-    {
-        hw_info->dev_id = M8_FAST;
-    }
-    else if (2 == value)
-    {
-        hw_info->dev_id = M8;
-    }
-    ALOGI("hw.encoder.forcemode = %d, dev_id=%d. fd:%d", value, hw_info->dev_id, fd);
-#endif
-    if ((hw_info->dev_id <= NO_DEFINE) || (hw_info->dev_id >= MAX_DEV))
-    {
-        ALOGD("Not found available hw encoder device, fd:%d", fd);
+    memset(dev_info,0,sizeof(dev_info));
+
+//    iret = ioctl(fd, AMVENC_AVC_IOC_GET_DEVINFO,&dev_info[0]);
+    hw_info->dev_id = M8;
+    hw_info->init_para.cbr_hw = true;
+    if ((hw_info->dev_id <= NO_DEFINE) || (hw_info->dev_id >= MAX_DEV)) {
+        LOGAPI("Not found available hw encoder device, fd:%d", fd);
         close(fd);
         return AMVENC_FAIL;
     }
@@ -216,7 +156,7 @@ AMVEnc_Status InitAMVEncode(amvenc_hw_t *hw_info, int force_mode)
         hw_info->dev_data = gdev[hw_info->dev_id]->Initialize(fd, &hw_info->init_para);
     if (!hw_info->dev_data)
     {
-        ALOGD("InitAMVEncode Fail, dev type:%d. fd:%d", hw_info->dev_id, fd);
+        LOGAPI("InitAMVEncode Fail, dev type:%d. fd:%d", hw_info->dev_id, fd);
         hw_info->dev_id = NO_DEFINE;
         close(fd);
         return AMVENC_FAIL;
@@ -225,7 +165,7 @@ AMVEnc_Status InitAMVEncode(amvenc_hw_t *hw_info, int force_mode)
     return AMVENC_SUCCESS;
 }
 
-AMVEnc_Status AMVEncodeInitFrame(amvenc_hw_t *hw_info, unsigned *yuv, AMVEncBufferType type, AMVEncFrameFmt fmt, bool IDRframe)
+AMVEnc_Status AMVEncodeInitFrame(amvenc_hw_t *hw_info, ulong *yuv, AMVEncBufferType type, AMVEncFrameFmt fmt, bool IDRframe)
 {
     AMVEnc_Status ret = AMVENC_FAIL;
     if (!hw_info)

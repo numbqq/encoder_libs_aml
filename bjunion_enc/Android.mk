@@ -1,21 +1,17 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
-
+LOCAL_LDLIBS    := -lm -llog
 LOCAL_SRC_FILES := \
     libvpcodec.cpp
 
 LOCAL_SRC_FILES += AML_HWEncoder.cpp \
 	enc_api.cpp \
+	enc/gx_enc_fast/rate_control_gx_fast.cpp \
+	enc/gx_enc_fast/gxvenclib_fast.cpp \
+	enc/gx_enc_fast/parser.cpp \
 	enc/common/fill_buffer.cpp \
-	enc/m8_enc_fast/rate_control_m8_fast.cpp \
-	enc/m8_enc_fast/m8venclib_fast.cpp \
-	enc/m8_enc/dump.cpp \
-	enc/m8_enc/m8venclib.cpp \
-	enc/m8_enc/rate_control_m8.cpp \
-	enc/m8_enc/noise_reduction.cpp \
-	decoder/decoder.c \
-	decoder/amlv4l.c \
-	decoder/amvideo.c
+
+#define MAKEANDROID
 
 LOCAL_SRC_FILES += enc/intra_search/pred.cpp \
 	enc/intra_search/pred_neon_asm.s
@@ -27,14 +23,15 @@ LIBPLAYER_DIR:=$(TOP)/packages/amlogic/LibPlayer
 endif
 
 LOCAL_SHARED_LIBRARIES  += libcutils \
+						libutils  \
 						libion \
-						libamplayer
+#						libamplayer
 
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-		 $(LIBPLAYER_DIR)/amcodec/include \
+#		 $(LIBPLAYER_DIR)/amcodec/include \
 		 $(TOP)/hardware/amlogic/gralloc \
-		 $(LOCAL_PATH)/decoder
+#		 $(LOCAL_PATH)/decoder
 
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE:= libvpcodec

@@ -1,10 +1,19 @@
 #include "vpcodec_1_0.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <utils/Log.h>
 
-#include <AML_HWEncoder.h>
-#include <enc_define.h>
+#ifdef MAKEANDROID
+#include <utils/Log.h>
+#endif
+
+#include "include/AML_HWEncoder.h"
+#include "include/enc_define.h"
+
+#ifdef MAKEANDROID
+	#define LOGAPI ALOGE
+#else
+	#define LOGAPI printf
+#endif
 
 const char version[] = "Amlogic libvpcodec version 1.0";
 
@@ -16,19 +25,19 @@ const char *vl_get_version()
 int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, int bit_rate, int gop)
 {
     memset(&(handle->mEncParams), 0, sizeof(AMVEncParams));
-    ALOGD("bit_rate:%d", bit_rate);
+    LOGAPI("bit_rate:%d", bit_rate);
     if ((width % 16 != 0 || height % 2 != 0))
     {
-        ALOGE("Video frame size %dx%d must be a multiple of 16", width, height);
+        LOGAPI("Video frame size %dx%d must be a multiple of 16", width, height);
         return -1;
     }
     else if (height % 16 != 0)
     {
-        ALOGD("Video frame height is not standard:%d", height);
+        LOGAPI("Video frame height is not standard:%d", height);
     }
     else
     {
-        ALOGD("Video frame size is %d x %d", width, height);
+        LOGAPI("Video frame size is %d x %d", width, height);
     }
     handle->mEncParams.rate_control = AVC_ON;
     handle->mEncParams.initQP = 0;
@@ -50,6 +59,7 @@ int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, i
     handle->mEncParams.FreeRun = AVC_OFF;
     handle->mEncParams.MBsIntraRefresh = 0;
     handle->mEncParams.MBsIntraOverlap = 0;
+    handle->mEncParams.encode_once = 1;
     // Set IDR frame refresh interval
     if ((unsigned) gop == 0xffffffff)
     {
@@ -97,7 +107,7 @@ exit:
 
 
 
-int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, char *in, int in_size, char **out)
+int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, unsigned char *in, int in_size, unsigned char *out)
 {
     int ret;
     uint8_t *outPtr = NULL;
@@ -106,7 +116,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
     AMVEncHandle *handle = (AMVEncHandle *)codec_handle;
     if (!handle->mSpsPpsHeaderReceived)
     {
-        ret = AML_HWEncNAL(handle, (unsigned char *)*out, (unsigned int *)&in_size/*should be out size*/, &type);
+        ret = AML_HWEncNAL(handle, (unsigned char *)out, (unsigned int *)&in_size/*should be out size*/, &type);
         if (ret == AMVENC_SUCCESS)
         {
             handle->mSPSPPSDataSize = 0;
@@ -114,15 +124,15 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             if (handle->mSPSPPSData)
             {
                 handle->mSPSPPSDataSize = in_size;
-                memcpy(handle->mSPSPPSData, (unsigned char *)*out, handle->mSPSPPSDataSize);
-                ALOGI("get mSPSPPSData size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
+                memcpy(handle->mSPSPPSData, (unsigned char *)out, handle->mSPSPPSDataSize);
+                LOGAPI("get mSPSPPSData size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
             }
             handle->mNumInputFrames = 0;
             handle->mSpsPpsHeaderReceived = true;
         }
         else
         {
-            ALOGE("Encode SPS and PPS error, encoderStatus = %d. handle: %p", ret, (void *)handle);
+            LOGAPI("Encode SPS and PPS error, encoderStatus = %d. handle: %p\n", ret, (void *)handle);
             return -1;
         }
     }
@@ -137,7 +147,8 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
         videoInput.fmt = AMVENC_NV21;
-        videoInput.YCbCr[0] = (unsigned)in;
+        //videoInput.fmt = AMVENC_YUV420;
+        videoInput.YCbCr[0] = (unsigned )&in[0];
         videoInput.YCbCr[1] = (unsigned)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
         videoInput.YCbCr[2] = 0;
         videoInput.canvas = 0xffffffff;
@@ -156,18 +167,18 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
 
             if (ret == AMVENC_NEW_IDR)
             {
-                outPtr = (uint8_t *) *out + handle->mSPSPPSDataSize;
+                outPtr = (uint8_t *) out + handle->mSPSPPSDataSize;
                 dataLength  = /*should be out size */in_size - handle->mSPSPPSDataSize;
             }
             else
             {
-                outPtr = (uint8_t *) *out;
+                outPtr = (uint8_t *) out;
                 dataLength  = /*should be out size */in_size;
             }
         }
         else if (ret < AMVENC_SUCCESS)
         {
-            ALOGE("encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
+            LOGAPI("encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             return -1;
         }
 
@@ -178,9 +189,9 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             {
                 if (handle->mSPSPPSData)
                 {
-                    memcpy((uint8_t *) *out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
+                    memcpy((uint8_t *) out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
                     dataLength += handle->mSPSPPSDataSize;
-                    ALOGI("copy mSPSPPSData to buffer size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
+                    LOGAPI("copy mSPSPPSData to buffer size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
                 }
             }
         }
@@ -192,7 +203,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
                 handle->mKeyFrameRequested = true;
                 ret = AMVENC_SKIPPED_PICTURE;
             }
-            ALOGD("ret = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
+            LOGAPI("ret = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
         }
         else if (ret != AMVENC_SUCCESS)
         {
@@ -201,7 +212,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
 
         if (ret < AMVENC_SUCCESS)
         {
-            ALOGE("encoderStatus = %d at line %d, handle: %p", ret , __LINE__, (void *)handle);
+            LOGAPI("encoderStatus = %d at line %d, handle: %p", ret , __LINE__, (void *)handle);
             return -1;
         }
     }

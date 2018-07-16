@@ -17,8 +17,9 @@ int main(int argc, const char *argv[]){
     int outfd = -1;
     FILE *fp = NULL;
     int datalen = 0;
+    int fmt = 0;
     vl_codec_handle_t handle_enc;
-    if (argc < 8)
+    if (argc < 9)
     {
         printf("Amlogic AVC Encode API \n");
         printf(" usage: output [srcfile][outfile][width][height][gop][framerate][bitrate][num]\n");
@@ -31,6 +32,7 @@ int main(int argc, const char *argv[]){
         printf("  framerate: framerate \n ");
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
+        printf("  fmt      : encode input fmt 0:nv12,nv21 1:yv12 \n ");
         return -1;
     }
     else
@@ -54,6 +56,7 @@ int main(int argc, const char *argv[]){
     framerate = atoi(argv[6]);
     bitrate = atoi(argv[7]);
     num = atoi(argv[8]);
+    fmt = atoi(argv[9]);
     if ((framerate < 0) || (framerate > 30))
     {
         printf("invalid framerate \n");
@@ -94,18 +97,18 @@ int main(int argc, const char *argv[]){
         printf("open dist file error!\n");
         goto exit;
     }
-	handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_NV12);
+    handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12);
     while (num > 0) {
         if (fread(input, 1, framesize, fp) != framesize) {
             printf("read input file error!\n");
             goto exit;
         }
         memset(buffer, 0, 512 * 1024 * sizeof(char));
-        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, input, in_size, buffer);
+        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, input, in_size, buffer, fmt);
         if (datalen >= 0)
             write(outfd, (unsigned char *)buffer, datalen);
         num--;
-	}
+    }
     vl_video_encoder_destory(handle_enc);
     close(outfd);
     fclose(fp);

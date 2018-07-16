@@ -107,7 +107,7 @@ exit:
 
 
 
-int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, unsigned char *in, int in_size, unsigned char *out)
+int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, unsigned char *in, int in_size, unsigned char *out, int format)
 {
     int ret;
     uint8_t *outPtr = NULL;
@@ -146,11 +146,15 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.bitrate = handle->mEncParams.bitrate;
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
-        videoInput.fmt = AMVENC_NV21;
-        //videoInput.fmt = AMVENC_YUV420;
         videoInput.YCbCr[0] = (unsigned )&in[0];
         videoInput.YCbCr[1] = (unsigned)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
-        videoInput.YCbCr[2] = 0;
+        if (format == 0) {
+            videoInput.fmt = AMVENC_NV21;
+            videoInput.YCbCr[2] = 0;
+        } else {
+            videoInput.fmt = AMVENC_YUV420;
+            videoInput.YCbCr[2] = (unsigned)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
+        }
         videoInput.canvas = 0xffffffff;
         videoInput.type = VMALLOC_BUFFER;
         videoInput.disp_order = handle->mNumInputFrames;

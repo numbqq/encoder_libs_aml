@@ -21,7 +21,8 @@ extern "C" {
     {
         IMG_FMT_NONE,
         IMG_FMT_NV12, /* must support  */
-
+        IMG_FMT_NV21,
+        IMG_FMT_YV12,
     } vl_img_format_t;
 
     typedef enum vl_frame_type_e
@@ -65,7 +66,7 @@ extern "C" {
      *@param : out: data output,H.264 need header(0x00，0x00，0x00，0x01),and format must be I420(apk set param out，through jni,so modify "out" in the function,don't change address point)
      *@return ：if success return encoded data length,else return <= 0
      */
-    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, int in_size, unsigned char *out);
+    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, int in_size, unsigned char *out, int format);
 
     /**
      * destroy encoder

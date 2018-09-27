@@ -39,9 +39,13 @@
 #define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x10)
 
 #ifdef MAKEANDROID
-	#define LOGAPI ALOGE
+#define LOGAPI ALOGE
 #else
-	#define LOGAPI printf
+#define LOGAPI(x...) \
+    do { \
+        printf(x); \
+        printf("\n"); \
+    }while(0);
 #endif
 
 static uint32_t qp_tbl_default[] = {

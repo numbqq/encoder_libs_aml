@@ -32,7 +32,7 @@ int main(int argc, const char *argv[]){
         printf("  framerate: framerate \n ");
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
-        printf("  fmt      : encode input fmt 0:nv12,nv21 1:yv12 \n ");
+        printf("  fmt      : encode input fmt 0:nv12,nv21 1:yv12 2:rgb888\n ");
         return -1;
     }
     else
@@ -59,7 +59,7 @@ int main(int argc, const char *argv[]){
     fmt = atoi(argv[9]);
     if ((framerate < 0) || (framerate > 30))
     {
-        printf("invalid framerate \n");
+        printf("invalid framerate %d \n",framerate);
         return -1;
     }
     if (bitrate <= 0)
@@ -82,8 +82,12 @@ int main(int argc, const char *argv[]){
     printf("frm_num is: %d ;\n", num);
 
     unsigned framesize  = width * height * 3 / 2;
-    unsigned char *buffer = (unsigned char *)malloc(512 * 1024 * sizeof(char));
-    unsigned char *input = (unsigned char *)malloc(width * height * 2);
+    if (fmt == 2) {
+        framesize = width * height * 3;
+    }
+    unsigned output_size  = 1024 * 1024 * sizeof(char);
+    unsigned char *output_buffer = (unsigned char *)malloc(output_size);
+    unsigned char *input_buffer = (unsigned char *)malloc(framesize);
 
     fp = fopen((char *)argv[1], "rb");
     if (fp == NULL)
@@ -99,27 +103,27 @@ int main(int argc, const char *argv[]){
     }
     handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12);
     while (num > 0) {
-        if (fread(input, 1, framesize, fp) != framesize) {
+        if (fread(input_buffer, 1, framesize, fp) != framesize) {
             printf("read input file error!\n");
             goto exit;
         }
-        memset(buffer, 0, 512 * 1024 * sizeof(char));
-        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, input, in_size, buffer, fmt);
+        memset(output_buffer, 0, output_size);
+        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, input_buffer, in_size, output_buffer, fmt);
         if (datalen >= 0)
-            write(outfd, (unsigned char *)buffer, datalen);
+            write(outfd, (unsigned char *)output_buffer, datalen);
         num--;
     }
     vl_video_encoder_destory(handle_enc);
     close(outfd);
     fclose(fp);
-    free(buffer);
-    free(input);
+    free(output_buffer);
+    free(input_buffer);
     return 0;
 exit:
-    if (input)
-        free(input);
-    if (buffer)
-        free(buffer);
+    if (input_buffer)
+        free(input_buffer);
+    if (output_buffer)
+        free(output_buffer);
     if (outfd >= 0)
         close(outfd);
     if (fp)

@@ -14,9 +14,14 @@
 #include "AML_HWEncoder.h"
 #include "enc_api.h"
 #ifdef MAKEANDROID
-	#define LOGAPI ALOGE
+#define LOGAPI ALOGE
 #else
-	#define LOGAPI printf
+#define LOGAPI(x...) \
+    do { \
+        printf(x); \
+        printf("\n"); \
+    }while(0);
+
 #endif
 
 AMVEnc_Status DetermineFrameNum(AMVEncHandle *Handle, amvenc_info_t* info, uint32 modTime, uint32 new_frame_rate, bool force_IDR) {

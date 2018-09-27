@@ -10,9 +10,14 @@
 #include "include/enc_define.h"
 
 #ifdef MAKEANDROID
-	#define LOGAPI ALOGE
+#define LOGAPI ALOGE
 #else
-	#define LOGAPI printf
+#define LOGAPI(x...) \
+    do { \
+        printf(x); \
+        printf("\n"); \
+    }while(0);
+
 #endif
 
 const char version[] = "Amlogic libvpcodec version 1.0";
@@ -146,14 +151,18 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.bitrate = handle->mEncParams.bitrate;
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
-        videoInput.YCbCr[0] = (unsigned )&in[0];
-        videoInput.YCbCr[1] = (unsigned)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
+        videoInput.YCbCr[0] = (unsigned long)&in[0];
+        videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
         if (format == 0) {
             videoInput.fmt = AMVENC_NV21;
             videoInput.YCbCr[2] = 0;
-        } else {
+        } else if (format == 1) {
             videoInput.fmt = AMVENC_YUV420;
-            videoInput.YCbCr[2] = (unsigned)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
+            videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
+        } else if (format == 2) {
+            videoInput.fmt = AMVENC_RGB888;
+            videoInput.YCbCr[1] = 0;
+            videoInput.YCbCr[2] = 0;
         }
         videoInput.canvas = 0xffffffff;
         videoInput.type = VMALLOC_BUFFER;
@@ -220,6 +229,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             return -1;
         }
     }
+    LOGAPI("vl_video_encoder_encode return %d\n",dataLength);
     return dataLength;
 }
 

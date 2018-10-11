@@ -133,6 +133,9 @@ typedef enum
     /**
     Fail information, need to add more error code for more specific info
     */
+    AMVENC_OVERFLOW = -39,
+    AMVENC_INVALID_PARAM = -38,
+    AMVENC_HARDWARE = -37,
     AMVENC_TIMEOUT = -36,
     AMVENC_TRAILINGONES_FAIL = -35,
     AMVENC_SLICE_EMPTY = -34,
@@ -259,6 +262,142 @@ typedef enum
     AVC_OFF = 0,
     AVC_ON = 1
 } AVCFlag;
+
+typedef enum
+{
+    HEVC_NONE = 0,
+    HEVC_MAIN = 1,
+    HEVC_MAIN10 = 2,
+    HEVC_MAINSTILLPICTURE = 3,
+    HEVC_MAINREXT = 4,
+    HEVC_HIGHTHROUGHPUTREXT = 5
+} HEVCProfile;
+
+typedef enum {
+    HEVC_TIER_MAIN = 0,
+    HEVC_TIER_HIGH = 1
+} HEVCTier;
+
+typedef enum {
+    HEVC_LEVEL_NONE = 0,
+    HEVC_LEVEL1 = 30,
+    HEVC_LEVEL2 = 60,
+    HEVC_LEVEL2_1 = 63,
+    HEVC_LEVEL3 = 90,
+    HEVC_LEVEL3_1 = 93,
+    HEVC_LEVEL4 = 120,
+    HEVC_LEVEL4_1 = 123,
+    HEVC_LEVEL5 = 150,
+    HEVC_LEVEL5_1 = 153,
+    HEVC_LEVEL5_2 = 156,
+    HEVC_LEVEL6 = 180,
+    HEVC_LEVEL6_1 = 183,
+    HEVC_LEVEL6_2 = 186,
+    HEVC_LEVEL8_5 = 255
+} HEVCLevel;
+
+typedef enum
+{
+    //trailing non-IRAP pictures
+    NAL_UNIT_CODED_SLICE_TRAIL_N = 0, // 0, non-reference
+    NAL_UNIT_CODED_SLICE_TRAIL_R,     // 1, reference
+    NAL_UNIT_CODED_SLICE_TSA_N,       // 2, non-reference
+    NAL_UNIT_CODED_SLICE_TSA_R,       // 3, reference
+    NAL_UNIT_CODED_SLICE_STSA_N,      // 4, non-reference
+    NAL_UNIT_CODED_SLICE_STSA_R,      // 5, reference
+
+    //leading pictures
+    NAL_UNIT_CODED_SLICE_RADL_N,      // 6, non-reference
+    NAL_UNIT_CODED_SLICE_RADL_R,      // 7, reference
+    NAL_UNIT_CODED_SLICE_RASL_N,      // 8, non-reference
+    NAL_UNIT_CODED_SLICE_RASL_R,      // 9, reference
+
+    //reserved non-IRAP
+    NAL_UNIT_RESERVED_VCL_N10,
+    NAL_UNIT_RESERVED_VCL_R11,
+    NAL_UNIT_RESERVED_VCL_N12,
+    NAL_UNIT_RESERVED_VCL_R13,
+    NAL_UNIT_RESERVED_VCL_N14,
+    NAL_UNIT_RESERVED_VCL_R15,
+
+    //Intra random access point(IRAP) pictures
+    NAL_UNIT_CODED_SLICE_BLA_W_LP,    // 16,
+    NAL_UNIT_CODED_SLICE_BLA_W_RADL,  // 17,
+    NAL_UNIT_CODED_SLICE_BLA_N_LP,    // 18,
+    NAL_UNIT_CODED_SLICE_IDR_W_RADL,  // 19,
+    NAL_UNIT_CODED_SLICE_IDR_N_LP,    // 20,
+    NAL_UNIT_CODED_SLICE_CRA,         // 21,
+
+    //reserved IRAP
+    NAL_UNIT_RESERVED_IRAP_VCL22,
+    NAL_UNIT_RESERVED_IRAP_VCL23,
+
+    //reserved non-IRAP
+    NAL_UNIT_RESERVED_VCL24,
+    NAL_UNIT_RESERVED_VCL25,
+    NAL_UNIT_RESERVED_VCL26,
+    NAL_UNIT_RESERVED_VCL27,
+    NAL_UNIT_RESERVED_VCL28,
+    NAL_UNIT_RESERVED_VCL29,
+    NAL_UNIT_RESERVED_VCL30,
+    NAL_UNIT_RESERVED_VCL31,
+
+    NAL_UNIT_VPS,                     // 32
+    NAL_UNIT_SPS,                     // 33
+    NAL_UNIT_PPS,                     // 34
+    NAL_UNIT_ACCESS_UNIT_DELIMITER,   // 35
+    NAL_UNIT_EOS,                     // 36
+    NAL_UNIT_EOB,                     // 37
+    NAL_UNIT_FILLER_DATA,             // 38
+    NAL_UNIT_PREFIX_SEI,              // 39
+    NAL_UNIT_SUFFIX_SEI,              // 40
+
+    //reserved
+    NAL_UNIT_RESERVED_NVCL41,
+    NAL_UNIT_RESERVED_NVCL42,
+    NAL_UNIT_RESERVED_NVCL43,
+    NAL_UNIT_RESERVED_NVCL44,
+    NAL_UNIT_RESERVED_NVCL45,
+    NAL_UNIT_RESERVED_NVCL46,
+    NAL_UNIT_RESERVED_NVCL47,
+    NAL_UNIT_UNSPECIFIED_48,
+    NAL_UNIT_UNSPECIFIED_49,
+    NAL_UNIT_UNSPECIFIED_50,
+    NAL_UNIT_UNSPECIFIED_51,
+    NAL_UNIT_UNSPECIFIED_52,
+    NAL_UNIT_UNSPECIFIED_53,
+    NAL_UNIT_UNSPECIFIED_54,
+    NAL_UNIT_UNSPECIFIED_55,
+    NAL_UNIT_UNSPECIFIED_56,
+    NAL_UNIT_UNSPECIFIED_57,
+    NAL_UNIT_UNSPECIFIED_58,
+    NAL_UNIT_UNSPECIFIED_59,
+    NAL_UNIT_UNSPECIFIED_60,
+    NAL_UNIT_UNSPECIFIED_61,
+    NAL_UNIT_UNSPECIFIED_62,
+    NAL_UNIT_UNSPECIFIED_63,
+    NAL_UNIT_INVALID
+} HEVCNalUnitType;
+
+typedef enum
+{
+    I_SLICE  = 0,
+    P_SLICE  = 1,
+    B_SLICE  = 2
+} HEVCSliceType;
+
+
+typedef enum {
+    HEVC_OFF = 0,
+    HEVC_ON = 1
+} HEVCFlag;
+
+typedef enum {
+    NON_IRAP = 0,
+    HEVC_CRA = 1,
+    HEVC_IDR = 2,
+    HEVC_BLA = 3
+} HEVCRefreshType;
 
 
 #define AMVEncFrameIO_NONE_FLAG 0x00000000

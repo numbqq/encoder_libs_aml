@@ -32,8 +32,15 @@ extern "C" {
         FRAME_TYPE_IDR,
         FRAME_TYPE_I,
         FRAME_TYPE_P,
-
     } vl_frame_type_t;
+
+    typedef enum vl_error_type_e
+    {
+        ERR_HARDWARE = -4,
+        ERR_OVERFLOW = -3,
+        ERR_NOTSUPPORT = -2,
+        ERR_UNDEFINED = -1,
+    } vl_error_type_e;
 
     /**
      * Getting version information
@@ -51,10 +58,9 @@ extern "C" {
      *@param : frame_rate: framerate
      *@param : bit_rate: bitrate
      *@param : gop GOP: max I frame interval
-     *@param : img_format: image format
      *@return : if success return encoder handle,else return <= 0
      */
-    vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format);
+    vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop);
 
     /**
      * encode video
@@ -64,9 +70,9 @@ extern "C" {
      *@param : in: data to be encoded
      *@param : in_size: data size
      *@param : out: data output,HEVC need header(0x00，0x00，0x00，0x01),and format must be I420(apk set param out，through jni,so modify "out" in the function,don't change address point)
-     *@return ：if success return encoded data length,else return <= 0
+     *@return ：if success return encoded data length,else return error
      */
-    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, int in_size, unsigned char *out, int format);
+    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, unsigned int outputBufferLen, unsigned char *out, int format);
 
     /**
      * destroy encoder

@@ -271,12 +271,15 @@ s32 allocate_common_memory(u32 core_idx) {
             vdi->vpu_buffer_pool[i].vdb = vdb;
             vdi->vpu_buffer_pool_count++;
             vdi->vpu_buffer_pool[i].inuse = 1;
+            VLOG(INFO, "[VDI] allocate_common_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx ~ 0x%lx, size=0x%x",
+                i,vdi->vpu_common_memory.phys_addr,  vdi->vpu_common_memory.virt_addr, vdi->vpu_common_memory.virt_addr + vdi->vpu_common_memory.size,vdi->vpu_common_memory.size);
+
             break;
         }
     }
 
-    VLOG(INFO, "[VDI] vdi_get_common_memory physaddr=0x%lx, size=0x%x, virtaddr=0x%lx",
-                 vdi->vpu_common_memory.phys_addr, vdi->vpu_common_memory.size, vdi->vpu_common_memory.virt_addr);
+    VLOG(INFO, "[VDI] vdi_get_common_memory physaddr=0x%lx, virtaddr=0x%lx,size=0x%x,",
+                 vdi->vpu_common_memory.phys_addr,  vdi->vpu_common_memory.virt_addr, vdi->vpu_common_memory.size);
     return 0;
 }
 
@@ -498,7 +501,6 @@ s32 vdi_clear_memory(u32 core_idx, u32 addr, u32 len) {
                 break;
         }
     }
-
     if (!vdb.size) {
         VLOG(ERR, "address 0x%08x is not mapped address!!!", addr);
         return -1;
@@ -540,7 +542,6 @@ s32 vdi_write_memory(u32 core_idx, u32 addr, u8 *data, u32 len) {
     vpu_buffer_t vdb;
     ulong offset;
     s32 i;
-    VLOG(INFO, "vdi_write_memory in, data %p",data);
 
     if (core_idx >= MAX_NUM_VPU_CORE)
         return -1;
@@ -565,7 +566,6 @@ s32 vdi_write_memory(u32 core_idx, u32 addr, u8 *data, u32 len) {
     }
     offset = addr - (ulong) vdb.phys_addr;
     memcpy((void *) ((ulong) vdb.virt_addr + offset), data, len);
-	VLOG(INFO, "vdi_write_memory out");
     return len;
 }
 
@@ -637,6 +637,8 @@ s32 vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb) {
             vdi->vpu_buffer_pool[i].vdb = vdb;
             vdi->vpu_buffer_pool_count++;
             vdi->vpu_buffer_pool[i].inuse = 1;
+            VLOG(INFO, "[VDI] vdi_allocate_dma_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx~0x%lx, size=0x%x",
+                i,vb->phys_addr, vb->virt_addr, vb->virt_addr + vb->size, vb->size);
             break;
         }
     }

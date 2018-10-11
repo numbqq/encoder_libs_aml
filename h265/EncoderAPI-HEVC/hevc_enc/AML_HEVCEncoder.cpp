@@ -35,13 +35,9 @@
 static int gol_endian = 0xf;
 static int enable_roi = 0;
 static int rotMirMode = 0;
-static int gop_idx = 0;
 static int src_format = 1;
-static int uv_swap = 1;
-
 static int reset_mode = 2;
 static int reset_error = 0;
-static int reset_count = 0;
 
 #define wave420l_align4(a)      ((((a)+3)>>2)<<2)
 #define wave420l_align8(a)      ((((a)+7)>>3)<<3)
@@ -508,7 +504,7 @@ void Wave4BitIssueCommand(Uint32 coreIdx, Uint32 instanceIndex, Uint32 cmd) {
     return;
 }
 
-int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, const u16* code, u32 size, u32 mode) {
+AMVEnc_Status Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, const u16* code, u32 size, u32 mode) {
     u32 regVal;
     vpu_buffer_t vb;
     u32 codeBase;
@@ -516,13 +512,13 @@ int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, con
     u32 remapSize;
     uint32_t timeoutTicks = 0;
 
-	(void)code;
-	(void)size;
+    (void)code;
+    (void)size;
 
     if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
         VLOG(ERR, "Wave4VpuSleepWake timeout");
         reset_error = 1;
-        return -1;
+        return AMVENC_TIMEOUT;
     }
 
     if (iSleepWake == 1)  //saves
@@ -536,7 +532,7 @@ int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, con
         if (vdi_wait_interrupt(0, VPU_BUSY_CHECK_TIMEOUT) == -1) {
             VLOG(ERR, "Wave4VpuSleepWake interrput error time out");
             reset_error = 1;
-            return -1;
+            return AMVENC_TIMEOUT;
         }
 
         regVal = VpuReadReg(coreIdx, W4_RET_SUCCESS);
@@ -544,7 +540,7 @@ int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, con
             uint32_t reasonCode = VpuReadReg(coreIdx, W4_RET_FAIL_REASON);
             VLOG(ERR, "VPU Sleep (W4_RET_SUCCESS) failed(%d) REASON CODE(%08x) ", regVal, reasonCode);
             reset_error = 1;
-            return -2;
+            return AMVENC_HARDWARE;
         }
         VLOG(INFO, "VPU SLEEP Sucess");
     } else //restore
@@ -568,7 +564,7 @@ int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, con
             VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
             VLOG(ERR, "VPU Wake Reset timeout");
             reset_error = 1;
-            return -1;
+            return AMVENC_TIMEOUT;
         }
 
         VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
@@ -626,27 +622,27 @@ int Wave4VpuSleepWake(AMVHEVCEncHandle *Handle, u32 coreIdx, int iSleepWake, con
         if (vdi_wait_interrupt(0, VPU_BUSY_CHECK_TIMEOUT) == -1) {
             VLOG(ERR, "VPU Wake timeout");
             reset_error = 1;
-            return -1;
+            return AMVENC_TIMEOUT;
         }
 
         //if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
         //    VLOG(ERR, "VPU Wake timeout");
         //    reset_error = 1;
-        //    return -3;
+        //    return AMVENC_TIMEOUT;
         //}
         regVal = VpuReadReg(coreIdx, W4_RET_SUCCESS);
         if (regVal == 0) {
             uint32_t reasonCode = VpuReadReg(coreIdx, W4_RET_FAIL_REASON);
             VLOG(ERR, "VPU Wake(W4_RET_SUCCESS) failed(%d) REASON CODE(%08x) ", regVal, reasonCode);
             reset_error = 1;
-            return -1;
+            return AMVENC_HARDWARE;
         }
         VLOG(INFO, "VPU WAKE Sucess");
     }
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuReset(AMVHEVCEncHandle *Handle, Uint32 coreIdx, int resetMode) {
+AMVEnc_Status Wave4VpuReset(AMVHEVCEncHandle *Handle, Uint32 coreIdx, int resetMode) {
     u32 val = 0;
 
     // VPU doesn't send response. Force to set BUSY flag to 0.
@@ -667,7 +663,7 @@ int Wave4VpuReset(AMVHEVCEncHandle *Handle, Uint32 coreIdx, int resetMode) {
         val = W4_RST_BLOCK_ACLK_ALL | W4_RST_BLOCK_BCLK_ALL | W4_RST_BLOCK_CCLK_ALL;
         break;
     default:
-        return -1;
+        return AMVENC_NOT_SUPPORTED;
     }
 
     if (val) {
@@ -676,7 +672,7 @@ int Wave4VpuReset(AMVHEVCEncHandle *Handle, Uint32 coreIdx, int resetMode) {
             VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
             VLOG(INFO, "Wave4VpuReset time out reset");
             reset_error = 1;
-            return -2;
+            return AMVENC_TIMEOUT;
         }
         VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
     }
@@ -684,10 +680,10 @@ int Wave4VpuReset(AMVHEVCEncHandle *Handle, Uint32 coreIdx, int resetMode) {
     if (resetMode == SW_RESET_SAFETY || resetMode == SW_RESET_ON_BOOT) {
         Wave4VpuSleepWake(Handle, coreIdx, 0, NULL, 0, val);
     }
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
+AMVEnc_Status Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
     vpu_buffer_t vb;
     Uint32 codeBase;
     Uint32* codeVaddr;
@@ -707,7 +703,7 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
 
     size = sizeof(bit_code);
     if (size == 0 || size >= codeSize) {
-        return -2;
+        return AMVENC_INVALID_PARAM;
     }
 
     VLOG(INFO, "\nmonet.bin size :%d!!!\n", size);
@@ -741,7 +737,7 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
     if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_RESET_STATUS) == -1) {
         VLOG(ERR, "VPU init(W4_VPU_RESET_REQ) timeout\n");
         VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
-        return -3;
+        return AMVENC_TIMEOUT;
     }
 
     VpuWriteReg(coreIdx, W4_VPU_RESET_REQ, 0);
@@ -807,13 +803,13 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
 
     //if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
     //    VLOG(ERR, "VPU init(W4_VPU_REMAP_CORE_START) timeout\n");
-    //    return -9;
+    //    return AMVENC_TIMEOUT;
     //}
 
     if (vdi_wait_interrupt(coreIdx, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "VPU Wake timeout");
         reset_error = 1;
-        return -1;
+        return AMVENC_TIMEOUT;
     }
 
     regVal = VpuReadReg(coreIdx, W4_VCPU_CUR_PC);
@@ -823,7 +819,7 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
     if (regVal == 0) {
         uint32_t reasonCode = VpuReadReg(coreIdx, W4_RET_FAIL_REASON);
         VLOG(ERR, "VPU init(W4_RET_SUCCESS) failed(%d) REASON CODE(%08x)\n", regVal, reasonCode);
-        return -1;
+        return AMVENC_HARDWARE;
     }
 
     VpuWriteReg(coreIdx, W4_VPU_BUSY_STATUS, 1);
@@ -838,14 +834,14 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
     VLOG(NONE, "W4_VPU_BUSY_STATUS :0x%x\n", regVal);
     if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
         VLOG(ERR, "VPU init(GET_FW_VERSION) timeout\n");
-        return -7;
+        return AMVENC_TIMEOUT;
     }
     regVal = VpuReadReg(coreIdx, W4_RET_SUCCESS);
     VLOG(NONE, "W4_RET_SUCCESS :0x%x\n", regVal);
     if (regVal == 0) {
         uint32_t reasonCode = VpuReadReg(coreIdx, W4_RET_FAIL_REASON);
         VLOG(ERR, "VPU init(GET_FW_VERSION) failed(%d) REASON CODE(%08x)\n", regVal, reasonCode);
-        return -8;
+        return AMVENC_HARDWARE;
     }
 
     regVal = VpuReadReg(coreIdx, W4_RET_PRODUCT_NAME);
@@ -871,20 +867,20 @@ int Wave4VpuInit(AMVHEVCEncHandle *Handle, Uint32 coreIdx) {
 
     if (vdi_wait_vpu_busy(coreIdx, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
         VLOG(ERR, "VPU init(Finish) timeout\n");
-        return -7;
+        return AMVENC_TIMEOUT;
     }
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuCreateInstance(AMVHEVCEncHandle *Handle, int alloc) {
-    int ret = 0;
+AMVEnc_Status Wave4VpuCreateInstance(AMVHEVCEncHandle *Handle, int alloc) {
+    AMVEnc_Status ret = AMVENC_SUCCESS;
     Uint32 temp;
     if (alloc) {
         memset((void*) &Handle->work_vb, 0, sizeof(vpu_buffer_t));
         Handle->work_vb.size = WAVE4ENC_WORKBUF_SIZE;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->work_vb) < 0) {
             VLOG(ERR, "Wave4VpuCreateInstance error alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
     }
 
@@ -916,12 +912,12 @@ int Wave4VpuCreateInstance(AMVHEVCEncHandle *Handle, int alloc) {
         //vdi_free_dma_memory(0, &Handle->work_vb);
         //     memset((void*)&Handle->work_vb, 0, sizeof(vpu_buffer_t));
         VLOG(ERR, "Wave4VpuCreateInstance error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
     //if (vdi_wait_vpu_busy(0, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1) {
     //    vdi_free_dma_memory(0, &vb);
     //    VLOG(ERR, "Wave4VpuCreateInstance error time out\n");
-    //    return -2;
+    //    return AMVENC_TIMEOUT;
     //}
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
@@ -929,7 +925,7 @@ int Wave4VpuCreateInstance(AMVHEVCEncHandle *Handle, int alloc) {
         VLOG(ERR, "Wave4VpuCreateInstance failedREASON CODE(%08x)\n", reasonCode);
         //vdi_free_dma_memory(0, &Handle->work_vb);
         //    memset((void*)&Handle->work_vb, 0, sizeof(vpu_buffer_t));
-        ret = -3;
+        ret = AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
@@ -940,7 +936,7 @@ int Wave4VpuCreateInstance(AMVHEVCEncHandle *Handle, int alloc) {
     return ret;
 }
 
-int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
+AMVEnc_Status Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
     int coreIdx = Handle->instance_id;
     Uint32 use_sec_axi = 0;    // [31:0]
     Uint32 sec_axi_buf_size = 0x00012800;   // 74KB
@@ -953,7 +949,7 @@ int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->temp_vb.size = WAVE420L_TEMP_BUF_SIZE;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->temp_vb) < 0) {
             VLOG(ERR, "Wave4VpuEnCSeqInit  error temp alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
     }
 
@@ -985,7 +981,7 @@ int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->bs_vb.cached = 1;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->bs_vb) < 0) {
             VLOG(ERR, "Wave4VpuEnCSeqInit  error Handle->bs_vb alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
         /*TODO whether should indcude vdi_clear_memory */
         vdi_clear_memory(Handle->instance_id, Handle->bs_vb.phys_addr, Handle->bs_vb.size);
@@ -1009,9 +1005,16 @@ int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SET_PARAM_ENABLE, (unsigned int )0xffffffff);
 
     VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_SRC_SIZE, (wave420l_align8(Handle->enc_height) << 16) | Handle->enc_width);
-    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_PARAM, 0x00020001); //8bit, profile 1
-    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_GOP_PARAM, gop_idx);
-    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_INTRA_PARAM, (Handle->idrPeriod << 16) | 0xf1);
+    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_PARAM, 0x00020001); //8bit, profile 1:main, firmware determines a level, main tier.
+    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_GOP_PARAM, Handle->mGopIdx);
+
+    temp = 0;
+    temp |= Handle->idrPeriod << 16;
+    temp |= 30 << 3;
+    temp |= Handle->mEncParams.refresh_type; //[2:0] refresh type of intra picutre
+    VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_INTRA_PARAM, temp);
+    //VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_INTRA_PARAM, (Handle->idrPeriod << 16) | 0xf1);
+
     if (Handle->enc_height % 8)
         VpuWriteReg(coreIdx, W4_CMD_ENC_SEQ_CONF_WIN_TOP_BOT, (Handle->enc_height % 8) << 16);
     else
@@ -1058,13 +1061,13 @@ int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
     VLOG(NONE, "W4_VPU_BUSY_STATUS :0x%x\n", temp);
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEnCSeqInit error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEnCSeqInit failedREASON CODE(%08x)\n", reasonCode);
-        return -3;
+        return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
@@ -1075,10 +1078,10 @@ int Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
     fb_num = VpuReadReg(Handle->instance_id, W4_RET_ENC_MIN_FB_NUM);
     VLOG(INFO, "Wave4VpuEnCSeqInit, rd:0x%x, wr:0x%x, src:%d, fb:%d\n", rd_ptr, wr_ptr, src_num, fb_num);
     VLOG(INFO, "Wave4VpuEnCSeqInit- End\n");
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuEncSeqSet(AMVHEVCEncHandle *Handle) {
+AMVEnc_Status Wave4VpuEncSeqSet(AMVHEVCEncHandle *Handle) {
     int coreIdx = 0;
     Uint32 addr_report_buf = 0;    // [31:0]
     Uint32 report_buf_size = 0;    // [31:0]
@@ -1151,13 +1154,13 @@ int Wave4VpuEncSeqSet(AMVHEVCEncHandle *Handle) {
     VLOG(INFO, "W4_VPU_BUSY_STATUS :0x%x\n", temp);
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEnCSeqInit error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEnCSeqSet failedREASON CODE(%08x)\n", reasonCode);
-        return -3;
+        return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
@@ -1168,10 +1171,10 @@ int Wave4VpuEncSeqSet(AMVHEVCEncHandle *Handle) {
     fb_num = VpuReadReg(Handle->instance_id, W4_RET_ENC_MIN_FB_NUM);
     VLOG(INFO, "Wave4VpuEnCSeqSet, rd:0x%x, wr:0x%x, src:%d, fb:%d\n", rd_ptr, wr_ptr, src_num, fb_num);
     VLOG(INFO, "Wave4VpuEnCSeqSet- End\n");
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
+AMVEnc_Status Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
     //Uint32 addr_report_buf = 0;    // [31:0]
     //Uint32 report_buf_size = 0;    // [31:0]
     //unsigned char report_endian = 0;    // [ 3:0]
@@ -1258,7 +1261,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
             Handle->src_vb[i].cached = 1;
             if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->src_vb[i]) < 0) {
                 VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->src_vb alloc\n");
-                return -1;
+                return AMVENC_MEMORY_FAIL;
             }
             vdi_clear_memory(Handle->instance_id, Handle->src_vb[i].phys_addr, Handle->src_vb[i].size);
         }
@@ -1274,7 +1277,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
             Handle->fb_vb[i].size = ((Handle->fb_vb[i].size + 4095) & ~4095) + 4096;
             if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->fb_vb[i]) < 0) {
                 VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->fb_vb alloc\n");
-                return -1;
+                return AMVENC_MEMORY_FAIL;
             }
             vdi_clear_memory(Handle->instance_id, Handle->fb_vb[i].phys_addr, Handle->fb_vb[i].size);
         }
@@ -1288,7 +1291,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->fbc_ltable_vb.size = ((size_fbc_luma_offset * fb_num + 4095) & ~4095) + 4096;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->fbc_ltable_vb) < 0) {
             VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->fbc_ltable_vb alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
         vdi_clear_memory(Handle->instance_id, Handle->fbc_ltable_vb.phys_addr, Handle->fbc_ltable_vb.size);
 
@@ -1296,7 +1299,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->fbc_ctable_vb.size = ((size_fbc_chroma_offset * fb_num + 4095) & ~4095) + 4096;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->fbc_ctable_vb) < 0) {
             VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->fbc_ctable_vb alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
         vdi_clear_memory(Handle->instance_id, Handle->fbc_ctable_vb.phys_addr, Handle->fbc_ctable_vb.size);
 
@@ -1304,7 +1307,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->fbc_mv_vb.size = ((size_mv_col * fb_num + 4095) & ~4095) + 4096;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->fbc_mv_vb) < 0) {
             VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->fbc_mv_vb alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
         vdi_clear_memory(Handle->instance_id, Handle->fbc_mv_vb.phys_addr, Handle->fbc_mv_vb.size);
 
@@ -1312,7 +1315,7 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
         Handle->subsample_vb.size = ((size_s2 + 4095) & ~4095) + 4096;
         if (vdi_allocate_dma_memory(Handle->instance_id, &Handle->subsample_vb) < 0) {
             VLOG(ERR, "Wave4VpuEncRegisterFrame  error Handle->subsample_vb alloc\n");
-            return -1;
+            return AMVENC_MEMORY_FAIL;
         }
         vdi_clear_memory(Handle->instance_id, Handle->subsample_vb.phys_addr, Handle->subsample_vb.size);
     }
@@ -1384,13 +1387,13 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
     VLOG(INFO, "W4_VPU_BUSY_STATUS :0x%x\n", temp);
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEncRegisterFrame error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEncRegisterFrame failedREASON CODE(%08x)\n", reasonCode);
-        return -3;
+        return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
@@ -1401,10 +1404,10 @@ int Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
     fb_num = VpuReadReg(Handle->instance_id, W4_RET_ENC_MIN_FB_NUM);
     VLOG(INFO, "Wave4VpuEncRegisterFrame, rd:0x%x, wr:0x%x, src:%d, fb:%d\n", rd_ptr, wr_ptr, src_num, fb_num);
     VLOG(INFO, "Wave4VpuEncRegisterFrame- End\n");
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuEncGetHeader(AMVHEVCEncHandle *Handle, unsigned char *buffer, unsigned int *buf_nal_size) {
+AMVEnc_Status Wave4VpuEncGetHeader(AMVHEVCEncHandle *Handle, unsigned char *buffer, unsigned int *buf_nal_size) {
     //int coreIdx = 0;
     Uint32 addr_report_buf = 0;    // [31:0]
     Uint32 report_buf_size = 0;    // [31:0]
@@ -1459,34 +1462,39 @@ int Wave4VpuEncGetHeader(AMVHEVCEncHandle *Handle, unsigned char *buffer, unsign
     VLOG(INFO, "W4_VPU_BUSY_STATUS :0x%x\n", temp);
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEncGetHeader error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEncGetHeader failedREASON CODE(%08x)\n", reasonCode);
-        return -3;
+        return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
     rd_ptr = VpuReadReg(Handle->instance_id, W4_BS_RD_PTR);
     wr_ptr = VpuReadReg(Handle->instance_id, W4_BS_WR_PTR);
     temp = VpuReadReg(Handle->instance_id, W4_RET_ENC_PIC_BYTE);
+
+    if (temp > Handle->mOutputBufferLen) {
+        VLOG(ERR, "nal size %d bigger than output buffer %d!\n", temp, Handle->mOutputBufferLen);
+        return AMVENC_OVERFLOW;
+    }
     *buf_nal_size = temp;
     vdi_read_memory(Handle->instance_id, rd_ptr, (unsigned char *) buffer, temp);
     VpuWriteReg(Handle->instance_id, W4_BS_RD_PTR, wr_ptr);
     VLOG(INFO, "Wave4VpuEncGetHeader, rd:0x%x, wr:0x%x, ret bytes: %d, buffer size:%d\n", rd_ptr, wr_ptr, temp, wr_ptr - rd_ptr);
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, unsigned char *buffer, unsigned int *buf_nal_size, int *nal_type) {
+AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, unsigned char *buffer, unsigned int *buf_nal_size, int *nal_type) {
     int coreIdx = 0;
     Uint32 addr_report_buf = 0;    // [31:0]
     Uint32 report_buf_size = 0;    // [31:0]
     unsigned char report_endian = 0;    // [ 3:0]
     //Uint32 use_sec_axi = 0;    // [31:0]
     //Uint32 sec_axi_buf_size = 0x00012800;   // 74KB
-    int temp;   // [31:0]
+    Uint32 temp;   // [31:0]
     Uint32 rd_ptr, wr_ptr;
     //Uint32 src_num, fb_num, i, j;   // [31:0]
     Uint32 src_stride;
@@ -1551,7 +1559,7 @@ int Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, unsigned ch
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_U, Handle->src_vb[idx].phys_addr + size_src_luma);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_STRIDE, (src_stride << 16) | src_stride);
-    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((2 + uv_swap) << 0) | (0 << 3) | (gol_endian << 6));
+    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((2 + Handle->mUvSwap) << 0) | (0 << 3) | (gol_endian << 6));
 
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_ADDR, 0);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_INFO, 0);
@@ -1576,14 +1584,14 @@ int Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, unsigned ch
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEncEncPic error time out\n");
         Wave4VpuReset(Handle, coreIdx, reset_mode);
-        return -2;
+        return AMVENC_TIMEOUT;
     }
 
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEncEncPic failedREASON CODE(%08x)\n", reasonCode);
         Wave4VpuReset(Handle, coreIdx, reset_mode);
-        return -3;
+        return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(NONE, "W4_RET_SUCCESS %x\n", temp);
@@ -1591,28 +1599,37 @@ int Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, unsigned ch
     wr_ptr = VpuReadReg(Handle->instance_id, W4_BS_WR_PTR);
     temp = VpuReadReg(Handle->instance_id, W4_RET_ENC_PIC_BYTE);
     VLOG(NONE, "Wave4VpuEncEncPic, rd:0x%x, wr:0x%x, ret bytes: %d, buffer size:%d\n", rd_ptr, wr_ptr, temp, wr_ptr - rd_ptr);
+
+    if (temp > Handle->mOutputBufferLen) {
+        VLOG(ERR, "nal size %d bigger than output buffer %d!\n", temp, Handle->mOutputBufferLen);
+        return AMVENC_OVERFLOW;
+    }
     if (buf_nal_size != NULL)
         *buf_nal_size = temp;
     if (temp && (buffer!= NULL))
-        vdi_read_memory(Handle->instance_id, rd_ptr, (unsigned char *) buffer, temp);
-    else if(buffer == NULL)
+        vdi_read_memory(Handle->instance_id, rd_ptr, (unsigned char *)buffer, temp);
+    else if (buffer == NULL)
         VLOG(INFO, "HEVC flushing input");
     VLOG(INFO, "Wave4VpuEncEncPic %d, ret bytes: %d, buffer size:%d", Handle->enc_counter, temp, wr_ptr - rd_ptr);
     temp = VpuReadReg(Handle->instance_id, W4_RET_ENC_PIC_TYPE);
     if (nal_type != NULL) {
-        if ((temp & 0xff) == 0)
-            *nal_type = AVC_NALTYPE_IDR;
-        else if ((temp & 0xff) == 1)
-            *nal_type =  AVC_NALTYPE_SLICE;
+        if ((temp & 0xff) == I_SLICE) {
+            if (Handle->mNumInputFrames == 1)
+                *nal_type = HEVC_IDR;
+            else
+                *nal_type = Handle->mEncParams.refresh_type;
+        } else if ((temp & 0xff) == P_SLICE || (temp & 0xff) == B_SLICE)
+           *nal_type = NON_IRAP;
     }
 
     VLOG(INFO, "Wave4VpuEncEncPic PIC type: 0x%x", temp);
+
     VpuWriteReg(Handle->instance_id, W4_BS_RD_PTR, wr_ptr);
     VpuWriteReg(Handle->instance_id, W4_RET_ENC_PIC_BYTE, 0);
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
-int Wave4VpuEncFiniSeq(AMVHEVCEncHandle *Handle) {
+AMVEnc_Status Wave4VpuEncFiniSeq(AMVHEVCEncHandle *Handle) {
     Uint32 temp;
     VLOG(0, "Wave4VpuEncFiniSeq enter\n");
     temp = VpuReadReg(Handle->instance_id, W4_ADDR_WORK_BASE);
@@ -1636,63 +1653,60 @@ int Wave4VpuEncFiniSeq(AMVHEVCEncHandle *Handle) {
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         //vdi_free_dma_memory(0, &vb);
         VLOG(ERR, "Wave4VpuEncFiniSeq error time out\n");
-        return -2;
+        return AMVENC_TIMEOUT;
     }
     //if (vdi_wait_vpu_busy(0, VPU_BUSY_CHECK_TIMEOUT, W4_VPU_BUSY_STATUS) == -1)
-    //     return -1;
+    //     return AMVENC_TIMEOUT;
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
     VLOG(INFO, "W4_RET_SUCCESS %x\n", temp);
     VLOG(0, "Wave4VpuEncFiniSeq ret\n");
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEncFiniSeq failedREASON CODE(%08x)\n", reasonCode);
-        return -2;
+        return AMVENC_HARDWARE;
     }
     VLOG(0, "Wave4VpuEncFiniSeq succse\n");
-    return 0;
+    return AMVENC_SUCCESS;
 }
 
 AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *encParam, bool* has_mix, int force_mode) {
-    int ret;
-	(void)has_mix;
-	(void)force_mode;
+    AMVEnc_Status ret;
+    (void)has_mix;
+    (void)force_mode;
 
     Handle->instance_id = 0;
     Handle->src_idx = 0;
     Handle->enc_counter = 0;
     Handle->enc_width = encParam->width;
     Handle->enc_height = encParam->height;
-    if (encParam->idr_period == -1) {
-        Handle->idrPeriod = 0;
-		gop_idx = 1; //all I frame
-    }
-    //else if (encParam->idr_period == 0)
-        //Handle->idrPeriod = -1; //??
-    else
-        Handle->idrPeriod = encParam->idr_period;
-
-	VLOG(INFO, "Handle->idrPeriod: %d\n", Handle->idrPeriod);
     Handle->bitrate = encParam->bitrate;
     Handle->frame_rate = encParam->frame_rate;
-	Handle->mPrependSPSPPSToIDRFrames = false;
+    Handle->mPrependSPSPPSToIDRFrames = false;
+    Handle->mOutputBufferLen = 0;
+    Handle->mUvSwap = 1;
+    Handle->mGopIdx = 0;
+
+    Handle->idrPeriod = encParam->idr_period;
+
+    VLOG(INFO, "Handle->idrPeriod: %d\n", Handle->idrPeriod);
+
     reset_error = 0;
 
-    ret = vdi_init(Handle->instance_id);
-    if (ret < 0)
+    if (vdi_init(Handle->instance_id) < 0)
         return AMVENC_FAIL;
     ret = Wave4VpuInit(Handle, Handle->instance_id);
-    if (ret < 0)
-        return AMVENC_FAIL;
+    if (ret < AMVENC_SUCCESS)
+        return ret;
     ret = Wave4VpuCreateInstance(Handle, 1);
-    if (ret < 0)
-        return AMVENC_FAIL;
+    if (ret < AMVENC_SUCCESS)
+        return ret;
     ret = Wave4VpuEncSeqInit(Handle, 1);
-    if (ret < 0)
-        return AMVENC_FAIL;
-    //if(gop_idx == 0)
+    if (ret < AMVENC_SUCCESS)
+        return ret;
+    //if(Handle->mGopIdx == 0)
     ret = Wave4VpuEncSeqSet(Handle);
-    if (ret < 0)
-        return AMVENC_FAIL;
+    if (ret < AMVENC_SUCCESS)
+        return ret;
     Handle->src_count = VpuReadReg(Handle->instance_id, W4_RET_ENC_MIN_SRC_BUF_NUM);
     VLOG(INFO, "src count:%d\n", Handle->src_count);
     Wave4VpuEncRegisterFrame(Handle, 1);
@@ -1733,12 +1747,12 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
     Handle->op_flag = input->op_flag;
     Handle->fmt = input->fmt;
     if (Handle->fmt != AMVENC_NV12 && Handle->fmt != AMVENC_NV21) {
-		VLOG(INFO, "HEVC only support NV12/NV21, not support %d", Handle->fmt);
-        return AMVENC_FAIL;
+        VLOG(INFO, "HEVC only support NV12/NV21, not support %d", Handle->fmt);
+        return AMVENC_NOT_SUPPORTED;
     }
-	if (Handle->fmt == AMVENC_NV12) {
-		uv_swap = 0;
-	}
+    if (Handle->fmt == AMVENC_NV12) {
+        Handle->mUvSwap = 0;
+    }
 
     if (Handle->bitrate != input->bitrate) {
         Handle->bitrate = input->bitrate;
@@ -1807,27 +1821,30 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
 }
 
 AMVEnc_Status AML_HEVCEncHeader(AMVHEVCEncHandle *Handle, unsigned char *buffer, unsigned int *buf_nal_size, int *nal_type) {
-    int ret;
-	(void)nal_type;
+    AMVEnc_Status ret;
+    (void)nal_type;
     ret = Wave4VpuEncGetHeader(Handle, buffer, buf_nal_size);
-    if (ret < 0)
-        return AMVENC_FAIL;
-    else
-        return AMVENC_SUCCESS;
+    return ret;
 }
 
 AMVEnc_Status AML_HEVCEncNAL(AMVHEVCEncHandle *Handle, unsigned char *buffer, unsigned int *buf_nal_size, int *nal_type) {
     AMVEnc_Status ret = AMVENC_FAIL;
     int end = 0;
+    int reset_count = 0;
 
     if (reset_error)
         return ret;
-    retry: if (Wave4VpuEncEncPic(Handle, Handle->src_idx, end, buffer, buf_nal_size, nal_type) != 0) {
+retry:
+    ret = Wave4VpuEncEncPic(Handle, Handle->src_idx, end, buffer, buf_nal_size, nal_type);
+
+    if (ret != AMVENC_SUCCESS) {
+        if (ret == AMVENC_OVERFLOW)
+            return ret;
         if (reset_mode == 2) {
             Wave4VpuCreateInstance(Handle, 0);
         }
         Wave4VpuEncSeqInit(Handle, 0);
-        if (gop_idx == 0)
+        if (Handle->mGopIdx == 0)
             Wave4VpuEncSeqSet(Handle);
         Handle->src_count = VpuReadReg(Handle->instance_id, W4_RET_ENC_MIN_SRC_BUF_NUM);
         Wave4VpuEncRegisterFrame(Handle, 0);
@@ -1839,7 +1856,6 @@ AMVEnc_Status AML_HEVCEncNAL(AMVHEVCEncHandle *Handle, unsigned char *buffer, un
         //ret = AMVENC_REENCODE_PICTURE;
         //return ret;
     }
-    reset_count = 0;
     Handle->src_idx++;
     Handle->src_idx = Handle->src_idx % Handle->src_count;
     Handle->enc_counter++;

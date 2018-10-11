@@ -49,9 +49,9 @@ typedef struct FrameIOhevc_s {
 } AMVHEVCEncFrameIO;
 
 typedef struct HEVCEncParams_s {
-    /* if profile/level is set to zero, encoder will choose the closest one for you */
-    AVCProfile profile; /* profile of the bitstream to be compliant with*/
-    AVCLevel level; /* level of the bitstream to be compliant with*/
+    HEVCProfile profile; /* profile of the bitstream to be compliant with*/
+    HEVCLevel level; /* level of the bitstream to be compliant with*/
+    HEVCTier tier; /* tier of the bitstream to be compliant with*/
 
     int width; /* width of an input frame in pixel */
     int height; /* height of an input frame in pixel */
@@ -61,15 +61,15 @@ typedef struct HEVCEncParams_s {
 
     uint32 nSliceHeaderSpacing;
 
-    AVCFlag auto_scd; /* scene change detection on or off */
+    HEVCFlag auto_scd; /* scene change detection on or off */
     int idr_period; /* idr frame refresh rate in number of target encoded frame (no concept of actual time).*/
 
-    AVCFlag fullsearch; /* enable full-pel full-search mode */
+    HEVCFlag fullsearch; /* enable full-pel full-search mode */
     int search_range; /* search range for motion vector in (-search_range,+search_range) pixels */
-    //AVCFlag sub_pel;    /* enable sub pel prediction */
-    //AVCFlag submb_pred; /* enable sub MB partition mode */
+    //HEVCFlag sub_pel;    /* enable sub pel prediction */
+    //HEVCFlag submb_pred; /* enable sub MB partition mode */
 
-    AVCFlag rate_control; /* rate control enable, on: RC on, off: constant QP */
+    HEVCFlag rate_control; /* rate control enable, on: RC on, off: constant QP */
     int initQP; /* initial QP */
     uint32 bitrate; /* target encoding bit rate in bits/second */
     uint32 CPB_size; /* coded picture buffer in number of bits */
@@ -81,14 +81,15 @@ typedef struct HEVCEncParams_s {
     uint32 MBsIntraRefresh;
     uint32 MBsIntraOverlap;
 
-    AVCFlag out_of_band_param_set; /* flag to set whether param sets are to be retrieved up front or not */
-    AVCFlag FreeRun;
-    AVCFlag BitrateScale;
+    HEVCFlag out_of_band_param_set; /* flag to set whether param sets are to be retrieved up front or not */
+    HEVCFlag FreeRun;
+    HEVCFlag BitrateScale;
     uint32 dev_id; /* ID to identify the hardware encoder version */
     uint8 encode_once; /* flag to indicate encode once or twice */
 
     uint32 src_width;  /*src buffer width before crop and scale */
     uint32 src_height; /*src buffer height before crop and scale */
+    HEVCRefreshType refresh_type; /*refresh type of intra picture*/
 } AMVHEVCEncParams;
 
 typedef struct {
@@ -153,6 +154,9 @@ typedef struct AMVHEVCEncHandle_s {
     int32_t mNumInputFrames;
     bool mKeyFrameRequested;
     bool mPrependSPSPPSToIDRFrames;
+    uint32 mOutputBufferLen;
+    uint32 mGopIdx;
+    uint32 mUvSwap;
 } AMVHEVCEncHandle;
 
 extern AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *encParam, bool* has_mix, int force_mode);

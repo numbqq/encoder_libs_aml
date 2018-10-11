@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 
 int main(int argc, const char *argv[]){
-    int width, height, gop, framerate, bitrate, num, in_size = 0;
+    int width, height, gop, framerate, bitrate, num;
     int outfd = -1;
     FILE *fp = NULL;
     int datalen = 0;
@@ -81,9 +81,10 @@ int main(int argc, const char *argv[]){
     printf("bitrate is: %d ;\n", bitrate);
     printf("frm_num is: %d ;\n", num);
 
-    unsigned framesize  = width * height * 3 / 2;
-    unsigned char *buffer = (unsigned char *)malloc(512 * 1024 * sizeof(char));
-    unsigned char *input = (unsigned char *)malloc(width * height * 2);
+    unsigned int frameSize  = width * height * 3 / 2;
+    unsigned int outputBufferLen = 512 * 1024 * sizeof(char);
+    unsigned char *inputBuffer = (unsigned char *)malloc(frameSize);
+    unsigned char *outputBuffer = (unsigned char *)malloc(outputBufferLen);
 
     fp = fopen((char *)argv[1], "rb");
     if (fp == NULL)
@@ -97,29 +98,33 @@ int main(int argc, const char *argv[]){
         printf("open dist file error!\n");
         goto exit;
     }
-    handle_enc = vl_video_encoder_init(CODEC_ID_H265, width, height, framerate, bitrate, gop, IMG_FMT_NV21);
+    handle_enc = vl_video_encoder_init(CODEC_ID_H265, width, height, framerate, bitrate, gop);
     while (num > 0) {
-        if (fread(input, 1, framesize, fp) != framesize) {
+        if (fread(inputBuffer, 1, frameSize, fp) != frameSize) {
             printf("read input file error!\n");
-            goto exit;
+            break;
         }
-        memset(buffer, 0, 512 * 1024 * sizeof(char));
-        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, input, in_size, buffer, fmt);
+        memset(outputBuffer, 0, outputBufferLen);
+        datalen = vl_video_encoder_encode(handle_enc, FRAME_TYPE_AUTO, inputBuffer, outputBufferLen, outputBuffer, fmt);
         if (datalen >= 0)
-            write(outfd, (unsigned char *)buffer, datalen);
+            write(outfd, (unsigned char *)outputBuffer, datalen);
+        else {
+            printf("encode error %d! continue ?\n",datalen);
+            //break;
+        }
         num--;
     }
     vl_video_encoder_destory(handle_enc);
     close(outfd);
     fclose(fp);
-    free(buffer);
-    free(input);
+    free(inputBuffer);
+    free(outputBuffer);
     return 0;
 exit:
-    if (input)
-        free(input);
-    if (buffer)
-        free(buffer);
+    if (inputBuffer)
+        free(inputBuffer);
+    if (outputBuffer)
+        free(outputBuffer);
     if (outfd >= 0)
         close(outfd);
     if (fp)

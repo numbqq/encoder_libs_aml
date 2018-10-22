@@ -331,7 +331,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
     src->crop.src_h = 0;
     p->scale_enable = false;
 
-    if ((scale_width) && (scale_height)) {
+    if ((scale_width) && (scale_height) || (fmt == AMVENC_BGR888)) {
         p->scale_enable = true;
         src->crop.crop_top = crop_top;
         src->crop.crop_bottom = crop_bottom;
@@ -362,7 +362,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
         src->mmapsize = pitch * height;
         if ((fmt == AMVENC_NV21) || (fmt == AMVENC_NV12) || (fmt == AMVENC_YUV420))
             src->mmapsize = src->mmapsize * 3 / 2;
-        else if (fmt == AMVENC_RGB888)
+        else if ((fmt == AMVENC_RGB888) || (fmt == AMVENC_BGR888))
             src->mmapsize = src->mmapsize * 3;
         else if (fmt == AMVENC_RGBA8888)
             src->mmapsize = src->mmapsize * 4;
@@ -380,7 +380,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
 
     src->fmt = fmt;
     if (src->type == VMALLOC_BUFFER) {
-        if ((src->fmt != AMVENC_RGB888) && (src->fmt != AMVENC_RGBA8888)) {
+        if ((src->fmt != AMVENC_RGB888) && (src->fmt != AMVENC_RGBA8888) && (src->fmt != AMVENC_BGR888)) {
             if (p->scale_enable) {
                 uint32_t canvas_w = 0;
                 uint32_t canvas_h = src->mb_height << 4;
@@ -392,7 +392,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
             } else {
                 src->framesize = copy_to_local(p, pitch);
             }
-        } else if (p->src.fmt == AMVENC_RGB888) {
+        } else if (p->src.fmt == AMVENC_RGB888 || p->src.fmt == AMVENC_BGR888) {
             src->framesize = RGB_To_RGBCanvas(p, 3);
         } else if (p->src.fmt == AMVENC_RGBA8888) {
             if (p->cbr_hw) {

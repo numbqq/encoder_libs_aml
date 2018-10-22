@@ -168,6 +168,8 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             videoInput.fmt = AMVENC_RGB888;
             videoInput.YCbCr[1] = 0;
             videoInput.YCbCr[2] = 0;
+        } else if (format == 3) {
+            videoInput.fmt = AMVENC_BGR888;
         }
         videoInput.canvas = 0xffffffff;
         videoInput.type = VMALLOC_BUFFER;

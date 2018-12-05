@@ -19,21 +19,27 @@ CFLAGS+=-O2 -std=c99
 endif
 CFLAGS+= -g -static
 # 目标文件
-TARGET = ../libHevcEnc.a
+TARGET = ../../libge2d.a
 LDFLAGS += -lm -lrt
 
-INC = -I./include -I. -I./libge2d
+INC = -I.
 
-../libHevcEnc.a:libvp_hevc_codec.o AML_HEVCEncoder.o vdi.o
+../../libge2d.a:aml_ge2d.o ge2d_port.o ion.o IONmem.o ge2d_feature_test.o
 	$(AR) rcs $@ $^
 
-libvp_hevc_codec.o: libvp_hevc_codec.cpp
+aml_ge2d.o: aml_ge2d.c
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
-AML_HEVCEncoder.o: AML_HEVCEncoder.cpp
+ge2d_port.o: ge2d_port.c
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
-vdi.o: vdi.cpp
+ion.o: ion.c
+	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+
+IONmem.o: IONmem.c
+	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+
+ge2d_feature_test.o: ge2d_feature_test.c
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
 clean:

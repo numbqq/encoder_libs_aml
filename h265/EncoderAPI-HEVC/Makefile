@@ -14,7 +14,7 @@ endif
 
 TARGET=testHevcApi
 AMLENC_LIB=test.o
-LinkIn=libHevcEnc.a
+LinkIn=libHevcEnc.a libge2d.a
 LDFLAGS += -lm -lrt
 ifeq ($(ARM), 1)
 CFLAGS+=-DARM

@@ -160,6 +160,10 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         } else if (format == 1) {
             videoInput.fmt = AMVENC_NV12;
             videoInput.YCbCr[2] = 0;
+        } else if (format == 2) {
+            videoInput.fmt = AMVENC_RGB888;
+            videoInput.YCbCr[1] = 0;
+            videoInput.YCbCr[2] = 0;
         } else {
             videoInput.fmt = AMVENC_YUV420;
             videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);

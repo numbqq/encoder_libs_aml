@@ -50,14 +50,14 @@ static int reset_error = 0;
 #define FIOWrite(CORE, ADDR, DATA)             vdi_fio_write_register(CORE, ADDR, DATA)
 #define FIORead(CORE, ADDR)                        vdi_fio_read_register(CORE, ADDR)
 
-#define SUPPORT_SCALE 0
+#define SUPPORT_SCALE 1
 extern s32 vdi_init(u32 core_idx);
 extern s32 vdi_release(u32 core_idx);
 
 
 #if SUPPORT_SCALE
-#include <ge2d_port.h>
-#include <aml_ge2d.h>
+#include "ge2d_port.h"
+#include "aml_ge2d.h"
 
 extern aml_ge2d_t amlge2d;
 aml_ge2d_info_t ge2dinfo;
@@ -65,6 +65,7 @@ aml_ge2d_info_t ge2dinfo;
 static int SRC1_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
 static int SRC2_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
 static int DST_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
+static bool INIT_GE2D = false;
 
 static GE2DOP OP = AML_GE2D_STRETCHBLIT;
 static int do_strechblit(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncFrameIO *input)
@@ -110,7 +111,7 @@ static void set_ge2dinfo(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncParams *encParam)
     pge2dinfo->src_info[0].canvas_w = encParam->src_width; //SX_SRC1;
     pge2dinfo->src_info[0].canvas_h = encParam->src_height; //SY_SRC1;
     pge2dinfo->src_info[0].format = SRC1_PIXFORMAT;
-    pge2dinfo->src_info[1].memtype = GE2D_CANVAS_ALLOC;
+    pge2dinfo->src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
     pge2dinfo->src_info[1].canvas_w = 0;
     pge2dinfo->src_info[1].canvas_h = 0;
     pge2dinfo->src_info[1].format = SRC2_PIXFORMAT;
@@ -1669,6 +1670,22 @@ AMVEnc_Status Wave4VpuEncFiniSeq(AMVHEVCEncHandle *Handle) {
     return AMVENC_SUCCESS;
 }
 
+AMVEnc_Status ge2d_colorFormat(AMVEncFrameFmt format) {
+    switch (format) {
+        case AMVENC_RGB888:
+            SRC1_PIXFORMAT = PIXEL_FORMAT_RGB_888;
+            SRC2_PIXFORMAT = PIXEL_FORMAT_RGB_888;
+            return AMVENC_SUCCESS;
+        case AMVENC_RGBA8888:
+            SRC1_PIXFORMAT = PIXEL_FORMAT_RGBA_8888;
+            SRC2_PIXFORMAT = PIXEL_FORMAT_RGBA_8888;
+            return AMVENC_SUCCESS;
+        default:
+            VLOG(ERR, "not support color format!");
+            return AMVENC_FAIL;
+    }
+}
+
 AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *encParam, bool* has_mix, int force_mode) {
     AMVEnc_Status ret;
     (void)has_mix;
@@ -1712,8 +1729,8 @@ AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *enc
     Wave4VpuEncRegisterFrame(Handle, 1);
 
 #if SUPPORT_SCALE
-    if ((encParam->width != encParam->src_width) || (encParam->height != encParam->src_height)) {
-        ret = aml_ge2d_init();
+    if ((encParam->width != encParam->src_width) || (encParam->height != encParam->src_height) || true) {
+        int ret = aml_ge2d_init();
         if (ret < 0) {
             VLOG(ERR, "encode open ge2d failed, ret=0x%x", ret);
             return AMVENC_FAIL;
@@ -1727,11 +1744,7 @@ AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *enc
         memset(&(ge2dinfo.dst_info), 0, sizeof(buffer_info_t));
 
         set_ge2dinfo(&ge2dinfo, encParam);
-        ret = aml_ge2d_mem_alloc(&ge2dinfo);
-        if (ret < 0) {
-            VLOG(ERR, "encode ge2di mem alloc failed, ret=0x%x", ret);
-            return AMVENC_FAIL;
-        }
+        INIT_GE2D = true;
     }
 #endif
 
@@ -1746,9 +1759,17 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
 
     Handle->op_flag = input->op_flag;
     Handle->fmt = input->fmt;
-    if (Handle->fmt != AMVENC_NV12 && Handle->fmt != AMVENC_NV21) {
-        VLOG(INFO, "HEVC only support NV12/NV21, not support %d", Handle->fmt);
-        return AMVENC_NOT_SUPPORTED;
+    if (Handle->fmt != AMVENC_NV12 && Handle->fmt != AMVENC_NV21 && Handle->fmt != AMVENC_YUV420) {
+        if (INIT_GE2D) {
+#if SUPPORT_SCALE
+            if (ge2d_colorFormat(Handle->fmt) == AMVENC_SUCCESS) {
+                VLOG(INFO, "The %d of color format that HEVC need ge2d to change!", Handle->fmt);
+            } else
+#endif
+            {
+                return AMVENC_NOT_SUPPORTED;
+            }
+        }
     }
     if (Handle->fmt == AMVENC_NV12) {
         Handle->mUvSwap = 0;
@@ -1764,18 +1785,39 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
     luma_stride = src_stride;
     chroma_stride = src_stride;
 #if SUPPORT_SCALE
-    if ((input->scale_width != 0 && input->scale_height != 0) ||
-            input->crop_left != 0 || input->crop_right != 0 || input->crop_top != 0 || input->crop_bottom != 0) {
+    if ((input->scale_width !=0 && input->scale_height !=0) || input->crop_left != 0 ||
+        input->crop_right != 0 || input->crop_top != 0 || input->crop_bottom != 0 ||
+        (Handle->fmt != AMVENC_NV12 && Handle->fmt != AMVENC_NV21 && Handle->fmt != AMVENC_YUV420)) {
+        if (INIT_GE2D) {
+            INIT_GE2D = false;
+            ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
+            ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            int ret = aml_ge2d_mem_alloc(&ge2dinfo);
+            if (ret < 0) {
+                VLOG(ERR, "encode ge2di mem alloc failed, ret=0x%x", ret);
+                return AMVENC_FAIL;
+            }
+            VLOG(INFO, "ge2d init successful!");
+        }
+
         VLOG(INFO, "HEVC TEST sclale, enc_width:%d enc_height:%d  pitch:%d height:%d, line:%d",
                  Handle->enc_width, Handle->enc_height, input->pitch, input->height, __LINE__);
         if (input->pitch % 32) {
             VLOG(ERR, "HEVC crop and scale must be 32bit aligned");
             return AMVENC_FAIL;
         }
-        memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
-        memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
+        if (Handle->fmt == AMVENC_RGBA8888)
+            memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], 4 * input->pitch * input->height);
+        else if (Handle->fmt == AMVENC_NV12 || Handle->fmt == AMVENC_NV21) {
+            memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
+            memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
+        } else if (Handle->fmt == AMVENC_YUV420) {
+            memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
+            memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
+            memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
+        } else if (Handle->fmt == AMVENC_RGB888)
+            memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height * 3);
         do_strechblit(&ge2dinfo, input);
-
         size_src_luma = luma_stride * wave420l_align32(Handle->enc_height);
         size_src_chroma = luma_stride * (wave420l_align16(Handle->enc_height) / 2);
         y = (char *) Handle->src_vb[Handle->src_idx].virt_addr;

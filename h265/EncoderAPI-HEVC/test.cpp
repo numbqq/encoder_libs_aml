@@ -32,7 +32,7 @@ int main(int argc, const char *argv[]){
         printf("  framerate: framerate \n ");
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
-        printf("  fmt      : encode input fmt 0:nv21, 1:nv12\n ");
+        printf("  fmt      : encode input fmt 0:nv21, 1:nv12, 2:RGB888\n ");
         return -1;
     }
     else
@@ -47,7 +47,7 @@ int main(int argc, const char *argv[]){
         return -1;
     }
     height = atoi(argv[4]);
-    if ((height < 1) || (height > 3840/*1080*/))
+    if ((height < 1) || (height > 2160/*1080*/))
     {
         printf("invalid height \n");
         return -1;
@@ -82,7 +82,10 @@ int main(int argc, const char *argv[]){
     printf("frm_num is: %d ;\n", num);
 
     unsigned int frameSize  = width * height * 3 / 2;
-    unsigned int outputBufferLen = 512 * 1024 * sizeof(char);
+    if (fmt == 2) {
+        frameSize = width * height * 3;
+    }
+    unsigned int outputBufferLen = 1024 * 1024 * sizeof(char);
     unsigned char *inputBuffer = (unsigned char *)malloc(frameSize);
     unsigned char *outputBuffer = (unsigned char *)malloc(outputBufferLen);
 

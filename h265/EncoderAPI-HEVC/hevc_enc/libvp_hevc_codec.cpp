@@ -183,10 +183,10 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             //videoInput.op_flag |= AMVEncFrameIO_FORCE_IDR_FLAG;
         //}
         ret = AML_HEVCSetInput(handle, &videoInput);
+        ++(handle->mNumInputFrames);
 
         VLOG(INFO, "AML_HEVCSetInput ret %d\n", ret);
         if (ret == AMVENC_SUCCESS) {
-            ++(handle->mNumInputFrames);
         } else if (ret < AMVENC_SUCCESS) {
             VLOG(INFO, "encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             if (ret == AMVENC_NOT_SUPPORTED)

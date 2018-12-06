@@ -181,10 +181,9 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             handle->mKeyFrameRequested = false;
         }
         ret = AML_HWSetInput(handle, &videoInput);
+        ++(handle->mNumInputFrames);
         if (ret == AMVENC_SUCCESS || ret == AMVENC_NEW_IDR)
         {
-            ++(handle->mNumInputFrames);
-
             if (ret == AMVENC_NEW_IDR)
             {
                 outPtr = (uint8_t *) out + handle->mSPSPPSDataSize;

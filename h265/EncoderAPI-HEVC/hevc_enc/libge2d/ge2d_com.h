@@ -15,7 +15,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#define __DEBUG
+//#define __DEBUG
 
 #ifdef __DEBUG
 #define D_GE2D(fmt, args...) printf(fmt, ## args)

@@ -31,6 +31,7 @@ int aml_ge2d_mem_alloc(aml_ge2d_info_t *pge2dinfo);
 void aml_ge2d_mem_free(aml_ge2d_info_t *pge2dinfo);
 int aml_ge2d_process(aml_ge2d_info_t *pge2dinfo);
 void aml_ge2d_get_cap(void);
+int  aml_ge2d_invalid_cache(aml_ge2d_info_t *pge2dinfo);
 
 #if defined (__cplusplus)
 }

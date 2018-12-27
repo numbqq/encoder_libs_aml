@@ -78,7 +78,7 @@ int CMEM_init(void)
 }
 
 
-unsigned long CMEM_alloc(size_t size, IONMEM_AllocParams *params)
+unsigned long CMEM_alloc(size_t size, IONMEM_AllocParams *params, bool cache_flag)
 {
     int ret = 0;
     unsigned long PhyAdrr = 0;
@@ -88,8 +88,12 @@ unsigned long CMEM_alloc(size_t size, IONMEM_AllocParams *params)
     if (!validate_init()) {
         return 0;
     }
-
-    ret = ion_alloc(cmem_fd, size, 0, 1<<ION_HEAP_TYPE_DMA, 0, &params->mIonHnd);
+    unsigned flag = 0;
+    if (cache_flag) {
+        flag = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC;
+    }
+    __D("CMEM_alloc, cache=%d, bytes=%d\n", cache_flag, size);
+    ret = ion_alloc(cmem_fd, size, 0, 1<<ION_HEAP_TYPE_CUSTOM, flag, &params->mIonHnd);
     if (ret < 0) {
         ion_close(cmem_fd);
         __E("ion_alloc failed, errno=%d", errno);
@@ -149,6 +153,20 @@ void* CMEM_getUsrPtr(unsigned long PhyAdr, int size)
     return userp;
 }
 #endif
+
+int CMEM_invalid_cache(int shared_fd)
+{
+    if (cmem_fd !=-1 && shared_fd != -1) {
+        if (ion_cache_invalid(cmem_fd, shared_fd)) {
+            __E("CMEM_invalid_cache err!\n");
+            return -1;
+        }
+    } else {
+        __E("CMEM_invalid_cache err!\n");
+        return -1;
+    }
+    return 0;
+}
 
 int CMEM_free(IONMEM_AllocParams *params)
 {

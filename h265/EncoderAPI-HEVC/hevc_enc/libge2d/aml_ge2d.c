@@ -172,7 +172,7 @@ int aml_ge2d_mem_alloc(aml_ge2d_info_t *pge2dinfo)
         }
     }
     if (amlge2d.src_size) {
-        ret = CMEM_alloc(amlge2d.src_size, &cmemParm_src);
+        ret = CMEM_alloc(amlge2d.src_size, &cmemParm_src, false);
         if (ret < 0) {
             E_GE2D("Not enough memory\n");
             CMEM_free(&cmemParm_src);
@@ -190,7 +190,7 @@ int aml_ge2d_mem_alloc(aml_ge2d_info_t *pge2dinfo)
     }
 
     if (amlge2d.src2_size) {
-        ret = CMEM_alloc(amlge2d.src2_size, &cmemParm_src2);
+        ret = CMEM_alloc(amlge2d.src2_size, &cmemParm_src2, false);
         if (ret < 0) {
             E_GE2D("Not enough memory\n");
             CMEM_free(&cmemParm_src2);
@@ -207,7 +207,7 @@ int aml_ge2d_mem_alloc(aml_ge2d_info_t *pge2dinfo)
 
 
     if (amlge2d.dst_size) {
-        ret = CMEM_alloc(amlge2d.dst_size, &cmemParm_dst);
+        ret = CMEM_alloc(amlge2d.dst_size, &cmemParm_dst, true);
         if (ret < 0) {
             E_GE2D("Not enough memory\n");
             goto exit;
@@ -256,4 +256,15 @@ int aml_ge2d_process(aml_ge2d_info_t *pge2dinfo)
         ret = ge2d_process(fd_ge2d,pge2dinfo);
     return ret;
 }
+int  aml_ge2d_invalid_cache(aml_ge2d_info_t *pge2dinfo)
+{
+    if (pge2dinfo && pge2dinfo->dst_info.shared_fd != -1) {
+        CMEM_invalid_cache(pge2dinfo->dst_info.shared_fd);
+    } else {
+        E_GE2D("aml_ge2d_invalid err!\n");
+        return -1;
+    }
+    return 0;
+}
+
 

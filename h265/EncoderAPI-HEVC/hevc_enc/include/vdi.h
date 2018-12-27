@@ -37,8 +37,8 @@ typedef char s8;
 
 enum {
     NONE = 0,
-    INFO,
     DEBUG,
+    INFO,
     WARN,
     ERR,
     TRACE,
@@ -60,7 +60,7 @@ enum {
 #else
 #define VLOG(level, x...) \
     do { \
-        if (level >= 0) { \
+        if (level >= INFO) { \
             printf(x); \
             printf("\n"); \
         } \

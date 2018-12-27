@@ -74,6 +74,7 @@ struct ion_custom_data {
 #define ION_IOC_IMPORT _IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
 #define ION_IOC_SYNC _IOWR(ION_IOC_MAGIC, 7, struct ion_fd_data)
 #define ION_IOC_CUSTOM _IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
+#define ION_IOC_INVALID_CACHE _IOWR(ION_IOC_MAGIC, 9, struct ion_fd_data)
 #endif
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 int ion_open();
@@ -89,3 +90,4 @@ int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask,
                  unsigned int flags, int *handle_fd);
 int ion_import(int fd, int share_fd, ion_user_handle_t *handle);
 int ion_sync_fd(int fd, int handle_fd);
+int ion_cache_invalid(int fd, int handle_fd);

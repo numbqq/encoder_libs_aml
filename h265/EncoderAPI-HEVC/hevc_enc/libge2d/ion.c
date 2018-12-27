@@ -192,3 +192,10 @@ int ion_sync_fd(int fd, int handle_fd)
     };*/
     return ion_ioctl(fd, ION_IOC_SYNC, &data);
 }
+int ion_cache_invalid(int fd, int handle_fd)
+{
+    struct ion_fd_data data;
+    data.fd = handle_fd;
+    return ion_ioctl(fd, ION_IOC_INVALID_CACHE, &data);
+}
+

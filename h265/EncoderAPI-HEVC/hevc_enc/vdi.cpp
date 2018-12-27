@@ -98,7 +98,7 @@ s32 vdi_init(u32 core_idx) {
         goto ERR_VDI_INIT;
     }
 
-    VLOG(INFO, "vdb_register.size:%u vdi->vdb_register.phys_addr:%lu errno:%d",
+    VLOG(DEBUG, "vdb_register.size:%u vdi->vdb_register.phys_addr:%lu errno:%d",
                                 vdi->vdb_register.size, vdi->vdb_register.phys_addr, errno);
     vdi->vdb_register.virt_addr = (ulong) mmap(NULL,
         vdi->vdb_register.size,
@@ -113,7 +113,7 @@ s32 vdi_init(u32 core_idx) {
         goto ERR_VDI_INIT;
     }
 
-    VLOG(INFO, "[VDI] map vdb_register core_idx=%d, virtaddr=0x%lx, size=0x%x",
+    VLOG(DEBUG, "[VDI] map vdb_register core_idx=%d, virtaddr=0x%lx, size=0x%x",
                             core_idx, vdi->vdb_register.virt_addr, vdi->vdb_register.size);
 
     vdi_set_clock_gate(core_idx, 1);
@@ -125,7 +125,7 @@ s32 vdi_init(u32 core_idx) {
 
     vdi->core_idx = core_idx;
     vdi->task_num++;
-    VLOG(INFO, "[VDI] success to init driver");
+    VLOG(DEBUG, "[VDI] success to init driver");
     return 0;
 
     ERR_VDI_INIT: vdi_release(core_idx);
@@ -256,7 +256,7 @@ s32 allocate_common_memory(u32 core_idx) {
         return -1;
     }
 
-    VLOG(INFO, "[VDI] allocate_common_memory, physaddr=0x%lx, virtaddr=0x%lx, size=%d", vdb.phys_addr, vdb.virt_addr, vdb.size);
+    VLOG(DEBUG, "[VDI] allocate_common_memory, physaddr=0x%lx, virtaddr=0x%lx, size=%d", vdb.phys_addr, vdb.virt_addr, vdb.size);
 
     // convert os driver buffer type to vpu buffer type
     vdi->pvip->vpu_common_buffer.size = SIZE_COMMON;
@@ -271,14 +271,14 @@ s32 allocate_common_memory(u32 core_idx) {
             vdi->vpu_buffer_pool[i].vdb = vdb;
             vdi->vpu_buffer_pool_count++;
             vdi->vpu_buffer_pool[i].inuse = 1;
-            VLOG(INFO, "[VDI] allocate_common_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx ~ 0x%lx, size=0x%x",
+            VLOG(DEBUG, "[VDI] allocate_common_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx ~ 0x%lx, size=0x%x",
                 i,vdi->vpu_common_memory.phys_addr,  vdi->vpu_common_memory.virt_addr, vdi->vpu_common_memory.virt_addr + vdi->vpu_common_memory.size,vdi->vpu_common_memory.size);
 
             break;
         }
     }
 
-    VLOG(INFO, "[VDI] vdi_get_common_memory physaddr=0x%lx, virtaddr=0x%lx,size=0x%x,",
+    VLOG(INFO, "[VDI] allocate_common_memory physaddr=0x%lx, virtaddr=0x%lx, size=0x%x",
                  vdi->vpu_common_memory.phys_addr,  vdi->vpu_common_memory.virt_addr, vdi->vpu_common_memory.size);
     return 0;
 }
@@ -311,7 +311,7 @@ vpu_instance_pool_t *vdi_get_instance_pool(u32 core_idx) {
         }
         vdi->instance_pool = vdb;
         vdi->pvip = (vpu_instance_pool_t *) (vdb.virt_addr + (core_idx * sizeof(vpu_instance_pool_t)));
-        VLOG(INFO, "[VDI] instance pool physaddr=0x%lx, virtaddr=0x%lx, base=0x%lx, size=0x%x",
+        VLOG(DEBUG, "[VDI] instance pool physaddr=0x%lx, virtaddr=0x%lx, base=0x%lx, size=0x%x",
                                                           vdb.phys_addr, vdb.virt_addr, vdb.base, vdb.size);
     }
     return (vpu_instance_pool_t *) vdi->pvip;
@@ -637,7 +637,7 @@ s32 vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb) {
             vdi->vpu_buffer_pool[i].vdb = vdb;
             vdi->vpu_buffer_pool_count++;
             vdi->vpu_buffer_pool[i].inuse = 1;
-            VLOG(INFO, "[VDI] vdi_allocate_dma_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx~0x%lx, size=0x%x",
+            VLOG(DEBUG, "[VDI] vdi_allocate_dma_memory->update pool %d, physaddr=0x%lx, virtaddr=0x%lx~0x%lx, size=0x%x",
                 i,vb->phys_addr, vb->virt_addr, vb->virt_addr + vb->size, vb->size);
             break;
         }
@@ -844,7 +844,7 @@ s32 vdi_wait_vpu_busy(u32 core_idx, u32 timeoutMs, u32 addr_bit_busy_flag) {
         }
         usleep(5);
     }
-    VLOG(INFO, "[VDI] vdi_wait_vpu_busy i = %d", i);
+    VLOG(DEBUG, "[VDI] vdi_wait_vpu_busy i = %d", i);
     return 0;
 }
 
@@ -891,7 +891,7 @@ s32 flush_memory(u32 core_idx, vpu_buffer_t *vb) {
             break;
         }
     }
-	VLOG(INFO, "[VDI] flush_memory vdb.size = %d", vdb.size);
+    VLOG(DEBUG, "[VDI] flush_memory vdb.size = %d", vdb.size);
     if (vdb.size > 0)
         ret = ioctl(vdi->vpu_fd, VDI_IOCTL_FLUSH_BUFFER, (void*) &vdb);
     return ret;

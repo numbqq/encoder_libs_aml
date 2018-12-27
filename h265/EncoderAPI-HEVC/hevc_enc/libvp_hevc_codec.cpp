@@ -10,28 +10,6 @@
 #include "include/AML_HEVCEncoder.h"
 #include "include/enc_define.h"
 
-#ifdef LOGCAT
-#define VLOG(level, x...) \
-    do { \
-        if (level == INFO) \
-            ALOGI(x); \
-        else if (level == DEBUG) \
-            ALOGD(x); \
-        else if (level == WARN) \
-            ALOGW(x); \
-        else if (level >= ERR) \
-            ALOGE(x); \
-    }while(0);
-#else
-#define VLOG(level, x...) \
-    do { \
-        if (level >= 0) { \
-            printf(x); \
-            printf("\n"); \
-        } \
-    }while(0);
-#endif
-
 const char version[] = "Amlogic libvp_hevc_codec version 1.0";
 
 const char *vl_get_version() {
@@ -40,14 +18,14 @@ const char *vl_get_version() {
 
 AMVEnc_Status initEncParams(AMVHEVCEncHandle *handle, int width, int height, int frame_rate, int bit_rate, int gop) {
     memset(&(handle->mEncParams), 0, sizeof(AMVHEVCEncParams));
-    VLOG(INFO, "bit_rate:%d", bit_rate);
+    VLOG(DEBUG, "bit_rate:%d", bit_rate);
     if ((width % 16 != 0 || height % 2 != 0)) {
-        VLOG(INFO, "Video frame size %dx%d must be a multiple of 16", width, height);
+        VLOG(DEBUG, "Video frame size %dx%d must be a multiple of 16", width, height);
         //return -1;
     } else if (height % 16 != 0) {
-        VLOG(INFO, "Video frame height is not standard:%d", height);
+        VLOG(DEBUG, "Video frame height is not standard:%d", height);
     } else {
-        VLOG(INFO, "Video frame size is %d x %d", width, height);
+        VLOG(DEBUG, "Video frame size is %d x %d", width, height);
     }
     handle->mEncParams.rate_control = HEVC_OFF;
     handle->mEncParams.initQP = 0;
@@ -78,7 +56,7 @@ AMVEnc_Status initEncParams(AMVHEVCEncHandle *handle, int width, int height, int
     } else {
         handle->mEncParams.idr_period = gop; //period of I frame, 1 means all frames are I type.
     }
-    VLOG(INFO, "mEncParams.idrPeriod: %d, gop %d\n", handle->mEncParams.idr_period, gop);
+    VLOG(DEBUG, "mEncParams.idrPeriod: %d, gop %d\n", handle->mEncParams.idr_period, gop);
     // Set profile and level
     handle->mEncParams.profile = HEVC_MAIN;
     handle->mEncParams.level = HEVC_LEVEL_NONE; // firmware determines a level.
@@ -131,12 +109,12 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             if (handle->mSPSPPSData) {
                 handle->mSPSPPSDataSize = dataLength;
                 memcpy(handle->mSPSPPSData, (unsigned char *)out, handle->mSPSPPSDataSize);
-                VLOG(INFO, "get mSPSPPSData size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
+                VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
             }
             handle->mNumInputFrames = 0;
             handle->mSpsPpsHeaderReceived = true;
         } else {
-            VLOG(INFO, "Encode SPS and PPS error, encoderStatus = %d. handle: %p\n", ret, (void *)handle);
+            VLOG(ERR, "Encode SPS and PPS error, encoderStatus = %d. handle: %p\n", ret, (void *)handle);
             if (ret == AMVENC_OVERFLOW)
                 return ERR_OVERFLOW;
             else
@@ -185,10 +163,10 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         ret = AML_HEVCSetInput(handle, &videoInput);
         ++(handle->mNumInputFrames);
 
-        VLOG(INFO, "AML_HEVCSetInput ret %d\n", ret);
+        VLOG(DEBUG, "AML_HEVCSetInput ret %d\n", ret);
         if (ret == AMVENC_SUCCESS) {
         } else if (ret < AMVENC_SUCCESS) {
-            VLOG(INFO, "encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
+            VLOG(ERR, "encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             if (ret == AMVENC_NOT_SUPPORTED)
                 return ERR_NOTSUPPORT;
             else
@@ -206,7 +184,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
                     memmove(out + handle->mSPSPPSDataSize, out, dataLength);
                     memcpy(out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
                     dataLength += handle->mSPSPPSDataSize;
-                    VLOG(INFO, "copy mSPSPPSData to buffer size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
+                    VLOG(DEBUG, "copy mSPSPPSData to buffer size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
                 }
             }
         } else if ((ret == AMVENC_SKIPPED_PICTURE) || (ret == AMVENC_TIMEOUT)) {
@@ -215,10 +193,10 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
                 handle->mKeyFrameRequested = true;
                 ret = AMVENC_SKIPPED_PICTURE;
             }
-            VLOG(INFO, "ret = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
+            VLOG(DEBUG, "ret = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
         } else if (ret != AMVENC_SUCCESS) {
             dataLength = 0;
-            VLOG(INFO, "encoderStatus = %d at line %d, handle: %p", ret , __LINE__, (void *)handle);
+            VLOG(ERR, "encoderStatus = %d at line %d, handle: %p", ret , __LINE__, (void *)handle);
             if (ret == AMVENC_OVERFLOW)
                 return ERR_OVERFLOW;
             else

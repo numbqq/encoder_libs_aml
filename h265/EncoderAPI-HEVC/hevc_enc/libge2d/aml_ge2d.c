@@ -90,6 +90,19 @@ void aml_ge2d_mem_free(aml_ge2d_info_t *pge2dinfo)
     if (pge2dinfo->dst_info.vaddr)
         munmap(pge2dinfo->dst_info.vaddr, amlge2d.dst_size);
 
+    if (pge2dinfo->src_info[0].shared_fd !=-1) {
+        close(pge2dinfo->src_info[0].shared_fd);
+        pge2dinfo->src_info[0].shared_fd = -1;
+    }
+    if (pge2dinfo->src_info[1].shared_fd !=-1) {
+        close(pge2dinfo->src_info[1].shared_fd);
+        pge2dinfo->src_info[1].shared_fd = -1;
+    }
+    if (pge2dinfo->dst_info.shared_fd !=-1) {
+        close(pge2dinfo->dst_info.shared_fd);
+        pge2dinfo->dst_info.shared_fd = -1;
+    }
+
     D_GE2D("aml_ge2d_mem_free!\n");
 }
 

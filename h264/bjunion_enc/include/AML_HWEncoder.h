@@ -35,11 +35,11 @@ typedef struct FrameIO_s {
     int height;
     uint32 disp_order;
     uint is_reference;
-    uint32 coding_timestamp;
+    uint64_t coding_timestamp;
     uint32 op_flag;
     uint32 canvas;
     uint32 bitrate;
-    float frame_rate;
+    double frame_rate;
     uint32 scale_width;
     uint32 scale_height;
     uint32 crop_left;
@@ -107,15 +107,15 @@ typedef struct {
     uint32 MBsIntraRefresh;
     uint32 MBsIntraOverlap;
 
-    uint32 modTimeRef; /* Reference modTime update every I-Vop*/
-    uint32 wrapModTime; /* Offset to modTime Ref, rarely used */
+    uint64 modTimeRef; /* Reference modTime update every I-Vop*/
+    uint64 wrapModTime; /* Offset to modTime Ref, rarely used */
     uint32 frame_rate; /* frame rate */
     int idrPeriod; /* IDR period in number of frames */
     bool first_frame; /* a flag for the first frame */
     int skip_next_frame;
     int late_frame_count;
-    uint prevProcFrameNum; /* previously processed frame number, could be skipped */
-    uint prevProcFrameNumOffset;
+    uint64 prevProcFrameNum; /* previously processed frame number, could be skipped */
+    uint64 prevProcFrameNumOffset;
     uint32 lastTimeRef;
     bool freerun;
     uint frame_in_gop;
@@ -131,7 +131,7 @@ typedef struct AMVEncHandle_s {
     bool mSpsPpsHeaderReceived;
     uint8_t mSPSPPSDataSize;
     uint8_t *mSPSPPSData;
-    int32_t mNumInputFrames;
+    int64_t mNumInputFrames;
     bool mKeyFrameRequested;
 } AMVEncHandle;
 

@@ -38,16 +38,6 @@
 #define V3_IE_F_ZERO_SAD_I4 (I4MB_WEIGHT_OFFSET + 0x20)
 #define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x10)
 
-#ifdef MAKEANDROID
-#define LOGAPI ALOGE
-#else
-#define LOGAPI(x...) \
-    do { \
-        printf(x); \
-        printf("\n"); \
-    }while(0);
-#endif
-
 static uint32_t qp_tbl_default[] = {
     0x02010001, 0x06050403,
     0x08080707, 0x09090909,

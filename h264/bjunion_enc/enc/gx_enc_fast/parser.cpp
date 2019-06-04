@@ -17,17 +17,6 @@
 #define get_mb_type(addr) *((unsigned char *)(addr+5))
 #define get_mb_CPred(addr) *((unsigned char *)(addr+4))
 
-#ifdef MAKEANDROID
-#define LOGAPI ALOGE
-#else
-#define LOGAPI(x...) \
-    do { \
-        printf(x); \
-        printf("\n"); \
-    }while(0);
-
-#endif
-
 #define get_mb_LPred_I4(addr, mode) \
     mode[0] = *((unsigned char *)(addr+12)) & 0xf; \
     mode[1] = (*((unsigned char *)(addr+12)) >> 4) & 0xf; \

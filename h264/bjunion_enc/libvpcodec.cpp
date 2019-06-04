@@ -9,17 +9,6 @@
 #include "include/AML_HWEncoder.h"
 #include "include/enc_define.h"
 
-#ifdef MAKEANDROID
-#define LOGAPI ALOGE
-#else
-#define LOGAPI(x...) \
-    do { \
-        printf(x); \
-        printf("\n"); \
-    }while(0);
-
-#endif
-
 const char version[] = "Amlogic libvpcodec version 1.0";
 
 const char *vl_get_version()

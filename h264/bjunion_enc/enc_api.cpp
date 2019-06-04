@@ -34,11 +34,6 @@
 
 #define AMVENC_AVC_IOC_MAGIC  'E'
 #define AMVENC_AVC_IOC_GET_DEVINFO              _IOW(AMVENC_AVC_IOC_MAGIC, 0xf0, unsigned int)
-#ifdef MAKEANDROID
-	#define LOGAPI LOGAPI
-#else
-	#define LOGAPI printf
-#endif
 
 const AMVencHWFuncPtr gx_fast_dev = {
     GxInitFastEncode,

@@ -10,6 +10,15 @@
 #define AVC_MIN(x,y) ((x)<(y)? (x):(y))
 #define AVC_MEDIAN(A,B,C) ((A) > (B) ? ((A) < (C) ? (A) : (B) > (C) ? (B) : (C)): (B) < (C) ? (B) : (C) > (A) ? (C) : (A))
 
+#ifdef MAKEANDROID
+	#define LOGAPI ALOGE
+#else
+#if defined(DEBUG)
+	#define LOGAPI(fmt,...) printf(fmt "\n", ##__VA_ARGS__)
+#else
+	#define LOGAPI(fmt,...)
+#endif
+#endif
 //---------------------------------------------------
 // ENCODER_STATUS define
 //---------------------------------------------------

@@ -1,41 +1,52 @@
-# 指令编译器和选项
-ifeq ($(ARM), 1)
-CC=arm-none-linux-gnueabi-g++
-AR=arm-none-linux-gnueabi-ar
-else
-ifeq ($(ARM), 2)
-CC=aarch64-linux-gnu-g++
-AR=aarch64-linux-gnu-ar
-else
-CC=gcc
-AR=ar
+CFLAGS +=-O2 -fPIC
+CFLAGS += -g
+LDFLAGS += -lm -lrt -shared
+LDFLAGS += -lge2d
+
+SUFFIXES += .d
+NODEPS := clean distclean
+
+C_SRCS := $(wildcard *.c) $(wildcard **/*.c)
+C_OBJS := $(C_SRCS:%.c=%.o)
+
+CXX_SRCS := $(wildcard *.cpp) $(wildcard **/*.cpp)
+CXX_OBJS := $(CXX_SRCS:%.cpp=%.o)
+
+DEPFILES := $(patsubst %c,%d,$(C_SRCS))
+DEPFILES += $(patsubst %cpp,%d,$(CXX_SRCS))
+
+
+INC = -I./include -I.
+TARGET = libvphevcodec.so
+
+all: $(TARGET)
+
+ifeq "$(findstring $(MAKECMDGOALS),$(NODEPS))"  ""
+  -include $(DEPFILES)
 endif
-endif
 
-ifeq ($(ARM), 1)
-CFLAGS+=-DARM
-else
-CFLAGS+=-O2 -std=c99
-endif
-CFLAGS+= -g -static
-# 目标文件
-TARGET = ../libHevcEnc.a
-LDFLAGS += -lm -lrt
 
-INC = -I./include -I. -I./libge2d
+$(TARGET): $(C_OBJS) $(CXX_OBJS)
+	@echo " [LINK] $@"
+	$(CXX) $(LDFLAGS) -o $@ $^
 
-../libHevcEnc.a:libvp_hevc_codec.o AML_HEVCEncoder.o vdi.o
-	$(AR) rcs $@ $^
+%.o: %.c
+	@echo " [CXX] $<"
+	@$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
-libvp_hevc_codec.o: libvp_hevc_codec.cpp
-	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+%.o: %.cpp
+	@echo " [CXX] $<"
+	@$(CXX) -c $(CFLAGS) $(INC) $< -o $@
 
-AML_HEVCEncoder.o: AML_HEVCEncoder.cpp
-	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+%.d: %.cpp
+	@echo " [DEP] $<"
+	@$(CXX) $(CFLAGS) -MM -MT "$(patsubst %.cpp,%.o,$<)" $< -MF $@
 
-vdi.o: vdi.cpp
-	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+%.d: %.c
+	@echo " [DEP] $<"
+	@$(CC) $(CFLAGS) -MM -MT "$(patsubst %.c,%.o,$<)" $< -MF $@
 
 clean:
-	-rm -f *.o
-	-rm -f $(TARGET)
+	@rm -f $(DEPFILES)
+	@rm -f $(C_OBJS) $(CXX_OBJS)
+	@rm -f $(TARGET)

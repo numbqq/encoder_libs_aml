@@ -1,12 +1,12 @@
 Compile steps:
-1.cd encoder/bjunion_enc, make ARM=1
-2.cd encoder, make ARM=1
+1.cd encoder/bjunion_enc, CXX=aarch64-linux-gnu-g++ make
+2.cd encoder, CXX=aarch64-linux-gnu-g++ make
 
 The above two steps will compile and generate executable file testApi.
 
 Test steps:
 1.copy testApi to /data/
-2.chmod 777 /data/testApi
+2.chmod +x /data/testApi
 3.copy 640x480-nv21.yuv  to /data/
 4./data/testApi  /data/640x480-nv21.yuv  /data/output.h264 640 480 10 30 2000000 20 0
 

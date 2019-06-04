@@ -12,16 +12,6 @@
 #include "gxvenclib_fast.h"
 #include "rate_control_gx_fast.h"
 //#include <cutils/properties.h>
-#ifdef MAKEANDROID
-#define LOGAPI ALOGE
-#else
-#define LOGAPI(x...) \
-    do { \
-        printf(x); \
-        printf("\n"); \
-    }while(0);
-
-#endif
 
 #define IDR_SCALER_RATIO 4
 

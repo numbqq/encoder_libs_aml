@@ -1162,7 +1162,7 @@ int invidate_memory(u32 core_idx, vpu_buffer_t *vb)
     return ret;
 }
 
-int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t info)
+int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info)
 {
     int ret;
     vdi_info_t *vdi;
@@ -1174,12 +1174,12 @@ int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t info)
     if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_CONFIG_DMA, (void*)&info);
+    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_CONFIG_DMA, (void*)info);
 
     return ret;
 }
 
-int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t info)
+int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t *info)
 {
     int ret;
     vdi_info_t *vdi;
@@ -1191,7 +1191,7 @@ int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t info)
     if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_UNMAP_DMA, (void*)&info);
+    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_UNMAP_DMA, (void*)info);
 
     return ret;
 }

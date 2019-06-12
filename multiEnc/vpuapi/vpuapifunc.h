@@ -321,7 +321,9 @@ typedef struct {
 
     Int32   errorReasonCode;
     Uint64          curPTS;             /**! Current timestamp in 90KHz */
-    Uint64          ptsMap[32];         /**! PTS mapped with source frame index */
+    Uint64          ptsMap[MAX_SRC_FRAME]; /**! PTS mapped with source frame index */
+    FrameBuffer     srcBufMap[MAX_SRC_FRAME]; /**! source frame index map */
+    Uint32          srcBufUseIndex[MAX_SRC_FRAME]; /**! flag the occupied src buf */
     Uint32          instanceQueueCount;
     Uint32          totalQueueCount;
     Uint32          encWrPtrSel;

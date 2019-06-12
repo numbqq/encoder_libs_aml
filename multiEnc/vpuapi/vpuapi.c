@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "vdi_osal.h"
 #include "vpuapi.h"
+#include "chagall.h"
 
 
 
@@ -189,9 +190,15 @@ RetCode VPU_Init(Uint32 coreIdx)
 
     if (coreIdx >= MAX_NUM_VPU_CORE)
         return RETCODE_INVALID_PARAM;
-
+#if 0
     if (s_bitCodeSize[coreIdx] == 0)
         return RETCODE_NOT_FOUND_BITCODE_PATH;
+#else
+    if (s_bitCodeSize[coreIdx] == 0) {
+        s_bitCodeSize[coreIdx] = (sizeof(bit_code) + 1)/2;
+        s_pusBitCode[coreIdx] = bit_code;
+    }
+#endif
 
     return InitializeVPU(coreIdx, s_pusBitCode[coreIdx], s_bitCodeSize[coreIdx]);
 }
@@ -221,7 +228,7 @@ RetCode VPU_DeInit(Uint32 coreIdx)
         return RETCODE_INVALID_PARAM;
 
     EnterLock(coreIdx);
-    if (s_pusBitCode[coreIdx]) {
+    if (s_pusBitCode[coreIdx] && s_pusBitCode[coreIdx] != bit_code) {
         osal_free((void *)s_pusBitCode[coreIdx]);
     }
 
@@ -808,6 +815,7 @@ RetCode VPU_EncStartOneFrame(
     RetCode             ret;
     VpuAttr*            pAttr   = NULL;
     vpu_instance_pool_t* vip;
+    FrameBuffer*        pSrcFrame;
 
     ret = CheckEncInstanceValidity(handle);
     if (ret != RETCODE_SUCCESS)
@@ -824,6 +832,36 @@ RetCode VPU_EncStartOneFrame(
         return RETCODE_WRONG_CALL_SEQUENCE;
     }
 
+    if (param->srcIdx >= MAX_SRC_FRAME) {
+        VLOG(ERR,"source frame index over range index %d \n", param->srcIdx);
+        return RETCODE_INVALID_PARAM;
+    }
+    if (pEncInfo->srcBufUseIndex[param->srcIdx] == 1
+        && param->srcEndFlag == 0) {
+        VLOG(ERR,"source frame was already in encoding index %d \n",
+                param->srcIdx);
+        return RETCODE_INVALID_PARAM;
+    }
+    pSrcFrame = param -> sourceFrame;
+    if (pSrcFrame && pSrcFrame->dma_buf_planes) { // use dma_buf
+        vpu_dma_buf_info_t dma_info;
+        int i;
+        if (pSrcFrame->dma_buf_planes > 2)
+            return RETCODE_INVALID_FRAME_BUFFER;
+        osal_memset(&dma_info, 0x00, sizeof(vpu_dma_buf_info_t));
+        dma_info.num_planes = pSrcFrame->dma_buf_planes;
+        for (i = 0; i < pSrcFrame->dma_buf_planes; i ++)
+                dma_info.fd[i] = pSrcFrame->dma_shared_fd[i];
+
+        if (vdi_config_dma(pCodecInst->coreIdx, &dma_info) !=0)
+                return RETCODE_INVALID_FRAME_BUFFER;
+        pSrcFrame -> bufY = dma_info.phys_addr[0];
+        if (dma_info.num_planes >1 )
+                pSrcFrame -> bufCb = dma_info.phys_addr[1];
+        if (dma_info.num_planes > 2)
+               pSrcFrame -> bufCr = dma_info.phys_addr[2];
+    }
+
     ret = CheckEncParam(handle, param);
     if (ret != RETCODE_SUCCESS) {
         return ret;
@@ -834,6 +872,10 @@ RetCode VPU_EncStartOneFrame(
     EnterLock(pCodecInst->coreIdx);
 
     pEncInfo->ptsMap[param->srcIdx] = (pEncInfo->openParam.enablePTS == TRUE) ? GetTimestamp(handle) : param->pts;
+
+    /* record the used source frame */
+    pEncInfo->srcBufUseIndex[param->srcIdx] = 1;
+    pEncInfo->srcBufMap[param->srcIdx] = *pSrcFrame;
 
     if (GetPendingInst(pCodecInst->coreIdx)) {
         LeaveLock(pCodecInst->coreIdx);
@@ -862,6 +904,7 @@ RetCode VPU_EncGetOutputInfo(
     EncInfo*    pEncInfo;
     RetCode     ret;
     VpuAttr*    pAttr;
+    FrameBuffer*  pSrcFrame = NULL;
 
     ret = CheckEncInstanceValidity(handle);
     if (ret != RETCODE_SUCCESS) {
@@ -891,7 +934,19 @@ RetCode VPU_EncGetOutputInfo(
 
     if (ret == RETCODE_SUCCESS) {
         if (info->encSrcIdx >= 0 && info->reconFrameIndex >= 0 )
+        {
+
             info->pts = pEncInfo->ptsMap[info->encSrcIdx];
+             /* return the used soure frame */
+            if (pEncInfo->srcBufUseIndex[info->encSrcIdx] == 1) {
+                pSrcFrame = &(pEncInfo->srcBufMap[info->encSrcIdx]);
+                info -> encSrcFrame = *pSrcFrame;
+                pEncInfo->srcBufUseIndex[info->encSrcIdx] = 0;
+             } else
+               VLOG(ERR, "Soure Frame already retired index= %d use %d\n",
+                        info->encSrcIdx,
+                        pEncInfo->srcBufUseIndex[info->encSrcIdx]);
+        }
     }
     else {
         info->pts = 0LL;
@@ -899,6 +954,25 @@ RetCode VPU_EncGetOutputInfo(
 
     SetPendingInst(pCodecInst->coreIdx, 0);
     LeaveLock(pCodecInst->coreIdx);
+
+    /*unmap the dma buf if it has retired*/
+    if (pSrcFrame && pSrcFrame->dma_buf_planes) { // use dma_buf
+        vpu_dma_buf_info_t dma_info;
+        int i;
+        osal_memset(&dma_info, 0x00, sizeof(vpu_dma_buf_info_t));
+        dma_info.num_planes = pSrcFrame->dma_buf_planes;
+        for (i = 0; i < pSrcFrame->dma_buf_planes; i ++)
+                dma_info.fd[i] = pSrcFrame->dma_shared_fd[i];
+        dma_info.phys_addr[0] = pSrcFrame -> bufY;
+        if (dma_info.num_planes > 1)
+            dma_info.phys_addr[1]= pSrcFrame -> bufCb;
+        if (dma_info.num_planes > 2)
+            dma_info.phys_addr[2] = pSrcFrame -> bufCr;
+        if (vdi_unmap_dma(pCodecInst->coreIdx, &dma_info) !=0) {
+            VLOG(ERR,"Failed to de-reference DMA buffer \n");
+            ret = RETCODE_FAILURE;
+        }
+    }
 
     return ret;
 }
@@ -1324,9 +1398,9 @@ RetCode VPU_EncAllocateFrameBuffer(EncHandle handle, FrameBufferAllocInfo info, 
     else if (info.type == FB_TYPE_CODEC) {
         gdiIndex = 0;
         pEncInfo->frameAllocExt = frameBuffer[0].updateFbInfo;
-        ret = ProductVpuAllocateFramebuffer(
-            pCodecInst, frameBuffer, (TiledMapType)info.mapType, (Int32)info.num, 
-            info.stride, info.height, info.format, info.cbcrInterleave, FALSE, info.endian, &pEncInfo->vbFrame, gdiIndex, (FramebufferAllocType)info.type);
+        ret = ProductVpuAllocateFramebuffer(pCodecInst, frameBuffer, (TiledMapType)info.mapType, (Int32)info.num,
+                                            info.stride, info.height, info.format, info.cbcrInterleave, FALSE,
+                                            info.endian, &pEncInfo->vbFrame, gdiIndex, (FramebufferAllocType)info.type);
     }
     else {
         ret = RETCODE_INVALID_PARAM;

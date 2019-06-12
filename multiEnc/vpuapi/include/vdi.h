@@ -223,8 +223,8 @@ extern "C" {
     int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb);
     int flush_memory(u32 core_idx, vpu_buffer_t *vb);
     int invidate_memory(u32 core_idx, vpu_buffer_t *vb);
-    int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t info);
-    int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t info);
+    int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info);
+    int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t *info);
 
     int vdi_wait_interrupt(u32 coreIdx, u32 instIdx, int timeout);
 

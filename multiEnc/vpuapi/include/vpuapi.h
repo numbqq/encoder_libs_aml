@@ -22,6 +22,7 @@
 
 #define MAX_GDI_IDX                             31
 #define MAX_REG_FRAME                           MAX_GDI_IDX*2 // 2 for WTL
+#define MAX_SRC_FRAME                           32
 
 #define WAVE5_ENC_FBC50_LUMA_TABLE_SIZE(_w, _h)     (VPU_ALIGN2048(VPU_ALIGN32(_w))*VPU_ALIGN4(_h)/64)
 #define WAVE5_ENC_FBC50_CHROMA_TABLE_SIZE(_w, _h)   (VPU_ALIGN2048(VPU_ALIGN32(_w)/2)*VPU_ALIGN4(_h)/128)
@@ -1396,6 +1397,8 @@ It enables source frame data with long burst length to be loaded for reducing DM
     int sequenceNo;     /**< A sequence number that the frame belongs to. It increases by 1 every time a sequence changes in decoder.  */    
 
     BOOL updateFbInfo; /**< If this is TRUE, VPU updates API-internal framebuffer information when any of the information is changed. */
+    int dma_buf_planes; /* buffer use dma_buf instead of no zero 1-2 */
+    int dma_shared_fd[3]; /* file handle for dma buf planes */
 } FrameBuffer;
 
 /**
@@ -4191,6 +4194,7 @@ identical with the specified picture stream buffer address by HOST.
     int frameCycle;         /**<  The parameter for reporting the cycle number of encoding one frame.*/
 
     Uint64 pts;             /**< The PTS(Presentation Timestamp) of the encoded picture which is retrieved and managed from VPU API */
+    FrameBuffer encSrcFrame;/*< the encoded (retired) source frame buffer information, use together with encSrcIdx field */
     Uint32   cyclePerTick;
 
     Uint32   encHostCmdTick;    

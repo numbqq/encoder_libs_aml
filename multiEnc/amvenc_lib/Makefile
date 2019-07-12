@@ -4,11 +4,6 @@
 #--------------------------------------
 .PHONY: CREATE_DIR clean all
 
-CROSS_CC_PREFIX = 
-
-ifeq ($(ARM), 0)
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-endif
 CROSS_CC_PREFIX = aarch64-linux-gnu-
 
 CC  = $(CROSS_CC_PREFIX)gcc
@@ -16,12 +11,7 @@ CXX = $(CROSS_CC_PREFIX)g++
 LINKER=$(CC)
 AR  = $(CROSS_CC_PREFIX)ar
 
-ifeq ($(ARM), 0)
 CFLAGS += -O2 -std=c99
-else
-CFLAGS += -DARM
-endif
-
 CFLAGS+= -fPIC -g
 
 LDFLAGS =
@@ -30,20 +20,21 @@ LDFLAGS =
 #CLFAGS += -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning
 #CLFAGS += -Wall -Werror
 
-INC = -I./include -I./wave -I.
+INC = -I./include -I. -I../vpuapi/include -I../vpuapi -I../test_sample/helper/
 
 
 CFLAGS  +=  $(INC) $(DEFINES) $(PLATFORM_FLAGS)
 ARFLAGS += rcs
+TARGET = libvpcodec.so
 
-TARGET = libamvenc_api.so
-LDLIBS += -lm -lrt
+LDLIBS += -lm -lrt 
 # pthread 
 LDLIBS += -lpthread 
+LIB=libamvenc_api.so
+
+
 LDFLAGS += -shared
 
-INC = -I. -I./include -I./wave 
-	
 OBJDIR=obj
 ALLOBJS=*.o
 ALLDEPS=*.dep
@@ -51,20 +42,11 @@ ALLLIBS=*.a
 RM=rm -f
 MKDIR=mkdir -p
 
-SOURCES = product.c \
-		  vdi.c \
-		  vdi_osal.c \
-          vpuapifunc.c \
-          vpuapi.c \
-          wave/wave5.c \
-		  debug.c
-
-VPATH = .:
-VPATH += wave
+SOURCES = libvpmulti_codec.c  \
+		  AML_MultiEncoder.c \
 
 OBJECTNAMES=$(patsubst %.c,%.o, $(SOURCES))
 OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
-
 
 $(info $$(OBJECTNAMES) is [${OBJECTNAMES}])
 
@@ -72,10 +54,8 @@ $(info $$(OBJECTPATHS) is [${OBJECTPATHS}])
 
 
 all: CREATE_DIR $(OBJECTPATHS)
-	$(LINKER) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
-	-cp $(TARGET) ../test_sample
-	-cp $(TARGET) ../amvenc_test
-	-cp $(TARGET) ../amvenc_lib
+	$(LINKER) -o $(TARGET) $(LDFLAGS) $(LIB) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
+	-cp libvpcodec.so ../amvenc_test
 
 -include $(OBJECTPATHS:.o=.dep)
 
@@ -83,10 +63,11 @@ clean:
 	$(RM) $(TARGET)
 	$(RM) $(OBJDIR)/$(ALLOBJS)
 	$(RM) $(OBJDIR)/$(ALLDEPS)
+	$(RM) *.o
+	$(RM) *.so
 
 CREATE_DIR:
 	-mkdir -p $(OBJDIR)
 
 obj/%.o: %.c
 	$(CC) $(CFLAGS) -Wall -c $< -o $@ -MD -MF $(@:.o=.dep)
-

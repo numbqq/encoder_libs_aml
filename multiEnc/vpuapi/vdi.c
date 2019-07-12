@@ -717,7 +717,7 @@ unsigned int vdi_fio_read_register(u32 core_idx, unsigned int addr)
 void vdi_fio_write_register(u32 core_idx, unsigned int addr, unsigned int data)
 {
     unsigned int ctrl;
-    
+
     vdi_write_register(core_idx, W5_VPU_FIO_DATA, data);
     ctrl  = (addr&0xffff);
     ctrl |= (1<<16);    /* write operation */
@@ -1110,7 +1110,7 @@ int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb)
     return 0;
 }
 
-int flush_memory(u32 core_idx, vpu_buffer_t* vb)
+int vdi_flush_memory(u32 core_idx, vpu_buffer_t* vb)
 {
     vdi_info_t* vdi;
     int i, ret = -1;
@@ -1136,7 +1136,7 @@ int flush_memory(u32 core_idx, vpu_buffer_t* vb)
     return ret;
 }
 
-int invidate_memory(u32 core_idx, vpu_buffer_t *vb)
+int vdi_invidate_memory(u32 core_idx, vpu_buffer_t *vb)
 {
     vdi_info_t* vdi;
     int i, ret = -1;
@@ -1487,7 +1487,7 @@ void word_swap(unsigned char* data, int len)
 {
     Uint16  temp;
     Uint16* ptr = (Uint16*)data;
-    Int32   i, size = len/(int)sizeof(Uint16);
+    Int32   i, size = (len + (int)sizeof(Uint16) -1)/(int)sizeof(Uint16);
 
     for (i=0; i<size; i+=2) {
         temp      = ptr[i];
@@ -1500,7 +1500,7 @@ void dword_swap(unsigned char* data, int len)
 {
     Uint32  temp;
     Uint32* ptr = (Uint32*)data;
-    Int32   i, size = len/(int)sizeof(Uint32);
+    Int32   i, size = (len + (int)sizeof(Uint32) -1)/(int)sizeof(Uint32);
 
     for (i=0; i<size; i+=2) {
         temp      = ptr[i];
@@ -1513,7 +1513,7 @@ void lword_swap(unsigned char* data, int len)
 {
     Uint64  temp;
     Uint64* ptr = (Uint64*)data;
-    Int32   i, size = len/(int)sizeof(Uint64);
+    Int32   i, size = (len + (int)sizeof(Uint64) -1)/(int)sizeof(Uint64);
 
     for (i=0; i<size; i+=2) {
         temp      = ptr[i];

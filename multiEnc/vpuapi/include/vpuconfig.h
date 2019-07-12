@@ -18,7 +18,7 @@
 #define _VPU_CONFIG_H_
 
 #define ENC_STREAM_BUF_SIZE  0xF00000
-#define ENC_STREAM_BUF_COUNT 5
+#define ENC_STREAM_BUF_COUNT 4
 
 
 #define BODA950_CODE                    0x9500

@@ -540,7 +540,7 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
         encWrPtrSel = (intStatus==ENC_INT_STATUS_FULL) ? GET_ENC_BSBUF_FULL_WRPTR : GET_ENC_LOW_LATENCY_WRPTR;
         VPU_EncGiveCommand(ctx->handle, ENC_WRPTR_SEL, &encWrPtrSel);
         VPU_EncGetBitstreamBuffer(ctx->handle, &paRdPtr, &paWrPtr, &size);
-        VLOG(TRACE, "<%s:%d> INT_BSBUF_FULL %p, %p\n", __FUNCTION__, __LINE__, paRdPtr, paWrPtr);
+        VLOG(TRACE, "<%s:%d> INT_BSBUF_FULL %0x, %0x\n", __FUNCTION__, __LINE__, paRdPtr, paWrPtr);
 
         lsnpFull.handle = ctx->handle;
         lsnpFull.rdPtr  = paRdPtr;
@@ -550,7 +550,7 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
 
         if ( out ) {
             if (FindEsBuffer(ctx, paRdPtr, &out->buf) == FALSE) {
-                VLOG(ERR, "%s:%d Failed to find buffer(%p)\n", __FUNCTION__, __LINE__, paRdPtr);
+                VLOG(ERR, "%s:%d Failed to find buffer(%0x)\n", __FUNCTION__, __LINE__, paRdPtr);
                 return FALSE;
             }
             out->size  = size;
@@ -611,7 +611,7 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
 
     if ( out ) {
         if (FindEsBuffer(ctx, encOutputInfo.bitstreamBuffer, &out->buf) == FALSE) {
-            VLOG(ERR, "%s:%d Failed to find buffer(%p)\n", __FUNCTION__, __LINE__, encOutputInfo.bitstreamBuffer);
+            VLOG(ERR, "%s:%d Failed to find buffer(%0x)\n", __FUNCTION__, __LINE__, encOutputInfo.bitstreamBuffer);
             return FALSE;
         }
         out->size  = encOutputInfo.bitstreamSize;
@@ -695,7 +695,6 @@ static BOOL OpenEncoder(ComponentImpl* com)
         CNMAppStop();
         return FALSE;
     }
-    //VPU_EncGiveCommand(ctx->handle, ENABLE_LOGGING, 0);
     lspn.handle = ctx->handle;
     ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_OPEN, (void*)&lspn);
 

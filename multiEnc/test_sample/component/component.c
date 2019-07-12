@@ -32,7 +32,7 @@
 #ifdef PLATFORM_NON_OS
 BOOL supportThread = FALSE;
 #else
-BOOL supportThread = TRUE;
+BOOL supportThread = FALSE;
 #endif
 
 #define DEFAULT_NO_RESPONSE_TIMEOUT     720          // in second

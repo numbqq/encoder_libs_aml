@@ -3317,6 +3317,8 @@ RetCode Wave5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam
 
     VpuWriteReg(coreIdx, W5_BS_OPTION, (pEncInfo->lineBufIntEn<<6) | bsEndian);
 
+    VpuWriteReg(coreIdx, W5_CMD_ENC_PIC_SRC_AXI_SEL, DEFAULT_SRC_AXI);
+
     /* Secondary AXI */
     VpuWriteReg(coreIdx, W5_CMD_ENC_PIC_USE_SEC_AXI,  (pEncInfo->secAxiInfo.u.wave.useEncImdEnable<<9)    |
                                                       (pEncInfo->secAxiInfo.u.wave.useEncRdoEnable<<11)   |

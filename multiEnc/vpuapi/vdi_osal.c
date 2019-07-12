@@ -197,10 +197,36 @@ int osal_flush_ch(void)
 	return 1;
 }
 
+#if 0
 void * osal_memcpy(void * dst, const void * src, int count)
 {
 	return memcpy(dst, src, count);//lint !e670
 }
+#endif
+
+
+void * osal_memcpy(void * dst, const void * src, int count)
+{
+    //VLOG(ERR, "In osal_memcpy");
+    #if 1
+    char *temp1 = dst;
+    char *temp2 = src;
+    int len;
+        //VLOG(DEBUG, "in osal_memcpy");
+    for (len = 0; len < count; len++) {
+        *temp1++ = *temp2++;
+	   // memcpy(dst+, src+len, 1);//lint !e670
+    }
+    //VLOG(ERR, "Out osal_memcpy");
+
+    return dst;
+
+    #endif
+
+
+    //return memcpy(dst, src, count);//lint !e670
+}
+
 
 int osal_memcmp(const void* src, const void* dst, int size)
 {

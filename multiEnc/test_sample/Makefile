@@ -31,7 +31,6 @@ else
 PLATFORM    = nativelinux_64bit
 endif
 
-CROSS_CC_PREFIX = 
 #VDI_C           = vdi/linux/vdi.c
 #VDI_OSAL_C      = vdi/linux/vdi_osal.c
 MM_C            = 
@@ -55,6 +54,8 @@ ifeq ("$(BUILD_CONFIGURATION)", "EmbeddedLinux")
     CROSS_CC_PREFIX = arm-linux-gnueabihf-
     PLATFORM        = armlinux
 endif
+
+CROSS_CC_PREFIX = aarch64-linux-gnu-
 
 CC  = $(CROSS_CC_PREFIX)gcc
 CXX = $(CROSS_CC_PREFIX)g++
@@ -160,7 +161,7 @@ VPATH += helper/comparator:
 VPATH += helper/display:helper/misc:helper/yuv:component:
 #VPATH += vdi:
 #VPATH += $(VDI_VPATH):vpuapi:vpuapi/coda9:vpuapi/wave
-LDLIBS  += ../libamvenc_api.so
+LDLIBS  += libamvenc_api.so
 
 OBJECTNAMES=$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES)))
 OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))

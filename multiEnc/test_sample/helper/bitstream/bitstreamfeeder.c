@@ -273,7 +273,7 @@ Uint32 BitstreamFeeder_Act(
                 leftSize  = (wrPtr+feedingSize) - endAddr;
                 if (rightSize > 0) {
                     VpuWriteMem(bsf->coreIdx, wrPtr, (unsigned char*)chunk.data, rightSize, (int)endian);
-                    VLOG(TRACE, "<%s:%d> WRPTR: %p SIZE: %x\n", __FUNCTION__, __LINE__, wrPtr, rightSize);
+                    VLOG(TRACE, "<%s:%d> WRPTR: %0x SIZE: %x\n", __FUNCTION__, __LINE__, wrPtr, rightSize);
                 }
                 wrPtr = base;
             }

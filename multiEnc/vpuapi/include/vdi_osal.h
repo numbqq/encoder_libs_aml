@@ -71,6 +71,7 @@ enum {
             ALOGE(x); \
     }while(0)
 #else
+#if 0
 #define VLOG(level, x...) \
     do { \
         if (level >= INFO) { \
@@ -79,6 +80,18 @@ enum {
         } \
     }while(0)
 #endif
+#endif
+
+#if 1
+#define VLOG(level, x...) \
+    do { \
+        if (1) { \
+            printf(x); \
+            printf("\n"); \
+        } \
+    }while(0)
+#endif
+
 
 #define MAX_PRINT_LENGTH 512
 

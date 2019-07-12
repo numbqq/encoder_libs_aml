@@ -763,7 +763,7 @@ BOOL loaderYuvFeeder_Feed(
         if( !osal_fread(pYuv_int8, 1, srcFrameSize, yuvFp) ) 
         {
             if( !osal_feof( yuvFp ) )
-                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%x \n", yuvFp );
+                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%p \n", yuvFp );
             
             if ( pYuv_int16 )
                 osal_free(pYuv_int16);
@@ -778,7 +778,7 @@ BOOL loaderYuvFeeder_Feed(
         if( !osal_fread(pYuv_int16, 1, srcFrameSize, yuvFp) ) 
         {
             if( !osal_feof( yuvFp ) )
-                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%x \n", yuvFp );
+                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%p \n", yuvFp );
             
             if ( pYuv_int16 )
                 osal_free(pYuv_int16);

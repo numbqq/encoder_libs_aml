@@ -150,7 +150,7 @@ static BOOL yuvYuvFeeder_Feed(
     // Load source one picture image to encode to SDRAM frame buffer.
     if (!osal_fread(pYuv, 1, frameSize, ctx->fp)) {
         if (osal_feof(ctx->fp) == 0) 
-            VLOG(ERR, "Yuv Data osal_fread failed file handle is 0x%x\n", ctx->fp);
+            VLOG(ERR, "Yuv Data osal_fread failed file handle is 0x%p\n", ctx->fp);
         return FALSE;
     }
     if (fb->mapType == LINEAR_FRAME_MAP ) {

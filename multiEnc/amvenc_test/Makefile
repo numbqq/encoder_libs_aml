@@ -4,18 +4,6 @@
 #--------------------------------------
 .PHONY: CREATE_DIR clean all
 
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-
-ifeq ($(ARM), 0)
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-endif
-
-CC  = $(CROSS_CC_PREFIX)gcc
-CXX = $(CROSS_CC_PREFIX)g++
-
-LINKER=$(CC)
-
-AR  = $(CROSS_CC_PREFIX)ar
 
 ifeq ($(ARM), 0)
 CFLAGS += -O2 -std=c99
@@ -34,11 +22,11 @@ LDFLAGS =
 INC = -I./include -I. -I../vpuapi/include -I../vpuapi
 
 
-CFLAGS  +=  $(INC) $(DEFINES) $(PLATFORM_FLAGS)
+CFLAGS  +=  $(INC)
 ARFLAGS += rcs
 TARGET = aml_enc_test
 
-LDLIBS += -L.
+LDLIBS += -L../vpuapi -L../amvenc_lib
 LDLIBS += -lm -lrt -lamvenc_api -lvpcodec 
 # pthread 
 LDLIBS += -lpthread
@@ -56,21 +44,19 @@ MKDIR=mkdir -p
 SOURCES = test.c test_dma.c
 OBJECNAMES = test.o test_dma.o
 
-#OBJECTNAMES=$(patsubst %.cpp,%.o, $(SOURCES))
-#OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
-
-#$(info $$(OBJECTNAMES) is [${OBJECTNAMES}])
-
-#$(info $$(OBJECTPATHS) is [${OBJECTPATHS}])
+OBJECTNAMES=$(patsubst %.c,%.o, $(SOURCES))
+OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
 
 
-$(TARGET): $(OBJECNAMES)
-	$(LINKER) -o $(TARGET) $(LDFLAGS) $(LDLIBS) $(OBJECNAMES)
-	-cp $(TARGET) ../
+$(TARGET): CREATE_DIR $(OBJECTPATHS)
+	$(CC) -o $(TARGET) $(LDFLAGS) $(LDLIBS) $(OBJECTPATHS)
+
+CREATE_DIR:
+	$(MKDIR) $(OBJDIR)
 
 
-$(OBJECNAMES):%.o:%.c
-	$(LINKER) $(LDFLAGS) -c $< -o $@
+$(OBJDIR)/%.o:%.c
+	$(CC) $(LDFLAGS) -c $< -o $@
 
 -include $(OBJECTPATHS:.o=.dep)
 
@@ -78,9 +64,5 @@ clean:
 	$(RM) $(TARGET)
 	$(RM) $(OBJDIR)/$(ALLOBJS)
 	$(RM) $(OBJDIR)/$(ALLDEPS)
-	$(RM) *.o
-	$(RM) *.so
 
-CREATE_DIR:
-	-mkdir -p $(OBJDIR)
 

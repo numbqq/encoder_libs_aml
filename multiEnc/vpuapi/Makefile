@@ -4,18 +4,6 @@
 #--------------------------------------
 .PHONY: CREATE_DIR clean all
 
-CROSS_CC_PREFIX = 
-
-ifeq ($(ARM), 0)
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-endif
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-
-CC  = $(CROSS_CC_PREFIX)gcc
-CXX = $(CROSS_CC_PREFIX)g++
-LINKER=$(CC)
-AR  = $(CROSS_CC_PREFIX)ar
-
 ifeq ($(ARM), 0)
 CFLAGS += -O2 -std=c99
 else
@@ -66,27 +54,19 @@ OBJECTNAMES=$(patsubst %.c,%.o, $(SOURCES))
 OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
 
 
-$(info $$(OBJECTNAMES) is [${OBJECTNAMES}])
-
-$(info $$(OBJECTPATHS) is [${OBJECTPATHS}])
-
-
 all: CREATE_DIR $(OBJECTPATHS)
-	$(LINKER) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
-	-cp $(TARGET) ../test_sample
-	-cp $(TARGET) ../amvenc_test
-	-cp $(TARGET) ../amvenc_lib
+	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
 
 -include $(OBJECTPATHS:.o=.dep)
+
+
+CREATE_DIR:
+	-mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) -Wall -c $< -o $@ -MD -MF $(@:.o=.dep)
 
 clean: 
 	$(RM) $(TARGET)
 	$(RM) $(OBJDIR)/$(ALLOBJS)
 	$(RM) $(OBJDIR)/$(ALLDEPS)
-
-CREATE_DIR:
-	-mkdir -p $(OBJDIR)
-
-obj/%.o: %.c
-	$(CC) $(CFLAGS) -Wall -c $< -o $@ -MD -MF $(@:.o=.dep)
-

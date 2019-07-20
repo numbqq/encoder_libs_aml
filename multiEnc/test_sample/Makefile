@@ -37,30 +37,6 @@ MM_C            =
 PLATFORM_FLAGS  = 
 
 VDI_VPATH       =
-ifeq ("$(BUILD_CONFIGURATION)", "NonOS")
-    CROSS_CC_PREFIX = arm-none-eabi-
-    VDI_C           = ../vdi/nonos/vdi.c
-    VDI_OSAL_C      = ../vdi/nonos/vdi_osal.c
-    MM_C            = ../vdi/mm.c
-    USE_FFMPEG      = no
-    USE_PTHREAD     = no
-    PLATFORM        = none
-    DEFINES         = -DLIB_C_STUB
-    PLATFORM_FLAGS  = 
-    VDI_VPATH       = ../vdi/nonos
-    NONOS_RULE      = options_nonos.lnt
-endif
-ifeq ("$(BUILD_CONFIGURATION)", "EmbeddedLinux")
-    CROSS_CC_PREFIX = arm-linux-gnueabihf-
-    PLATFORM        = armlinux
-endif
-
-CROSS_CC_PREFIX = aarch64-linux-gnu-
-
-CC  = $(CROSS_CC_PREFIX)gcc
-CXX = $(CROSS_CC_PREFIX)g++
-LINKER=$(CC)
-AR  = $(CROSS_CC_PREFIX)ar
 
 INCLUDES = -I../vpuapi -I../vpuapi/include -I./helper -I./helper/misc -I./component
 INCLUDES += -I./component_encoder -I./ffmpeg/include
@@ -96,7 +72,7 @@ LDLIBS  += -lpthread
 endif
 LDLIBS  += -lm
 
-TARGET=../w5_enc_test
+TARGET=w5_enc_test
 #MAKEFILE=Wave5xxEncV2.mak
 OBJDIR=obj
 ALLOBJS=*.o
@@ -161,7 +137,7 @@ VPATH += helper/comparator:
 VPATH += helper/display:helper/misc:helper/yuv:component:
 #VPATH += vdi:
 #VPATH += $(VDI_VPATH):vpuapi:vpuapi/coda9:vpuapi/wave
-LDLIBS  += libamvenc_api.so
+LDLIBS  += -L../vpuapi/ -lamvenc_api
 
 OBJECTNAMES=$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES)))
 OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
@@ -174,7 +150,7 @@ ifeq ($(USE_RTL_SIM), yes)
 all: CREATE_DIR $(OBJECTPATHS) 
 else
 all: CREATE_DIR $(OBJECTPATHS)
-	$(LINKER) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
+	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
 endif
 
 -include $(OBJECTPATHS:.o=.dep)

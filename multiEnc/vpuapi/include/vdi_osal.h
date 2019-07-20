@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018, Chips&Media
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  * list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,8 +35,8 @@
 #define LOGCAT
 #endif
 
-enum {NONE=0, INFO, WARN, ERR, TRACE, MAX_LOG_LEVEL};
-enum 
+enum {NONE=0, INFO, DEBUG, WARN, ERR, TRACE, MAX_LOG_LEVEL};
+enum
 {
     LOG_HAS_DAY_NAME   =    1, /**< Include day name [default: no] 	      */
     LOG_HAS_YEAR       =    2, /**< Include year digit [no]		      */
@@ -49,7 +49,7 @@ enum
     LOG_HAS_CR	  =  256, /**< Include carriage return [no] 	      */
     LOG_HAS_SPACE	  =  512, /**< Include two spaces before log [yes]    */
     LOG_HAS_COLOR	  = 1024, /**< Colorize logs [yes on win32]	      */
-    LOG_HAS_LEVEL_TEXT = 2048 /**< Include level text string [no]	      */    
+    LOG_HAS_LEVEL_TEXT = 2048 /**< Include level text string [no]	      */
 };
 enum {
     TERM_COLOR_R	= 2,    /**< Red            */
@@ -71,26 +71,17 @@ enum {
             ALOGE(x); \
     }while(0)
 #else
-#if 0
-#define VLOG(level, x...) \
+#define VLOG(level, fmt , var...) \
     do { \
-        if (level >= INFO) { \
-            printf(x); \
-            printf("\n"); \
+        if (level >= ERR) { \
+            printf("[%s:%d] " fmt "\n", __FUNCTION__, __LINE__, ##var);\
         } \
-    }while(0)
-#endif
+    }while(0);
+
 #endif
 
-#if 1
-#define VLOG(level, x...) \
-    do { \
-        if (1) { \
-            printf(x); \
-            printf("\n"); \
-        } \
-    }while(0)
-#endif
+
+
 
 
 #define MAX_PRINT_LENGTH 512
@@ -138,7 +129,7 @@ typedef void*   osal_mutex_t;
 
 #if defined (__cplusplus)
 extern "C" {
-#endif 
+#endif
 
 int InitLog(void);
 void DeInitLog(void);
@@ -208,7 +199,7 @@ Uint64 osal_gettime(void);
 
 #if defined (__cplusplus)
 }
-#endif 
+#endif
 
 #endif //#ifndef _VDI_OSAL_H_
- 
+

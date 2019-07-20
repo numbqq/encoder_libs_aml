@@ -817,8 +817,10 @@ int vdi_write_memory(u32 core_idx, unsigned int addr, unsigned char *data, int l
     
 	offset = addr - (unsigned long)vdb.phys_addr;
     swap_endian(core_idx, data, len, endian);
-    osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), data, len);	
-
+    osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), data, len);
+    vdb.phys_addr = addr;
+    vdb.size = len;
+    vdi_flush_memory(core_idx, &vdb);
     return len;
 }
 
@@ -856,6 +858,10 @@ int vdi_read_memory(u32 core_idx, unsigned int addr, unsigned char *data, int le
         return -1;
 
     offset = addr - (ulong)vdb.phys_addr;
+        VLOG(DEBUG, "mid13 of vdi_read_memory");
+    vdb.phys_addr = addr;
+    vdb.size = len;
+    vdi_invalidate_memory(core_idx, &vdb);
     osal_memcpy(data, (const void *)((ulong)vdb.virt_addr+offset), len);
     swap_endian(core_idx, data, len,  endian);
 
@@ -1136,7 +1142,7 @@ int vdi_flush_memory(u32 core_idx, vpu_buffer_t* vb)
     return ret;
 }
 
-int vdi_invidate_memory(u32 core_idx, vpu_buffer_t *vb)
+int vdi_invalidate_memory(u32 core_idx, vpu_buffer_t *vb)
 {
     vdi_info_t* vdi;
     int i, ret = -1;
@@ -1475,7 +1481,7 @@ void byte_swap(unsigned char* data, int len)
 {
     Uint8 temp;
     Int32 i;
-
+    if(len & 0x1) len++;
     for (i=0; i<len; i+=2) {
         temp      = data[i];
         data[i]   = data[i+1];

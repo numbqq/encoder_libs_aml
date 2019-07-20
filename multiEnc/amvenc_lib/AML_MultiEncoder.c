@@ -1079,7 +1079,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   if (ctx->fmt == AMVENC_NV12) {
     //uv_swap = 0;
   }
-  VLOG(ERR, "fmt %d , is dma %d \n", ctx->fmt, is_DMA_buffer);
+  VLOG(INFO, "fmt %d , is dma %d \n", ctx->fmt, is_DMA_buffer);
 #if 0
   if (ctx->bitrate != input->bitrate) { // change bitrate
     ctx->bitrate = input->bitrate;
@@ -1183,8 +1183,8 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
       y_dst = (char *) ctx->pFbSrcMem[idx].virt_addr;
 
-  for (idx_1 = 0; idx_1 < size_src_luma; idx_1++)  *(y_dst + idx_1) = 0;
-  for (idx_1 = 0; idx_1 < size_src_chroma; idx_1++)  *(y_dst + size_src_luma + idx_1) = 0x80;
+  //for (idx_1 = 0; idx_1 < size_src_luma; idx_1++)  *(y_dst + idx_1) = 0;
+  //for (idx_1 = 0; idx_1 < size_src_chroma; idx_1++)  *(y_dst + size_src_luma + idx_1) = 0x80;
 //memset(y_dst, 0x0, size_src_luma);
 //memset(y_dst + size_src_luma, 0x80, size_src_chroma);
 
@@ -1231,7 +1231,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   ctx->encMEMSrcFrmIdxArr[param->srcIdx]  = idx; //indirect  link due to reodering. srcIdx increase linear.
   ctx->pFbSrc[idx].stride = src_stride; /**< A horizontal stride for given frame buffer */
 
-  VLOG(ERR, "to allocate src buffer,input idx %d poolidx %d \n", param->srcIdx, idx);
+  VLOG(INFO, "to allocate src buffer,input idx %d poolidx %d \n", param->srcIdx, idx);
   if (ctx->bsBuffer[idx].size == 0) { // allocate buffer
     ctx->bsBuffer[idx].size = ENC_STREAM_BUF_SIZE;
 	vdi_lock(ctx->encOpenParam.coreIdx);
@@ -1495,7 +1495,7 @@ retry_point:
         return AMVENC_FAIL;
     }
 
-    VLOG(ERR, "encOutputInfo.encSrcIdx %d  reconFrameIndex %d \n",
+    VLOG(INFO, "encOutputInfo.encSrcIdx %d  reconFrameIndex %d \n",
                 encOutputInfo.encSrcIdx, encOutputInfo.reconFrameIndex);
     if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_CHANGE_PARAM) {
         VLOG(TRACE, "CHANGE PARAMETER!\n");

@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018, Chips&Media
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  * list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -52,20 +52,20 @@ static int peek_character = -1;
 static unsigned log_decor = LOG_HAS_TIME | LOG_HAS_FILE | LOG_HAS_MICRO_SEC |
 			    LOG_HAS_NEWLINE |
 			    LOG_HAS_SPACE | LOG_HAS_COLOR;
-static int max_log_level = MAX_LOG_LEVEL;		
+static int max_log_level = MAX_LOG_LEVEL;
 static FILE *fpLog  = NULL;
 
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
 static pthread_mutex_t s_log_mutex;
 #endif
 
-int InitLog() 
+int InitLog()
 {
 	fpLog = osal_fopen("ErrorLog.txt", "w");
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
 	pthread_mutex_init(&s_log_mutex, NULL);
 #endif
-	return 1;	
+	return 1;
 }
 
 void DeInitLog()
@@ -98,7 +98,7 @@ void LogMsg(int level, const char *format, ...)
     char*   postfix= "";
 
     if (level > max_log_level)
-        return;		
+        return;
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
 	pthread_mutex_lock(&s_log_mutex);
 #endif
@@ -114,7 +114,7 @@ void LogMsg(int level, const char *format, ...)
         }
     }
 
-    va_start( ptr, format );	
+    va_start( ptr, format );
     vsnprintf( logBuf, MAX_PRINT_LENGTH, format, ptr );
     va_end(ptr);
 
@@ -197,36 +197,10 @@ int osal_flush_ch(void)
 	return 1;
 }
 
-#if 0
 void * osal_memcpy(void * dst, const void * src, int count)
 {
 	return memcpy(dst, src, count);//lint !e670
 }
-#endif
-
-
-void * osal_memcpy(void * dst, const void * src, int count)
-{
-    //VLOG(ERR, "In osal_memcpy");
-    #if 1
-    char *temp1 = dst;
-    char *temp2 = src;
-    int len;
-        //VLOG(DEBUG, "in osal_memcpy");
-    for (len = 0; len < count; len++) {
-        *temp1++ = *temp2++;
-	   // memcpy(dst+, src+len, 1);//lint !e670
-    }
-    //VLOG(ERR, "Out osal_memcpy");
-
-    return dst;
-
-    #endif
-
-
-    //return memcpy(dst, src, count);//lint !e670
-}
-
 
 int osal_memcmp(const void* src, const void* dst, int size)
 {

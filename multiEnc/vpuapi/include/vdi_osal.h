@@ -76,7 +76,7 @@ enum {
         if (level >= ERR) { \
             printf("[%s:%d] " fmt "\n", __FUNCTION__, __LINE__, ##var);\
         } \
-    }while(0);
+    }while(0)
 
 #endif
 

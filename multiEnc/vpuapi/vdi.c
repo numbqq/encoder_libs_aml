@@ -771,7 +771,9 @@ int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian)
     osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), zero, len);	
 
     osal_free(zero);
-
+    vdb.phys_addr = addr;
+    vdb.size = len;
+    vdi_flush_memory(core_idx, &vdb);
     return len;
 }
 
@@ -888,6 +890,7 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
 
     vdb.size = vb->size;
+    vdb.cached = 1;
     if (ioctl(vdi->vpu_fd, VDI_IOCTL_ALLOCATE_PHYSICAL_MEMORY, &vdb) < 0)
     {
         VLOG(ERR, "[VDI] fail to vdi_allocate_dma_memory size=%d\n", vb->size);		
@@ -1128,12 +1131,13 @@ int vdi_flush_memory(u32 core_idx, vpu_buffer_t* vb)
     vdi = &s_vdi_info[core_idx];
     if(!vb || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
-
     memset(&vdb, 0x00, sizeof(vpu_buffer_t));
 
     for (i = 0; i < MAX_VPU_BUFFER_POOL; i++) {
-        if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr) {
-            vdb = vdi->vpu_buffer_pool[i].vdb;
+        if ((vdi->vpu_buffer_pool[i].vdb.phys_addr <= vb->phys_addr) &&
+             (vdi->vpu_buffer_pool[i].vdb.phys_addr + vdi->vpu_buffer_pool[i].vdb.size) >= (vb->phys_addr + vb->size))
+        { //validate buffer
+            vdb = *vb;
             break;
         }
     }
@@ -1158,8 +1162,10 @@ int vdi_invalidate_memory(u32 core_idx, vpu_buffer_t *vb)
     memset(&vdb, 0x00, sizeof(vpu_buffer_t));
 
     for (i = 0; i < MAX_VPU_BUFFER_POOL; i++) {
-        if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr) {
-            vdb = vdi->vpu_buffer_pool[i].vdb;
+        if (vdi->vpu_buffer_pool[i].vdb.phys_addr <= vb->phys_addr &&
+             (vdi->vpu_buffer_pool[i].vdb.phys_addr + vdi->vpu_buffer_pool[i].vdb.size) >= (vb->phys_addr + vb->size))
+        { //validate buffer
+            vdb = *vb;
             break;
         }
     }

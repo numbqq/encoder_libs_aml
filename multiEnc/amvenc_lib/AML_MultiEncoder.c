@@ -28,7 +28,7 @@
 static bool INIT_GE2D = false;
 #define MULTI_ENC_MAGIC ('A' << 24| 'M' <<16 | 'L' << 8 |'G')
 /* timeout in ms */
-#define VPU_WAIT_TIME_OUT_CQ    2
+#define VPU_WAIT_TIME_OUT_CQ        20
 /* extra source frame buffer required.*/
 #define EXTRA_SRC_BUFFER_NUM    0
 

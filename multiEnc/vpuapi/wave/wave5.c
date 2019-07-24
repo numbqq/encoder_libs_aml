@@ -2277,11 +2277,13 @@ RetCode Wave5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
 
     VpuWriteReg(instance->coreIdx, W5_ADDR_WORK_BASE, pEncInfo->vbWork.phys_addr);
     VpuWriteReg(instance->coreIdx, W5_WORK_SIZE,      pEncInfo->vbWork.size);
+    
+    VpuWriteReg(instance->coreIdx, W5_CMD_CREATE_INST_SUB_FRAME_SYNC, 0);
 
     VpuWriteReg(instance->coreIdx, W5_VPU_BUSY_STATUS, 1);
     VpuWriteReg(instance->coreIdx, W5_RET_SUCCESS, 0);	//for debug	
 
-    VpuWriteReg(instance->coreIdx, W5_CMD_ENC_VCORE_LIMIT, 1);
+    //VpuWriteReg(instance->coreIdx, W5_CMD_ENC_VCORE_LIMIT, 1);
 
 
     Wave5BitIssueCommand(instance, W5_CREATE_INSTANCE);

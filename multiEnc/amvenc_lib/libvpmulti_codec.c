@@ -91,9 +91,9 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
   } else if (encode_info.img_format == IMG_FMT_NV21) {
     VLOG(INFO, "[%s] img_format is IMG_FMT_NV21 \n", __func__);
     handle->fmt = AMVENC_NV21;
-  } else if (encode_info.img_format == IMG_FMT_YV12) {
+  } else if (encode_info.img_format == IMG_FMT_YUV420P) {
     VLOG(INFO, "[%s] img_format is IMG_FMT_YUV420 \n", __func__);
-    handle->fmt = AMVENC_YUV420;
+    handle->fmt = AMVENC_YUV420P;
   } else {
     VLOG(ERR, "[%s] img_format %d not supprot\n", __func__,
          encode_info.img_format);
@@ -258,7 +258,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     videoInput.coding_timestamp =
         (unsigned long long)handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in us
 
-    VLOG(ERR, "videoInput.frame_rate %f videoInput.coding_timestamp %d, mNumInputFrames %d",
+    VLOG(DEBUG, "videoInput.frame_rate %f videoInput.coding_timestamp %d, mNumInputFrames %d",
         videoInput.frame_rate * 1000, videoInput.coding_timestamp, handle->mNumInputFrames);
     result.timestamp_us = videoInput.coding_timestamp;
     handle->shared_fd[0] = -1;
@@ -275,10 +275,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           result.is_valid = false;
           return result;
         }
-      } else if (handle->fmt == AMVENC_YUV420) {
+      } else if (handle->fmt == AMVENC_YUV420P) {
         if (dma_info->num_planes != 1
             && dma_info->num_planes != 3) {
-          VLOG(ERR, "YV12 invalid num_planes %d\n", dma_info->num_planes);
+          VLOG(ERR, "YUV420P invalid num_planes %d\n", dma_info->num_planes);
           result.is_valid = false;
           return result;
         }
@@ -302,7 +302,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       videoInput.height * videoInput.pitch);
       if (handle->fmt == AMVENC_NV21 || handle->fmt == AMVENC_NV12) {
         videoInput.YCbCr[2] = 0;
-      } else if (handle->fmt == AMVENC_YUV420) {
+      } else if (handle->fmt == AMVENC_YUV420P) {
         videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
       }
     }

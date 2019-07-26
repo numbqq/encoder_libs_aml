@@ -1186,8 +1186,11 @@ int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info)
     if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
+   VLOG(INFO, "[VDI] CONFIG_DMA plane %d fd(%d, %d, %d)\n",
+         info->num_planes, info->fd[0], info->fd[1], info->fd[2]);
     ret = ioctl(vdi->vpu_fd, VDI_IOCTL_CONFIG_DMA, (void*)info);
-
+    VLOG(INFO, "[VDI] DMA physic %d phy(%lx, %lx, %lx)\n",
+     info->num_planes, info->phys_addr[0], info->phys_addr[1], info->phys_addr[2]);
     return ret;
 }
 

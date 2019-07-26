@@ -27,7 +27,7 @@ typedef enum vl_img_format_e {
   IMG_FMT_NONE,
   IMG_FMT_NV12, /* must support  */
   IMG_FMT_NV21,
-  IMG_FMT_YUV420,
+  IMG_FMT_YUV420P,
   IMG_FMT_YV12
 } vl_img_format_t;
 

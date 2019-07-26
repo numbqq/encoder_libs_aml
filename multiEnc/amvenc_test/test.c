@@ -57,7 +57,7 @@ int main(int argc, const char* argv[])
         printf("  framerate: framerate \n ");
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
-        printf("  fmt      : encode input fmt 1:nv12,2:nv21,3:yv12\n ");
+        printf("  fmt      : encode input fmt 1 : nv12, 2 : nv21, 3 : yuv420p(yv12/yu12)\n ");
         printf("  buf_type : 0:vmalloc, 3:dma buffer\n ");
         printf(
             "  num_planes : used for dma buffer case. 1: nv12/nv21/yv12. "
@@ -200,7 +200,7 @@ int main(int argc, const char* argv[])
 
     if (dma_info->num_planes == 3)
     {
-        if (fmt != IMG_FMT_YUV420) {
+        if (fmt != IMG_FMT_YUV420P) {
             printf("error fmt %d\n", fmt);
             goto exit;
         }
@@ -323,8 +323,6 @@ int main(int argc, const char* argv[])
 
     while (num > 0)
     {
-
-#if 1
         if (inbuf_info.buf_type == DMA_TYPE)// read data to dma buf vaddr
         {
           if (dma_info->num_planes == 1) {
@@ -355,9 +353,8 @@ int main(int argc, const char* argv[])
               goto exit;
             }
           }
-        } else
-
-#endif
+        }
+        else
         {  // read data to vmalloc buf vaddr
           if (fread(inputBuffer, 1, framesize, fp) != framesize) {
             printf("read input file error!\n");
@@ -366,11 +363,9 @@ int main(int argc, const char* argv[])
         }
 
         memset(outbuffer, 0, outbuffer_len);
-        #if 1
         if (inbuf_info.buf_type == DMA_TYPE) {
           sync_cpu(&ctx);
         }
-        #endif
 
         encoding_metadata = vl_multi_encoder_encode(handle_enc, FRAME_TYPE_AUTO, outbuffer,\
                                           &inbuf_info, &ret_buf);

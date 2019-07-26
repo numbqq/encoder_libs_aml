@@ -28,7 +28,7 @@
 static bool INIT_GE2D = false;
 #define MULTI_ENC_MAGIC ('A' << 24| 'M' <<16 | 'L' << 8 |'G')
 /* timeout in ms */
-#define VPU_WAIT_TIME_OUT_CQ        20
+#define VPU_WAIT_TIME_OUT_CQ    2
 /* extra source frame buffer required.*/
 #define EXTRA_SRC_BUFFER_NUM    0
 
@@ -302,7 +302,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
     return FALSE;
   }
-   VLOG(ERR, "GopPreset GOP format (%d)\n", param->gopPresetIdx);
+
   /* for CMD_ENC_SEQ_INTRA_PARAM */
   param->decodingRefreshType = 1; //pCfg->waveCfg.decodingRefreshType;
   param->intraPeriod = InitParam->idr_period;//pCfg->waveCfg.intraPeriod;
@@ -317,6 +317,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 
   VLOG(ERR, "GopPreset GOP format (%d) period %d \n",
         param->gopPresetIdx, param->intraPeriod);
+
   param->intraQP = InitParam ->initQP; //pCfg->waveCfg.intraQP;
 
   /* for CMD_ENC_SEQ_CONF_WIN_TOP_BOT/LEFT_RIGHT */
@@ -963,6 +964,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
     goto fail_exit;
   }
   // set rotate and mirror
+  //VPU_EncGiveCommand(ctx->enchandle, ENABLE_LOGGING, 0);
   if (encParam->rotate_angle != 0 || encParam->mirror != 0) {
         VPU_EncGiveCommand(ctx->enchandle, ENABLE_ROTATION, 0);
         VPU_EncGiveCommand(ctx->enchandle, ENABLE_MIRRORING, 0);
@@ -1063,7 +1065,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
   ctx->op_flag = input->op_flag;
   ctx->fmt = input->fmt;
-  if (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420) {
+  if (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420P) {
         if (INIT_GE2D) {
 #if SUPPORT_SCALE
             if (ge2d_colorFormat(ctx->fmt) == AMVENC_SUCCESS) {
@@ -1112,6 +1114,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
   if (is_DMA_buffer == 0) {
     // need allocate buffer and copy
+    ctx->pFbSrc[idx].dma_buf_planes = 0; //clean the DMA buffer
     if(ctx->pFbSrcMem[idx].size == 0) { // allocate buffer
       vdi_lock(ctx->encOpenParam.coreIdx);
       ctx->pFbSrcMem[idx].size = ctx->srcFbSize;
@@ -1127,7 +1130,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 #if SUPPORT_SCALE
     if ((input->scale_width !=0 && input->scale_height !=0) || input->crop_left != 0 ||
         input->crop_right != 0 || input->crop_top != 0 || input->crop_bottom != 0 ||
-        (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420)) {
+        (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420P)) {
         if (INIT_GE2D) {
             INIT_GE2D = false;
             amlge2d.ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
@@ -1150,7 +1153,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         else if (ctx->fmt == AMVENC_NV12 || ctx->fmt == AMVENC_NV21) {
             memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
             memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
-        } else if (ctx->fmt == AMVENC_YUV420) {
+        } else if (ctx->fmt == AMVENC_YUV420P) {
             memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
             memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
             memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
@@ -1200,7 +1203,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         src = (char *)input->YCbCr[1];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
                               src, ctx->enc_width, ctx->enc_height / 2, chroma_stride, width32alinged, endian);
-      } else if (ctx->fmt == AMVENC_YUV420) {
+      } else if (ctx->fmt == AMVENC_YUV420P) {
         src = (char *)input->YCbCr[1];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
                         src, ctx->enc_width/2, ctx->enc_height/ 2, chroma_stride / 2, width32alinged, endian);
@@ -1218,20 +1221,31 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
       ctx->pFbSrc[idx].bufCb = (PhysicalAddress) (ctx->pFbSrc[idx].bufY + size_src_luma);
       ctx->pFbSrc[idx].bufCr = (PhysicalAddress) - 1;
 	  ctx->pFbSrc[idx].cbcrInterleave  = 1;
-    } else if (ctx->fmt == AMVENC_YUV420) {
+    } else if (ctx->fmt == AMVENC_YUV420P) {
        ctx->pFbSrc[idx].bufCb = (PhysicalAddress) (ctx->pFbSrc[idx].bufY + size_src_luma);
        ctx->pFbSrc[idx].bufCr = (PhysicalAddress) (ctx->pFbSrc[idx].bufY + size_src_luma + size_src_luma / 4);
     }
 #endif
     VLOG(INFO,"frame %d stride %d address Y 0x%x cb 0x%x cr 0x%x \n",
-                idx, size_src_luma, ctx->pFbSrc[idx].bufY, ctx->pFbSrc[idx].bufCb,ctx->pFbSrc[idx].bufCr);
+                idx, size_src_luma, ctx->pFbSrc[idx].bufY,
+                ctx->pFbSrc[idx].bufCb,ctx->pFbSrc[idx].bufCr);
+  }
+  else { //DMA buffer
+    ctx->pFbSrc[idx].dma_buf_planes = input->num_planes;
+    ctx->pFbSrc[idx].dma_shared_fd[0] = input->shared_fd[0];
+    ctx->pFbSrc[idx].dma_shared_fd[1] = input->shared_fd[1];
+    ctx->pFbSrc[idx].dma_shared_fd[2] = input->shared_fd[2];
+    VLOG(INFO,"%s:%d Set DMA buffer index %d planes %d fd[%d, %d, %d]\n",
+         __FUNCTION__, __LINE__, idx, input->num_planes,
+        input->shared_fd[0], input->shared_fd[1], input->shared_fd[2]);
   }
   ctx->FrameIO[idx] = *input;
   ctx->encodedSrcFrmIdxArr[idx] = 1; // occupic the frames.
   ctx->encMEMSrcFrmIdxArr[param->srcIdx]  = idx; //indirect  link due to reodering. srcIdx increase linear.
   ctx->pFbSrc[idx].stride = src_stride; /**< A horizontal stride for given frame buffer */
 
-  VLOG(INFO, "to allocate src buffer,input idx %d poolidx %d \n", param->srcIdx, idx);
+  VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",
+                param->srcIdx, idx, src_stride);
   if (ctx->bsBuffer[idx].size == 0) { // allocate buffer
     ctx->bsBuffer[idx].size = ENC_STREAM_BUF_SIZE;
 	vdi_lock(ctx->encOpenParam.coreIdx);

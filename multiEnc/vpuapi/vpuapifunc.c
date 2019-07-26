@@ -4489,7 +4489,7 @@ Int32 CalcLumaSize(
             size_dpb_lum      = unit_size_hor_lum * (unit_size_ver_lum<<field_map);
         }
     }
-
+   VLOG(INFO, "CalcLumaSize size %d \n", size_dpb_lum);
     return size_dpb_lum;
 }
 
@@ -4514,7 +4514,8 @@ Int32 CalcChromaSize(
 
     chr_hscale = 1;
     chr_vscale = 1;
-
+    VLOG(INFO, "CalcChromaSize stride %d height %d, mapType %d format %d\n",
+        stride, height, mapType, format);
     switch (format) {
     case FORMAT_420_P10_16BIT_LSB:
     case FORMAT_420_P10_16BIT_MSB:
@@ -4791,6 +4792,7 @@ Int32 CalcChromaSize(
         }
         
     }
+    VLOG(INFO, "CalcChromaSize size %d \n", size_dpb_chr);
     return size_dpb_chr;
 }
 

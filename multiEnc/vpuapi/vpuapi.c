@@ -852,14 +852,19 @@ RetCode VPU_EncStartOneFrame(
         dma_info.num_planes = pSrcFrame->dma_buf_planes;
         for (i = 0; i < pSrcFrame->dma_buf_planes; i ++)
                 dma_info.fd[i] = pSrcFrame->dma_shared_fd[i];
-
+        VLOG(INFO,"DMA source fd[%d, %d, %d] planes %d\n",
+                dma_info.fd[0],dma_info.fd[1],dma_info.fd[2],
+                pSrcFrame->dma_buf_planes);
         if (vdi_config_dma(pCodecInst->coreIdx, &dma_info) !=0)
                 return RETCODE_INVALID_FRAME_BUFFER;
         pSrcFrame -> bufY = dma_info.phys_addr[0];
         if (dma_info.num_planes >1 )
                 pSrcFrame -> bufCb = dma_info.phys_addr[1];
         if (dma_info.num_planes > 2)
-               pSrcFrame -> bufCr = dma_info.phys_addr[2];
+               pSrcFrame->bufCr = dma_info.phys_addr[2];
+        VLOG(INFO,"DMA frame physical bufY 0x%x Cb 0x%x Cr 0x%x planes %d \n",
+                pSrcFrame->bufY, pSrcFrame->bufCb, pSrcFrame->bufCr,
+                dma_info.num_planes);
     }
 
     ret = CheckEncParam(handle, param);

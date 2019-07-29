@@ -1,3 +1,37 @@
+/*
+* Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+*
+* This source code is subject to the terms and conditions defined in below
+* which is part of this source code package.
+*
+* Description:
+*/
+
+// Copyright (C) 2019 Amlogic, Inc. All rights reserved.
+//
+// All information contained herein is Amlogic confidential.
+//
+// This software is provided to you pursuant to Software License
+// Agreement (SLA) with Amlogic Inc ("Amlogic"). This software may be
+// used only in accordance with the terms of this agreement.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification is strictly prohibited without prior written permission
+// from Amlogic.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
 // #define LOG_NDEBUG 0
 #define LOG_TAG "AMLVENC"
 #ifdef MAKEANDROID
@@ -35,13 +69,13 @@ static bool INIT_GE2D = false;
 // user scaling list
 #define SL_NUM_MATRIX (6)
 
-#define wave420l_align4(a)      ((((a)+3)>>2)<<2)
-#define wave420l_align8(a)      ((((a)+7)>>3)<<3)
-#define wave420l_align16(a)     ((((a)+15)>>4)<<4)
-#define wave420l_align32(a)     ((((a)+31)>>5)<<5)
-#define wave420l_align64(a)     ((((a)+63)>>6)<<6)
-#define wave420l_align128(a)    ((((a)+127)>>7)<<7)
-#define wave420l_align256(a)    ((((a)+255)>>8)<<8)
+#define vp_align4(a)      ((((a)+3)>>2)<<2)
+#define vp_align8(a)      ((((a)+7)>>3)<<3)
+#define vp_align16(a)     ((((a)+15)>>4)<<4)
+#define vp_align32(a)     ((((a)+31)>>5)<<5)
+#define vp_align64(a)     ((((a)+63)>>6)<<6)
+#define vp_align128(a)    ((((a)+127)>>7)<<7)
+#define vp_align256(a)    ((((a)+255)>>8)<<8)
 typedef struct
 {
     Uint8 s4[SL_NUM_MATRIX][16]; // [INTRA_Y/U/V,INTER_Y/U/V][NUM_COEFF]
@@ -248,7 +282,7 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
 BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 {
     int i;
-  EncWaveParam *param = &pEncOP->EncStdParam.waveParam;
+  EncWaveParam *param = &pEncOP->EncStdParam.vpParam;
   /*basic settings */
   if (InitParam->stream_type == AMV_AVC)
     pEncOP->bitstreamFormat = STD_AVC;
@@ -267,7 +301,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   pEncOP->srcBitDepth     = 8; /*pCfg->SrcBitDepth; */
   param->level = 0;
   param->tier  = 0;
-  param->internalBitDepth = 8; /*pCfg->waveCfg.internalBitDepth;*/
+  param->internalBitDepth = 8; /*pCfg->vpCfg.internalBitDepth;*/
 
   if ( param->internalBitDepth == 10 ) {
     pEncOP->outputFormat = FORMAT_420_P10_16BIT_MSB;
@@ -282,7 +316,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   param->useLongTerm = 0;
 
   /* for CMD_ENC_SEQ_GOP_PARAM */
-   //param->gopPresetIdx     = pCfg->waveCfg.gopPresetIdx;
+   //param->gopPresetIdx     = pCfg->vpCfg.gopPresetIdx;
   if (InitParam->GopPreset == GOP_OPT_NONE)
   {
      if (InitParam->idr_period == 1)
@@ -304,8 +338,8 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   }
 
   /* for CMD_ENC_SEQ_INTRA_PARAM */
-  param->decodingRefreshType = 1; //pCfg->waveCfg.decodingRefreshType;
-  param->intraPeriod = InitParam->idr_period;//pCfg->waveCfg.intraPeriod;
+  param->decodingRefreshType = 1; //pCfg->vpCfg.decodingRefreshType;
+  param->intraPeriod = InitParam->idr_period;//pCfg->vpCfg.intraPeriod;
   if(InitParam->idr_period == 0) { // only one I then all P
     param->gopPresetIdx = PRESET_IDX_IPP;
     param->intraPeriod = 0xffff;
@@ -318,53 +352,53 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   VLOG(ERR, "GopPreset GOP format (%d) period %d \n",
         param->gopPresetIdx, param->intraPeriod);
 
-  param->intraQP = InitParam ->initQP; //pCfg->waveCfg.intraQP;
+  param->intraQP = InitParam ->initQP; //pCfg->vpCfg.intraQP;
 
   /* for CMD_ENC_SEQ_CONF_WIN_TOP_BOT/LEFT_RIGHT */
-  param->confWinTop = 0; //pCfg->waveCfg.confWinTop;
-  param->confWinBot = 0; //pCfg->waveCfg.confWinBot;
-  param->confWinLeft = 0; //pCfg->waveCfg.confWinLeft;
-  param->confWinRight = 0; //pCfg->waveCfg.confWinRight;
+  param->confWinTop = 0; //pCfg->vpCfg.confWinTop;
+  param->confWinBot = 0; //pCfg->vpCfg.confWinBot;
+  param->confWinLeft = 0; //pCfg->vpCfg.confWinLeft;
+  param->confWinRight = 0; //pCfg->vpCfg.confWinRight;
 
   /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
-  param->independSliceMode = 0; //pCfg->waveCfg.independSliceMode;
-  param->independSliceModeArg = 0; //pCfg->waveCfg.independSliceModeArg;
+  param->independSliceMode = 0; //pCfg->vpCfg.independSliceMode;
+  param->independSliceModeArg = 0; //pCfg->vpCfg.independSliceModeArg;
 
   /* for CMD_ENC_SEQ_DEPENDENT_SLICE */
-  param->dependSliceMode = 0; //pCfg->waveCfg.dependSliceMode;
-  param->dependSliceModeArg = 0; //pCfg->waveCfg.dependSliceModeArg;
+  param->dependSliceMode = 0; //pCfg->vpCfg.dependSliceMode;
+  param->dependSliceModeArg = 0; //pCfg->vpCfg.dependSliceModeArg;
 
   /* for CMD_ENC_SEQ_INTRA_REFRESH_PARAM */
-  param->intraRefreshMode = 0; //pCfg->waveCfg.intraRefreshMode;
-  param->intraRefreshArg = 0; //pCfg->waveCfg.intraRefreshArg;
-  param->useRecommendEncParam = 1; //pCfg->waveCfg.useRecommendEncParam;
+  param->intraRefreshMode = 0; //pCfg->vpCfg.intraRefreshMode;
+  param->intraRefreshArg = 0; //pCfg->vpCfg.intraRefreshArg;
+  param->useRecommendEncParam = 1; //pCfg->vpCfg.useRecommendEncParam;
 
   /* for CMD_ENC_PARAM */
-  param->scalingListEnable = 0; //pCfg->waveCfg.scalingListEnable;
+  param->scalingListEnable = 0; //pCfg->vpCfg.scalingListEnable;
   param->cuSizeMode = 0x7; // always set cu8x8/16x16/32x32 enable to 1.
-  param->tmvpEnable = 1; //pCfg->waveCfg.tmvpEnable;
-  param->wppEnable = 0; //pCfg->waveCfg.wppenable;
-  param->maxNumMerge = 2; //pCfg->waveCfg.maxNumMerge;
+  param->tmvpEnable = 1; //pCfg->vpCfg.tmvpEnable;
+  param->wppEnable = 0; //pCfg->vpCfg.wppenable;
+  param->maxNumMerge = 2; //pCfg->vpCfg.maxNumMerge;
 
-  param->disableDeblk = 0; //pCfg->waveCfg.disableDeblk;
+  param->disableDeblk = 0; //pCfg->vpCfg.disableDeblk;
 
-  param->lfCrossSliceBoundaryEnable = 1; //pCfg->waveCfg.lfCrossSliceBoundaryEnable;
-  param->betaOffsetDiv2 = 0;//pCfg->waveCfg.betaOffsetDiv2;
-  param->tcOffsetDiv2 = 0; //pCfg->waveCfg.tcOffsetDiv2;
-  param->skipIntraTrans = 1;//pCfg->waveCfg.skipIntraTrans;
-  param->saoEnable = 1;//pCfg->waveCfg.saoEnable;
-  param->intraNxNEnable = 1; //pCfg->waveCfg.intraNxNEnable;
+  param->lfCrossSliceBoundaryEnable = 1; //pCfg->vpCfg.lfCrossSliceBoundaryEnable;
+  param->betaOffsetDiv2 = 0;//pCfg->vpCfg.betaOffsetDiv2;
+  param->tcOffsetDiv2 = 0; //pCfg->vpCfg.tcOffsetDiv2;
+  param->skipIntraTrans = 1;//pCfg->vpCfg.skipIntraTrans;
+  param->saoEnable = 1;//pCfg->vpCfg.saoEnable;
+  param->intraNxNEnable = 1; //pCfg->vpCfg.intraNxNEnable;
 
   /* for CMD_ENC_RC_PARAM */
   //pEncOP->rcEnable             = InitParam -> rate_control;
   pEncOP->vbvBufferSize = 3000;//pCfg->VbvBufferSize;
-  param->cuLevelRCEnable = 1; //pCfg->waveCfg.cuLevelRCEnable;
-  param->hvsQPEnable = 1;//pCfg->waveCfg.hvsQPEnable;
-  param->hvsQpScale = 2;//pCfg->waveCfg.hvsQpScale;
+  param->cuLevelRCEnable = 1; //pCfg->vpCfg.cuLevelRCEnable;
+  param->hvsQPEnable = 1;//pCfg->vpCfg.hvsQPEnable;
+  param->hvsQpScale = 2;//pCfg->vpCfg.hvsQpScale;
 
-  param->bitAllocMode = 0; //pCfg->waveCfg.bitAllocMode;
+  param->bitAllocMode = 0; //pCfg->vpCfg.bitAllocMode;
   for (i = 0; i < MAX_GOP_NUM; i++) {
-    param->fixedBitRatio[i] = 1;//pCfg->waveCfg.fixedBitRatio[i];
+    param->fixedBitRatio[i] = 1;//pCfg->vpCfg.fixedBitRatio[i];
   }
 
   if (InitParam->qp_mode == 1) {
@@ -387,90 +421,90 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 
 #if 0
     /* for CMD_ENC_CUSTOM_GOP_PARAM */
-    param->gopParam.customGopSize     = pCfg->waveCfg.gopParam.customGopSize;
+    param->gopParam.customGopSize     = pCfg->vpCfg.gopParam.customGopSize;
 
     for (i= 0; i<param->gopParam.customGopSize; i++) {
-        param->gopParam.picParam[i].picType      = pCfg->waveCfg.gopParam.picParam[i].picType;
-        param->gopParam.picParam[i].pocOffset    = pCfg->waveCfg.gopParam.picParam[i].pocOffset;
-        param->gopParam.picParam[i].picQp        = pCfg->waveCfg.gopParam.picParam[i].picQp;
-        param->gopParam.picParam[i].refPocL0     = pCfg->waveCfg.gopParam.picParam[i].refPocL0;
-        param->gopParam.picParam[i].refPocL1     = pCfg->waveCfg.gopParam.picParam[i].refPocL1;
-        param->gopParam.picParam[i].temporalId   = pCfg->waveCfg.gopParam.picParam[i].temporalId;
-        param->gopParam.picParam[i].numRefPicL0  = pCfg->waveCfg.gopParam.picParam[i].numRefPicL0;
+        param->gopParam.picParam[i].picType      = pCfg->vpCfg.gopParam.picParam[i].picType;
+        param->gopParam.picParam[i].pocOffset    = pCfg->vpCfg.gopParam.picParam[i].pocOffset;
+        param->gopParam.picParam[i].picQp        = pCfg->vpCfg.gopParam.picParam[i].picQp;
+        param->gopParam.picParam[i].refPocL0     = pCfg->vpCfg.gopParam.picParam[i].refPocL0;
+        param->gopParam.picParam[i].refPocL1     = pCfg->vpCfg.gopParam.picParam[i].refPocL1;
+        param->gopParam.picParam[i].temporalId   = pCfg->vpCfg.gopParam.picParam[i].temporalId;
+        param->gopParam.picParam[i].numRefPicL0  = pCfg->vpCfg.gopParam.picParam[i].numRefPicL0;
     }
 #endif
-  param->roiEnable = 0; //pCfg->waveCfg.roiEnable;
+  param->roiEnable = 0; //pCfg->vpCfg.roiEnable;
   // VPS & VUI
-  param->numUnitsInTick = 0; //1000;//pCfg->waveCfg.numUnitsInTick;
-  param->timeScale = 0; //pEncOP->frameRateInfo * 1000; //pCfg->waveCfg.timeScale;
-  param->numTicksPocDiffOne = 0;//pCfg->waveCfg.numTicksPocDiffOne;
+  param->numUnitsInTick = 0; //1000;//pCfg->vpCfg.numUnitsInTick;
+  param->timeScale = 0; //pEncOP->frameRateInfo * 1000; //pCfg->vpCfg.timeScale;
+  param->numTicksPocDiffOne = 0;//pCfg->vpCfg.numTicksPocDiffOne;
 
-  param->chromaCbQpOffset = 0; //pCfg->waveCfg.chromaCbQpOffset;
-  param->chromaCrQpOffset = 0; //pCfg->waveCfg.chromaCrQpOffset;
-  param->initialRcQp      = -1; //63//pCfg->waveCfg.initialRcQp;
+  param->chromaCbQpOffset = 0; //pCfg->vpCfg.chromaCbQpOffset;
+  param->chromaCrQpOffset = 0; //pCfg->vpCfg.chromaCrQpOffset;
+  param->initialRcQp      = -1; //63//pCfg->vpCfg.initialRcQp;
 
-  param->nrYEnable = 1; //pCfg->waveCfg.nrYEnable;
-  param->nrCbEnable = 1; //pCfg->waveCfg.nrCbEnable;
-  param->nrCrEnable = 1; //pCfg->waveCfg.nrCrEnable;
-  param->nrNoiseEstEnable = 1;// pCfg->waveCfg.nrNoiseEstEnable;
-  param->nrNoiseSigmaY = 0; //pCfg->waveCfg.nrNoiseSigmaY;
-  param->nrNoiseSigmaCb = 0; //pCfg->waveCfg.nrNoiseSigmaCb;
-  param->nrNoiseSigmaCr = 0; //pCfg->waveCfg.nrNoiseSigmaCr;
-  param->nrIntraWeightY = 7; //pCfg->waveCfg.nrIntraWeightY;
-  param->nrIntraWeightCb = 7; //pCfg->waveCfg.nrIntraWeightCb;
-  param->nrIntraWeightCr = 7; //pCfg->waveCfg.nrIntraWeightCr;
-  param->nrInterWeightY = 4; //pCfg->waveCfg.nrInterWeightY;
-  param->nrInterWeightCb = 4; //pCfg->waveCfg.nrInterWeightCb;
-  param->nrInterWeightCr = 4; //pCfg->waveCfg.nrInterWeightCr;
+  param->nrYEnable = 1; //pCfg->vpCfg.nrYEnable;
+  param->nrCbEnable = 1; //pCfg->vpCfg.nrCbEnable;
+  param->nrCrEnable = 1; //pCfg->vpCfg.nrCrEnable;
+  param->nrNoiseEstEnable = 1;// pCfg->vpCfg.nrNoiseEstEnable;
+  param->nrNoiseSigmaY = 0; //pCfg->vpCfg.nrNoiseSigmaY;
+  param->nrNoiseSigmaCb = 0; //pCfg->vpCfg.nrNoiseSigmaCb;
+  param->nrNoiseSigmaCr = 0; //pCfg->vpCfg.nrNoiseSigmaCr;
+  param->nrIntraWeightY = 7; //pCfg->vpCfg.nrIntraWeightY;
+  param->nrIntraWeightCb = 7; //pCfg->vpCfg.nrIntraWeightCb;
+  param->nrIntraWeightCr = 7; //pCfg->vpCfg.nrIntraWeightCr;
+  param->nrInterWeightY = 4; //pCfg->vpCfg.nrInterWeightY;
+  param->nrInterWeightCb = 4; //pCfg->vpCfg.nrInterWeightCb;
+  param->nrInterWeightCr = 4; //pCfg->vpCfg.nrInterWeightCr;
 
-  param->monochromeEnable = 0; //pCfg->waveCfg.monochromeEnable;
-  param->strongIntraSmoothEnable = 1; //pCfg->waveCfg.strongIntraSmoothEnable;
-  param->weightPredEnable = 0; //pCfg->waveCfg.weightPredEnable;
-  param->bgDetectEnable = 0; //pCfg->waveCfg.bgDetectEnable;
-  param->bgThrDiff = 8; //pCfg->waveCfg.bgThrDiff;
-  param->bgThrMeanDiff = 1;//pCfg->waveCfg.bgThrMeanDiff;
-  param->bgLambdaQp = 32 ; //pCfg->waveCfg.bgLambdaQp;
-  param->bgDeltaQp = 3; //pCfg->waveCfg.bgDeltaQp;
-  param->customLambdaEnable = 0; //pCfg->waveCfg.customLambdaEnable;
-  param->customMDEnable = 0; //pCfg->waveCfg.customMDEnable;
-  param->pu04DeltaRate = 0; //pCfg->waveCfg.pu04DeltaRate;
-  param->pu08DeltaRate = 0; //pCfg->waveCfg.pu08DeltaRate;
-  param->pu16DeltaRate = 0; //pCfg->waveCfg.pu16DeltaRate;
-  param->pu32DeltaRate = 0; //pCfg->waveCfg.pu32DeltaRate;
-  param->pu04IntraPlanarDeltaRate = 0; //pCfg->waveCfg.pu04IntraPlanarDeltaRate;
-  param->pu04IntraDcDeltaRate = 0; //pCfg->waveCfg.pu04IntraDcDeltaRate;
-  param->pu04IntraAngleDeltaRate = 0; //pCfg->waveCfg.pu04IntraAngleDeltaRate;
-  param->pu08IntraPlanarDeltaRate = 0; //pCfg->waveCfg.pu08IntraPlanarDeltaRate;
-  param->pu08IntraDcDeltaRate = 0; //pCfg->waveCfg.pu08IntraDcDeltaRate;
-  param->pu08IntraAngleDeltaRate = 0; //pCfg->waveCfg.pu08IntraAngleDeltaRate;
-  param->pu16IntraPlanarDeltaRate = 0; //pCfg->waveCfg.pu16IntraPlanarDeltaRate;
-  param->pu16IntraDcDeltaRate = 0; //pCfg->waveCfg.pu16IntraDcDeltaRate;
-  param->pu16IntraAngleDeltaRate = 0; //pCfg->waveCfg.pu16IntraAngleDeltaRate;
-  param->pu32IntraPlanarDeltaRate = 0; // pCfg->waveCfg.pu32IntraPlanarDeltaRate;
-  param->pu32IntraDcDeltaRate = 0; //pCfg->waveCfg.pu32IntraDcDeltaRate;
-  param->pu32IntraAngleDeltaRate = 0; //pCfg->waveCfg.pu32IntraAngleDeltaRate;
-  param->cu08IntraDeltaRate = 0; //pCfg->waveCfg.cu08IntraDeltaRate;
-  param->cu08InterDeltaRate = 0; //pCfg->waveCfg.cu08InterDeltaRate;
-  param->cu08MergeDeltaRate = 0; //pCfg->waveCfg.cu08MergeDeltaRate;
-  param->cu16IntraDeltaRate = 0; //pCfg->waveCfg.cu16IntraDeltaRate;
-  param->cu16InterDeltaRate = 0; //pCfg->waveCfg.cu16InterDeltaRate;
-  param->cu16MergeDeltaRate = 0; //pCfg->waveCfg.cu16MergeDeltaRate;
-  param->cu32IntraDeltaRate = 0; // pCfg->waveCfg.cu32IntraDeltaRate;
-  param->cu32InterDeltaRate = 0; //pCfg->waveCfg.cu32InterDeltaRate;
-  param->cu32MergeDeltaRate = 0; //pCfg->waveCfg.cu32MergeDeltaRate;
-  param->coefClearDisable = 0; //pCfg->waveCfg.coefClearDisable;
+  param->monochromeEnable = 0; //pCfg->vpCfg.monochromeEnable;
+  param->strongIntraSmoothEnable = 1; //pCfg->vpCfg.strongIntraSmoothEnable;
+  param->weightPredEnable = 0; //pCfg->vpCfg.weightPredEnable;
+  param->bgDetectEnable = 0; //pCfg->vpCfg.bgDetectEnable;
+  param->bgThrDiff = 8; //pCfg->vpCfg.bgThrDiff;
+  param->bgThrMeanDiff = 1;//pCfg->vpCfg.bgThrMeanDiff;
+  param->bgLambdaQp = 32 ; //pCfg->vpCfg.bgLambdaQp;
+  param->bgDeltaQp = 3; //pCfg->vpCfg.bgDeltaQp;
+  param->customLambdaEnable = 0; //pCfg->vpCfg.customLambdaEnable;
+  param->customMDEnable = 0; //pCfg->vpCfg.customMDEnable;
+  param->pu04DeltaRate = 0; //pCfg->vpCfg.pu04DeltaRate;
+  param->pu08DeltaRate = 0; //pCfg->vpCfg.pu08DeltaRate;
+  param->pu16DeltaRate = 0; //pCfg->vpCfg.pu16DeltaRate;
+  param->pu32DeltaRate = 0; //pCfg->vpCfg.pu32DeltaRate;
+  param->pu04IntraPlanarDeltaRate = 0; //pCfg->vpCfg.pu04IntraPlanarDeltaRate;
+  param->pu04IntraDcDeltaRate = 0; //pCfg->vpCfg.pu04IntraDcDeltaRate;
+  param->pu04IntraAngleDeltaRate = 0; //pCfg->vpCfg.pu04IntraAngleDeltaRate;
+  param->pu08IntraPlanarDeltaRate = 0; //pCfg->vpCfg.pu08IntraPlanarDeltaRate;
+  param->pu08IntraDcDeltaRate = 0; //pCfg->vpCfg.pu08IntraDcDeltaRate;
+  param->pu08IntraAngleDeltaRate = 0; //pCfg->vpCfg.pu08IntraAngleDeltaRate;
+  param->pu16IntraPlanarDeltaRate = 0; //pCfg->vpCfg.pu16IntraPlanarDeltaRate;
+  param->pu16IntraDcDeltaRate = 0; //pCfg->vpCfg.pu16IntraDcDeltaRate;
+  param->pu16IntraAngleDeltaRate = 0; //pCfg->vpCfg.pu16IntraAngleDeltaRate;
+  param->pu32IntraPlanarDeltaRate = 0; // pCfg->vpCfg.pu32IntraPlanarDeltaRate;
+  param->pu32IntraDcDeltaRate = 0; //pCfg->vpCfg.pu32IntraDcDeltaRate;
+  param->pu32IntraAngleDeltaRate = 0; //pCfg->vpCfg.pu32IntraAngleDeltaRate;
+  param->cu08IntraDeltaRate = 0; //pCfg->vpCfg.cu08IntraDeltaRate;
+  param->cu08InterDeltaRate = 0; //pCfg->vpCfg.cu08InterDeltaRate;
+  param->cu08MergeDeltaRate = 0; //pCfg->vpCfg.cu08MergeDeltaRate;
+  param->cu16IntraDeltaRate = 0; //pCfg->vpCfg.cu16IntraDeltaRate;
+  param->cu16InterDeltaRate = 0; //pCfg->vpCfg.cu16InterDeltaRate;
+  param->cu16MergeDeltaRate = 0; //pCfg->vpCfg.cu16MergeDeltaRate;
+  param->cu32IntraDeltaRate = 0; // pCfg->vpCfg.cu32IntraDeltaRate;
+  param->cu32InterDeltaRate = 0; //pCfg->vpCfg.cu32InterDeltaRate;
+  param->cu32MergeDeltaRate = 0; //pCfg->vpCfg.cu32MergeDeltaRate;
+  param->coefClearDisable = 0; //pCfg->vpCfg.coefClearDisable;
 
-  param->s2fmeDisable                = 0; //pCfg->waveCfg.s2fmeDisable;
-  // for H.264 on WAVE
-  param->rdoSkip = 1; //pCfg->waveCfg.rdoSkip;
-  param->lambdaScalingEnable = 1; //pCfg->waveCfg.lambdaScalingEnable;
-  param->transform8x8Enable = 1; //pCfg->waveCfg.transform8x8;
-  param->avcSliceMode = 0; //pCfg->waveCfg.avcSliceMode;
-  param->avcSliceArg = 0; //pCfg->waveCfg.avcSliceArg;
-  param->intraMbRefreshMode = 0; //pCfg->waveCfg.intraMbRefreshMode;
-  param->intraMbRefreshArg = 1; //pCfg->waveCfg.intraMbRefreshArg;
-  param->mbLevelRcEnable = 0; //pCfg->waveCfg.mbLevelRc;
-  param->entropyCodingMode = 1; //pCfg->waveCfg.entropyCodingMode;;
+  param->s2fmeDisable                = 0; //pCfg->vpCfg.s2fmeDisable;
+  // for H.264 on VP
+  param->rdoSkip = 1; //pCfg->vpCfg.rdoSkip;
+  param->lambdaScalingEnable = 1; //pCfg->vpCfg.lambdaScalingEnable;
+  param->transform8x8Enable = 1; //pCfg->vpCfg.transform8x8;
+  param->avcSliceMode = 0; //pCfg->vpCfg.avcSliceMode;
+  param->avcSliceArg = 0; //pCfg->vpCfg.avcSliceArg;
+  param->intraMbRefreshMode = 0; //pCfg->vpCfg.intraMbRefreshMode;
+  param->intraMbRefreshArg = 1; //pCfg->vpCfg.intraMbRefreshArg;
+  param->mbLevelRcEnable = 0; //pCfg->vpCfg.mbLevelRc;
+  param->entropyCodingMode = 1; //pCfg->vpCfg.entropyCodingMode;;
 
 
   pEncOP->streamBufCount = ENC_STREAM_BUF_COUNT;
@@ -496,7 +530,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   pEncOP->coreIdx        = 0;
   pEncOP->cbcrOrder      = CBCR_ORDER_NORMAL;
   pEncOP->lowLatencyMode = 0; // 2bits lowlatency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable.
-  pEncOP->EncStdParam.waveParam.useLongTerm = 0;
+  pEncOP->EncStdParam.vpParam.useLongTerm = 0;
   return TRUE;
 }
 
@@ -516,37 +550,37 @@ static ENC_INT_STATUS HandlingInterruptFlag(AMVMultiCtx* ctx)
     if (interruptFlag == -1) {
       Uint64 currentTimeout = osal_gettime();
       if ((currentTimeout - ctx->startTimeout) > interruptTimeout) {
-        VLOG(ERR, "<%s:%d> startTimeout(%lld) currentTime(%lld) diff(%d)\n",
-                    __FUNCTION__, __LINE__, ctx->startTimeout, currentTimeout, (Uint32)(currentTimeout - ctx->startTimeout));
+        VLOG(ERR, "startTimeout(%lld) currentTime(%lld) diff(%d)\n",
+                     ctx->startTimeout, currentTimeout, (Uint32)(currentTimeout - ctx->startTimeout));
         status = ENC_INT_STATUS_TIMEOUT;
         break;
       }
       interruptFlag = 0;
     }
     if (interruptFlag < 0)
-      VLOG(ERR, "<%s:%d> interruptFlag is negative value! %08x\n", __FUNCTION__, __LINE__, interruptFlag);
+      VLOG(ERR, "interruptFlag is negative value! %08x\n", interruptFlag);
 
     if (interruptFlag > 0) {
       VPU_ClearInterruptEx(handle, interruptFlag);
       ctx->startTimeout = 0ULL;
     }
 
-    if (interruptFlag & (1<<INT_WAVE5_ENC_SET_PARAM)) {
+    if (interruptFlag & (1<<INT_VP5_ENC_SET_PARAM)) {
       status = ENC_INT_STATUS_DONE;
       break;
     }
 
-    if (interruptFlag & (1<<INT_WAVE5_ENC_PIC)) {
+    if (interruptFlag & (1<<INT_VP5_ENC_PIC)) {
       status = ENC_INT_STATUS_DONE;
       break;
     }
 
-    if (interruptFlag & (1<<INT_WAVE5_BSBUF_FULL)) {
+    if (interruptFlag & (1<<INT_VP5_BSBUF_FULL)) {
       status = ENC_INT_STATUS_FULL;
       break;
     }
 
-    if (interruptFlag & (1<<INT_WAVE5_ENC_LOW_LATENCY)) {
+    if (interruptFlag & (1<<INT_VP5_ENC_LOW_LATENCY)) {
        status = ENC_INT_STATUS_LOW_LATENCY;
        break;
     }
@@ -615,10 +649,10 @@ static BOOL SetSequenceInfo (AMVMultiCtx* ctx)
     retry_cnt++;
   } while (ret == RETCODE_QUEUEING_FAILURE && retry_cnt < 10);
   if (ret != RETCODE_SUCCESS) {
-    VLOG(ERR, "%s:%d Failed to VPU_EncIssueSeqInit() ret(%d)\n", __FUNCTION__, __LINE__, ret);
+    VLOG(ERR, "Failed to VPU_EncIssueSeqInit() ret(%d)\n", ret);
     return FALSE;
   }
-  VLOG(INFO, "%s:%d Encoder issue  VPU_EncIssueSeq \n", __FUNCTION__, __LINE__);
+  VLOG(INFO, "Encoder issue  VPU_EncIssueSeq \n");
   retry_cnt = 0;
   while (retry_cnt++ < 100) {
     if ((status = HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_DONE) {
@@ -628,20 +662,19 @@ static BOOL SetSequenceInfo (AMVMultiCtx* ctx)
       usleep(1000);
     }
     else if (status == ENC_INT_STATUS_TIMEOUT) {
-       VLOG(INFO, "%s:%d INSTANCE #%d INTERRUPT TIMEOUT\n", __FUNCTION__, __LINE__, handle->instIndex);
+       VLOG(INFO, "INSTANCE #%d INTERRUPT TIMEOUT\n", handle->instIndex);
        HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
        return FALSE;
     }
     else {
-      VLOG(INFO, "%s:%d Unknown interrupt status: %d\n", __FUNCTION__, __LINE__, status);
+      VLOG(INFO, "Unknown interrupt status: %d\n", status);
       return FALSE;
     }
     usleep(1000);
   }
 
   if ((ret=VPU_EncCompleteSeqInit(handle, initialInfo)) != RETCODE_SUCCESS) {
-    VLOG(ERR, "%s:%d FAILED TO ENC_PIC_HDR: ret(%d), SEQERR(%08x)\n",
-      __FUNCTION__, __LINE__, ret, initialInfo->seqInitErrReason);
+    VLOG(ERR, "FAILED TO ENC_PIC_HDR: ret(%d), SEQERR(%08x)\n", ret, initialInfo->seqInitErrReason);
     return FALSE;
   }
   ctx->fb_num = initialInfo->minFrameBufferCount;
@@ -792,7 +825,6 @@ static BOOL RegisterFrameBuffers(AMVMultiCtx *ctx)
   Uint32 reconFbStride;
   Uint32 reconFbHeight;
   RetCode result;
-  BOOL success;
   Uint32 idx;
 
   pReconFb = ctx->pFbRecon;
@@ -801,7 +833,7 @@ static BOOL RegisterFrameBuffers(AMVMultiCtx *ctx)
   result = VPU_EncRegisterFrameBuffer(ctx->enchandle, pReconFb,
         ctx->fb_num, reconFbStride, reconFbHeight, COMPRESSED_FRAME_MAP);
   if (result != RETCODE_SUCCESS) {
-    VLOG(ERR, "%s:%d Failed to VPU_EncRegisterFrameBuffer(%d)\n", __FUNCTION__, __LINE__, result);
+    VLOG(ERR, "Failed to VPU_EncRegisterFrameBuffer(%d)\n", result);
     return FALSE;
   }
   VLOG(INFO, " finish register frame buffer \n");
@@ -890,12 +922,12 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   coreIdx = ctx->encOpenParam.coreIdx;
   retCode = VPU_Init(coreIdx);
   if (retCode != RETCODE_SUCCESS && retCode != RETCODE_CALLED_BEFORE) {
-        VLOG(INFO, "%s:%d Failed to VPU_Init, ret(%08x)\n", __FUNCTION__, __LINE__, retCode);
+        VLOG(INFO, "Failed to VPU_Init, ret(%08x)\n", retCode);
         goto fail_exit;
   }
   retCode = PrintVpuProductInfo(coreIdx, &productInfo);
   if (retCode == RETCODE_VPU_RESPONSE_TIMEOUT ) {
-     VLOG(INFO, "<%s:%d> Failed to PrintVpuProductInfo()\n", __FUNCTION__, __LINE__);
+     VLOG(INFO, "Failed to PrintVpuProductInfo()\n");
      HandleEncoderError(ctx->enchandle, 0, NULL);
      goto fail_exit;
   }
@@ -908,7 +940,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   vdi_lock(coreIdx);
 
   if (vdi_allocate_dma_memory(coreIdx, &ctx->bsBuffer[0]) < 0) {
-    VLOG(ERR, "%s:%d fail to allocate bitstream buffer\n", __FUNCTION__, __LINE__);
+    VLOG(ERR, "fail to allocate bitstream buffer\n");
     ctx->bsBuffer[0].size = 0;
     vdi_unlock(coreIdx);
     goto fail_exit;
@@ -923,7 +955,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
 
   // customer buffers allocat and settins
   /* Allocate Buffer and Set Data as needed*/
-  if (ctx->encOpenParam.EncStdParam.waveParam.scalingListEnable) {
+  if (ctx->encOpenParam.EncStdParam.vpParam.scalingListEnable) {
     ctx->vbScalingList.size = 0x1000;
     vdi_lock(coreIdx);
     if (vdi_allocate_dma_memory(coreIdx, &ctx->vbScalingList) < 0) {
@@ -933,7 +965,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
       goto fail_exit;
     }
     vdi_unlock(coreIdx);
-    ctx->encOpenParam.EncStdParam.waveParam.userScalingListAddr = ctx->vbScalingList.phys_addr;
+    ctx->encOpenParam.EncStdParam.vpParam.userScalingListAddr = ctx->vbScalingList.phys_addr;
     // fill the scaling list data here, configure APIs to be added
     //parse_user_scaling_list(&ctx->scalingList, testEncConfig.scaling_list_file, testEncConfig.stdMode);
     vdi_write_memory(coreIdx, ctx->vbScalingList.phys_addr,
@@ -942,7 +974,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
                 VDI_LITTLE_ENDIAN);
   }
 
-  if (ctx->encOpenParam.EncStdParam.waveParam.customLambdaEnable) {
+  if (ctx->encOpenParam.EncStdParam.vpParam.customLambdaEnable) {
     ctx->vbCustomLambda.size = 0x200;
     vdi_lock(coreIdx);
     if (vdi_allocate_dma_memory(coreIdx, &ctx->vbCustomLambda) < 0) {
@@ -952,7 +984,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
       goto fail_exit;
     }
     vdi_unlock(coreIdx);
-    ctx->encOpenParam.EncStdParam.waveParam.customLambdaAddr = ctx->vbCustomLambda.phys_addr;
+    ctx->encOpenParam.EncStdParam.vpParam.customLambdaAddr = ctx->vbCustomLambda.phys_addr;
     // fill the customLambda buffer,API to be add as needed.
     //parse_custom_lambda(ctx->customLambda, testEncConfig.custom_lambda_file);
     vdi_write_memory(coreIdx, ctx->vbCustomLambda.phys_addr, (unsigned char*)&ctx->customLambda[0], ctx->vbCustomLambda.size, VDI_LITTLE_ENDIAN);
@@ -972,8 +1004,8 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
         VPU_EncGiveCommand(ctx->enchandle, SET_MIRROR_DIRECTION, &ctx->mInitParams.mirror);
     }
   memset(&secAxiUse, 0x00, sizeof(SecAxiUse));
-  secAxiUse.u.wave.useEncRdoEnable =0; //USE_RDO_INTERNAL_BUF
-  secAxiUse.u.wave.useEncLfEnable = 0; //USE_LF_INTERNAL_BUF
+  secAxiUse.u.vp.useEncRdoEnable =0; //USE_RDO_INTERNAL_BUF
+  secAxiUse.u.vp.useEncLfEnable = 0; //USE_LF_INTERNAL_BUF
   VPU_EncGiveCommand(ctx->enchandle, SET_SEC_AXI, &secAxiUse);
   VPU_EncGiveCommand(ctx->enchandle, SET_CYCLE_PER_TICK,   (void*)&ctx->cyclePerTick);
   // get the seqence buffer requirement info
@@ -1090,9 +1122,9 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   }
 #endif
   if (is_DMA_buffer) {
-    src_stride = wave420l_align16(ctx->enc_width);
+    src_stride = vp_align16(ctx->enc_width);
   } else {
-    src_stride = wave420l_align32(ctx->enc_width);
+    src_stride = vp_align32(ctx->enc_width);
   }
   luma_stride = src_stride;
   chroma_stride = src_stride;
@@ -1142,8 +1174,8 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
             }
             VLOG(DEBUG, "ge2d init successful!");
         }
-        VLOG(DEBUG, "HEVC TEST sclale, enc_width:%d enc_height:%d  pitch:%d height:%d, line:%d",
-                 ctx->enc_width, ctx->enc_height, input->pitch, input->height, __LINE__);
+        VLOG(DEBUG, "HEVC TEST sclale, enc_width:%d enc_height:%d  pitch:%d height:%d",
+                 ctx->enc_width, ctx->enc_height, input->pitch, input->height);
         if (input->pitch % 32) {
             VLOG(ERR, "HEVC crop and scale must be 32bit aligned");
             return AMVENC_FAIL;
@@ -1163,8 +1195,8 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
         do_strechblit(&amlge2d.ge2dinfo, input);
         aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
-        size_src_luma = luma_stride * wave420l_align32(ctx->enc_height);
-        size_src_chroma = luma_stride * (wave420l_align16(ctx->enc_height) / 2);
+        size_src_luma = luma_stride * vp_align32(ctx->enc_height);
+        size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
         y = (char *) ctx->pFbSrcMem[idx].virt_addr;
         if (ctx->enc_width % 32) {
             for (int i = 0; i < ctx->enc_height; i++) {
@@ -1180,8 +1212,8 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     {
       // set frame buffers
       // calculate required buffer size
-      size_src_luma = luma_stride * wave420l_align32(ctx->enc_height);
-      size_src_chroma = luma_stride * (wave420l_align16(ctx->enc_height) / 2);
+      size_src_luma = luma_stride * vp_align32(ctx->enc_height);
+      size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
       endian = ctx->pFbSrc[idx].endian;
 
       y_dst = (char *) ctx->pFbSrcMem[idx].virt_addr;
@@ -1235,8 +1267,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     ctx->pFbSrc[idx].dma_shared_fd[0] = input->shared_fd[0];
     ctx->pFbSrc[idx].dma_shared_fd[1] = input->shared_fd[1];
     ctx->pFbSrc[idx].dma_shared_fd[2] = input->shared_fd[2];
-    VLOG(INFO,"%s:%d Set DMA buffer index %d planes %d fd[%d, %d, %d]\n",
-         __FUNCTION__, __LINE__, idx, input->num_planes,
+    VLOG(INFO,"Set DMA buffer index %d planes %d fd[%d, %d, %d]\n", idx, input->num_planes,
         input->shared_fd[0], input->shared_fd[1], input->shared_fd[2]);
   }
   ctx->FrameIO[idx] = *input;
@@ -1244,13 +1275,12 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   ctx->encMEMSrcFrmIdxArr[param->srcIdx]  = idx; //indirect  link due to reodering. srcIdx increase linear.
   ctx->pFbSrc[idx].stride = src_stride; /**< A horizontal stride for given frame buffer */
 
-  VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",
-                param->srcIdx, idx, src_stride);
+  VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",param->srcIdx, idx, src_stride);
   if (ctx->bsBuffer[idx].size == 0) { // allocate buffer
     ctx->bsBuffer[idx].size = ENC_STREAM_BUF_SIZE;
 	vdi_lock(ctx->encOpenParam.coreIdx);
 	if (vdi_allocate_dma_memory(ctx->encOpenParam.coreIdx, &ctx->bsBuffer[idx]) < 0) {
-		VLOG(ERR, "%s:%d fail to allocate bitstream buffer\n", __FUNCTION__, __LINE__);
+		VLOG(ERR, "fail to allocate bitstream buffer\n");
 		ctx->bsBuffer[idx].size = 0;
 		vdi_unlock(ctx->encOpenParam.coreIdx);
 		return AMVENC_FAIL;
@@ -1349,11 +1379,11 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
       usleep(1000); //osal_msleep(1);
     }
     else if (status == ENC_INT_STATUS_TIMEOUT) {
-       VLOG(INFO, "%s:%d INSTANCE #%d INTERRUPT TIMEOUT\n", __FUNCTION__, __LINE__, ctx->enchandle->instIndex);
+       VLOG(INFO, "INSTANCE #%d INTERRUPT TIMEOUT\n", ctx->enchandle->instIndex);
        HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
        return AMVENC_FAIL;
     } else {
-      VLOG(INFO, "%s:%d Unknown interrupt status: %d\n", __FUNCTION__, __LINE__, status);
+      VLOG(INFO, "Unknown interrupt status: %d\n",status);
       return AMVENC_FAIL;
     }
     usleep(1000); //osal_msleep(1);
@@ -1390,7 +1420,7 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
         ctx->bsBuffer[0].phys_addr, paRdPtr, header_size);
   }
 
-  VLOG(INFO, "%s:%d Enc HEADER size %d\n", __FUNCTION__, __LINE__, header_size);
+  VLOG(INFO, "Enc HEADER size %d\n",header_size);
   *buf_nal_size = header_size;
   // cache invalid to read out by CPU
   //vdi_invalitate_memory(ctx->encOpenParam.coreIdx, &ctx->bsBuffer[0]);
@@ -1546,17 +1576,16 @@ retry_point:
         *buf_nal_size = 0;
         Retframe ->YCbCr[0] = 0;
     } else if(encOutputInfo.encSrcIdx == 0xfffffffb)  {
-        VLOG(INFO, "%s:%d d[WAVE] non-reference picture !! \n", __FUNCTION__, __LINE__);
+        VLOG(INFO, "%s:%d d[VP] non-reference picture !! \n", __FUNCTION__, __LINE__);
         *buf_nal_size = 0;
         Retframe ->YCbCr[0] = 0;
     }
 
- VLOG(INFO, "%s:%d d[WAVE] done one picture !! \n", __FUNCTION__, __LINE__);
+ VLOG(INFO, "%s:%d d[VP] done one picture !! \n", __FUNCTION__, __LINE__);
     return AMVENC_PICTURE_READY;
 }
 
 AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
-  int end = 1;
   AMVEnc_Status ret = AMVENC_FAIL;
   RetCode       result;
   EncParam*    encParam;
@@ -1565,8 +1594,10 @@ AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
   Uint32 coreIdx = ctx->encOpenParam.coreIdx;
   int idx;
 
-  if (ctx == NULL) return AMVENC_FAIL;
-  if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
+  if (ctx == NULL)
+    return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
 
 
 flush_retry_point:

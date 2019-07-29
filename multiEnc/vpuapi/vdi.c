@@ -39,8 +39,7 @@
 
 #include "vdi.h"
 #include "vdi_osal.h"
-//#include "coda9/coda9_regdefine.h"
-#include "wave/wave5_regdefine.h"
+#include "enc_regdefine.h"
 #include "vpuapi.h"
 #include "debug.h"
 
@@ -55,15 +54,15 @@ typedef pthread_mutex_t	MUTEX_HANDLE;
 
 #define VPU_BIT_REG_SIZE                    (0x4000*MAX_NUM_VPU_CORE)
 #define VDI_CODA9_SRAM_SIZE                 0x34600     // FHD MAX size, 0x17D00  4K MAX size 0x34600
-#define VDI_WAVE511_SRAM_SIZE               0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
+#define VDI_VP511_SRAM_SIZE               0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
                                                          *  8bit profile : 8Kx8K -> 114688, 4Kx2K -> 57344
                                                          */
-#define VDI_WAVE520_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
-#define VDI_WAVE525_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
-#define VDI_WAVE521_SRAM_SIZE               0x20400     /* 10bit profile : 8Kx8K -> 132096, 4Kx2K -> 66560
+#define VDI_VP520_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
+#define VDI_VP525_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
+#define VDI_VP521_SRAM_SIZE               0x20400     /* 10bit profile : 8Kx8K -> 132096, 4Kx2K -> 66560
                                                          *  8bit profile : 8Kx8K ->  99328, 4Kx2K -> 51176
                                                          */
-#define VDI_WAVE521C_SRAM_SIZE              0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
+#define VDI_VP521C_SRAM_SIZE              0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
                                                          *  8bit profile : 8Kx8K -> 114688, 4Kx2K -> 57344
                                                          * NOTE: Decoder > Encoder
                                                          */
@@ -701,12 +700,12 @@ unsigned int vdi_fio_read_register(u32 core_idx, unsigned int addr)
 
     ctrl  = (addr&0xffff);
     ctrl |= (0<<16);    /* read operation */
-    vdi_write_register(core_idx, W5_VPU_FIO_CTRL_ADDR, ctrl);
+    vdi_write_register(core_idx, VP5_VPU_FIO_CTRL_ADDR, ctrl);
     count = FIO_TIMEOUT;
     while (count--) {
-        ctrl = vdi_read_register(core_idx, W5_VPU_FIO_CTRL_ADDR);
+        ctrl = vdi_read_register(core_idx, VP5_VPU_FIO_CTRL_ADDR);
         if (ctrl & 0x80000000) {
-            data = vdi_read_register(core_idx, W5_VPU_FIO_DATA);
+            data = vdi_read_register(core_idx, VP5_VPU_FIO_DATA);
             break;
         }
     }
@@ -718,10 +717,10 @@ void vdi_fio_write_register(u32 core_idx, unsigned int addr, unsigned int data)
 {
     unsigned int ctrl;
 
-    vdi_write_register(core_idx, W5_VPU_FIO_DATA, data);
+    vdi_write_register(core_idx, VP5_VPU_FIO_DATA, data);
     ctrl  = (addr&0xffff);
     ctrl |= (1<<16);    /* write operation */
-    vdi_write_register(core_idx, W5_VPU_FIO_CTRL_ADDR, ctrl);
+    vdi_write_register(core_idx, VP5_VPU_FIO_CTRL_ADDR, ctrl);
 }
 
 
@@ -1093,16 +1092,16 @@ int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb)
     case CODA960_CODE:
     case CODA980_CODE:
         sram_size = VDI_CODA9_SRAM_SIZE; break;
-    case WAVE511_CODE:
-        sram_size = VDI_WAVE511_SRAM_SIZE; break;
-    case WAVE520_CODE:
-        sram_size = VDI_WAVE520_SRAM_SIZE; break;
-    case WAVE525_CODE:
-        sram_size = VDI_WAVE525_SRAM_SIZE; break;
-    case WAVE521_CODE:
-        sram_size = VDI_WAVE521_SRAM_SIZE; break;
-    case WAVE521C_CODE:
-        sram_size = VDI_WAVE521C_SRAM_SIZE; break;
+    case VP511_CODE:
+        sram_size = VDI_VP511_SRAM_SIZE; break;
+    case VP520_CODE:
+        sram_size = VDI_VP520_SRAM_SIZE; break;
+    case VP525_CODE:
+        sram_size = VDI_VP525_SRAM_SIZE; break;
+    case VP521_CODE:
+        sram_size = VDI_VP521_SRAM_SIZE; break;
+    case VP521C_CODE:
+        sram_size = VDI_VP521C_SRAM_SIZE; break;
     default:
         VLOG(ERR, "[VDI] check product_code(%x)\n", vdi->product_code);
         break;
@@ -1223,8 +1222,8 @@ int vdi_set_clock_gate(u32 core_idx, int enable)
     if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (vdi->product_code == WAVE512_CODE || vdi->product_code == WAVE520_CODE || vdi->product_code == WAVE515_CODE || vdi->product_code == WAVE525_CODE || 
-        vdi->product_code == WAVE521_CODE || vdi->product_code == WAVE521C_CODE || vdi->product_code == WAVE511_CODE ) {
+    if (vdi->product_code == VP512_CODE || vdi->product_code == VP520_CODE || vdi->product_code == VP515_CODE || vdi->product_code == VP525_CODE ||
+        vdi->product_code == VP521_CODE || vdi->product_code == VP521C_CODE || vdi->product_code == VP511_CODE ) {
         return 0;
     }
     vdi->clock_state = enable;
@@ -1262,7 +1261,7 @@ int vdi_wait_bus_busy(u32 core_idx, int timeout, unsigned int gdi_busy_flag)
 
     while(1)
     {
-        if (vdi->product_code == WAVE520_CODE || vdi->product_code == WAVE525_CODE || vdi->product_code == WAVE521_CODE || vdi->product_code == WAVE521C_CODE || vdi->product_code == WAVE511_CODE ) {
+        if (vdi->product_code == VP520_CODE || vdi->product_code == VP525_CODE || vdi->product_code == VP521_CODE || vdi->product_code == VP521C_CODE || vdi->product_code == VP511_CODE ) {
             if (vdi_fio_read_register(core_idx, gdi_busy_flag) == 0x3f) break;
         }
         else if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
@@ -1300,7 +1299,7 @@ int vdi_wait_vpu_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy_flag
     elapse = osal_gettime();
 
     if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
-        pc = W5_VCPU_CUR_PC;
+        pc = VP5_VCPU_CUR_PC;
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
 #if 0
@@ -1349,7 +1348,7 @@ int vdi_wait_vcpu_bus_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy
     elapse = osal_gettime();
 
     if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
-        pc = W5_VCPU_CUR_PC;
+        pc = VP5_VCPU_CUR_PC;
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
 #if 0
@@ -1473,7 +1472,7 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
     return (endian&0x0f); 
 }
 
-static Uint32 convert_endian_coda9_to_wave4(Uint32 endian)
+static Uint32 convert_endian_coda9_to_vp4(Uint32 endian)
 {
     Uint32 converted_endian = endian;
     switch(endian) {
@@ -1573,8 +1572,8 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
     if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
     }
     else if (PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        endian     = convert_endian_coda9_to_wave4(endian);
-        sys_endian = convert_endian_coda9_to_wave4(sys_endian);
+        endian     = convert_endian_coda9_to_vp4(endian);
+        sys_endian = convert_endian_coda9_to_vp4(sys_endian);
     }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);

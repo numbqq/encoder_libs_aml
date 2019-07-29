@@ -28,12 +28,6 @@
 #include "config.h"
 #include "main_helper.h"
 
-enum {
-    CNMQC_ENV_NONE,
-    CNMQC_ENV_GDBSERVER = (1<<16),      /*!<< It executes gdb server in order to debug F/W on the C&M FPGA env. */
-    CNMQC_ENV_MAX,
-};
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -46,10 +40,6 @@ extern void InitializeDebugEnv(
 
 extern void ReleaseDebugEnv(
     void
-    );
-
-void PrintDecVpuStatus(
-    DecHandle   handle
     );
 
 void PrintEncVpuStatus(
@@ -82,21 +72,6 @@ Uint32 ReadRegVCE(
 RetCode PrintVpuProductInfo(
     Uint32      core_idx,
     ProductInfo *productInfo
-    );
-
-
-Int32 HandleDecInitSequenceError(
-    DecHandle       handle, 
-    Uint32          productId, 
-    DecOpenParam*   openParam, 
-    DecInitialInfo* seqInfo, 
-    RetCode         apiErrorCode
-    );
-
-void HandleDecoderError(
-    DecHandle       handle, 
-    Uint32          frameIdx,
-    DecOutputInfo*  outputInfo
     );
 
 void DumpCodeBuffer(

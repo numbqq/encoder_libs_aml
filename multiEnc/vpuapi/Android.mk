@@ -12,7 +12,7 @@ LOCAL_SRC_FILES := \
 LOCAL_SRC_FILES += \
 	vpuapi.c \
 	product.c \
-	wave/wave5.c \
+	enc_driver.c \
 	vpuapifunc.c
 
 #define MAKEANDROID
@@ -24,7 +24,6 @@ LOCAL_SHARED_LIBRARIES += libcutils \
 			liblog
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH) \
-		$(LOCAL_PATH)/wave \
 		$(LOCAL_PATH)/include
 
 

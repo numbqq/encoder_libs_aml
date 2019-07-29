@@ -25,28 +25,28 @@
 #define CODA960_CODE                    0x9600
 #define CODA980_CODE                    0x9800
 
-#define WAVE512_CODE                    0x5120
-#define WAVE520_CODE                    0x5200
-#define WAVE515_CODE                    0x5150
-#define WAVE525_CODE                    0x5250
+#define VP512_CODE                    0x5120
+#define VP520_CODE                    0x5200
+#define VP515_CODE                    0x5150
+#define VP525_CODE                    0x5250
 
-#define WAVE511_CODE                    0x5110
-#define WAVE521_CODE                    0x5210
-#define WAVE521C_CODE                   0x521c
+#define VP511_CODE                    0x5110
+#define VP521_CODE                    0x5210
+#define VP521C_CODE                   0x521c
 
-#define PRODUCT_CODE_W_SERIES(x) (x == WAVE512_CODE || x == WAVE520_CODE || x == WAVE515_CODE || x == WAVE525_CODE || x == WAVE511_CODE || x == WAVE521_CODE || x == WAVE521C_CODE)
+#define PRODUCT_CODE_W_SERIES(x) (x == VP512_CODE || x == VP520_CODE || x == VP515_CODE || x == VP525_CODE || x == VP511_CODE || x == VP521_CODE || x == VP521C_CODE)
 #define PRODUCT_CODE_NOT_W_SERIES(x) (x == BODA950_CODE || x == CODA960_CODE || x == CODA980_CODE)
 
-#define WAVE5_MAX_CODE_BUF_SIZE             (1024*1024)
-#define WAVE520ENC_WORKBUF_SIZE             (128*1024)
-#define WAVE525ENC_WORKBUF_SIZE             (2*1024*1024)	// svac encoder needs 2MB for workbuffer
-#define WAVE521ENC_WORKBUF_SIZE             (128*1024)      //HEVC 128K, AVC 40K
+#define VP5_MAX_CODE_BUF_SIZE             (1024*1024)
+#define VP520ENC_WORKBUF_SIZE             (128*1024)
+#define VP525ENC_WORKBUF_SIZE             (2*1024*1024)	// svac encoder needs 2MB for workbuffer
+#define VP521ENC_WORKBUF_SIZE             (128*1024)      //HEVC 128K, AVC 40K
 
-#define WAVE512DEC_WORKBUF_SIZE             (2*1024*1024)
-#define WAVE515DEC_WORKBUF_SIZE             (2*1024*1024)
-#define WAVE525DEC_WORKBUF_SIZE             (1.5*1024*1024)
-#define WAVE521DEC_WORKBUF_SIZE             (1.5*1024*1024)
-#define WAVE525_SVAC_DEC_WORKBUF_SIZE       (7*1024*1024) // max mvcol buffer included in workbuffer due to sequence change.
+#define VP512DEC_WORKBUF_SIZE             (2*1024*1024)
+#define VP515DEC_WORKBUF_SIZE             (2*1024*1024)
+#define VP525DEC_WORKBUF_SIZE             (1.5*1024*1024)
+#define VP521DEC_WORKBUF_SIZE             (1.5*1024*1024)
+#define VP525_SVAC_DEC_WORKBUF_SIZE       (7*1024*1024) // max mvcol buffer included in workbuffer due to sequence change.
 
 
 #define MAX_INST_HANDLE_SIZE            48              /* DO NOT CHANGE THIS VALUE */
@@ -61,7 +61,7 @@
 #define MIN_ENC_PIC_WIDTH               96
 #define MIN_ENC_PIC_HEIGHT              16
 
-// for WAVE420
+// for VPU420
 #define W4_MIN_ENC_PIC_WIDTH            256
 #define W4_MIN_ENC_PIC_HEIGHT           128
 #define W4_MAX_ENC_PIC_WIDTH            8192
@@ -92,7 +92,7 @@
 #define DRAM_BUS_WIDTH                  16
 
 
-// for WAVE520
+// for VP520
 #define USE_SRC_PRP_AXI         0
 #define USE_SRC_PRI_AXI         1
 #define DEFAULT_SRC_AXI         USE_SRC_PRP_AXI
@@ -104,11 +104,11 @@
 
 #define ENC_SRC_BUF_NUM             (12+COMMAND_QUEUE_DEPTH)          //!< case of GOPsize = 8 (IBBBBBBBP), max src buffer num  = 12
 
-#define ONE_TASKBUF_SIZE_FOR_W5DEC_CQ         (8*1024*1024)   /* upto 8Kx4K, need 8Mbyte per task*/
-#define ONE_TASKBUF_SIZE_FOR_W5ENC_CQ         (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
-#define ONE_TASKBUF_SIZE_FOR_W511DEC_CQ       (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
+#define ONE_TASKBUF_SIZE_FOR_VP5DEC_CQ         (8*1024*1024)   /* upto 8Kx4K, need 8Mbyte per task*/
+#define ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ         (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
+#define ONE_TASKBUF_SIZE_FOR_VP511DEC_CQ       (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
 
-#define ONE_TASKBUF_SIZE_FOR_CQ     ONE_TASKBUF_SIZE_FOR_W5ENC_CQ    
+#define ONE_TASKBUF_SIZE_FOR_CQ     ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ    
 #define SIZE_COMMON                 ((2*1024*1024) + (COMMAND_QUEUE_DEPTH*ONE_TASKBUF_SIZE_FOR_CQ))
 
 //=====4. VPU REPORT MEMORY  ======================//
@@ -127,27 +127,27 @@
 #define USE_BTP_INTERNAL_BUF            1
 #define USE_ME_INTERNAL_BUF             1
 
-/* WAVE410 only */
+/* VPU410 only */
 #define USE_BPU_INTERNAL_BUF            1
 #define USE_VCE_IP_INTERNAL_BUF         1
 #define USE_VCE_LF_ROW_INTERNAL_BUF     1
 
-/* WAVE420 only */
+/* VPU420 only */
 #define USE_IMD_INTERNAL_BUF            1
 #define USE_RDO_INTERNAL_BUF            1
 #define USE_LF_INTERNAL_BUF             1
 
 
-#define WAVE5_UPPER_PROC_AXI_ID     0x0
+#define VP5_UPPER_PROC_AXI_ID     0x0
 
-#define WAVE5_PROC_AXI_ID           0x0
-#define WAVE5_PRP_AXI_ID            0x0
-#define WAVE5_FBD_Y_AXI_ID          0x0
-#define WAVE5_FBC_Y_AXI_ID          0x0
-#define WAVE5_FBD_C_AXI_ID          0x0
-#define WAVE5_FBC_C_AXI_ID          0x0
-#define WAVE5_SEC_AXI_ID            0x0
-#define WAVE5_PRI_AXI_ID            0x0
+#define VP5_PROC_AXI_ID           0x0
+#define VP5_PRP_AXI_ID            0x0
+#define VP5_FBD_Y_AXI_ID          0x0
+#define VP5_FBC_Y_AXI_ID          0x0
+#define VP5_FBD_C_AXI_ID          0x0
+#define VP5_FBC_C_AXI_ID          0x0
+#define VP5_SEC_AXI_ID            0x0
+#define VP5_PRI_AXI_ID            0x0
 
 #endif  /* _VPU_CONFIG_H_ */
 

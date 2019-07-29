@@ -40,20 +40,20 @@ static void Help(struct OptionExt *opt, const char *programName)
 {
     int i;
 
-    VLOG(INFO, "------------------------------------------------------------------------------\n");
-    VLOG(INFO, "%s(API v%d.%d.%d)\n", GetBasename(programName), API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);
-    VLOG(INFO, "\tAll rights reserved by Chips&Media(C)\n");
-    VLOG(INFO, "------------------------------------------------------------------------------\n");
-    VLOG(INFO, "%s [option] --input bistream\n", GetBasename(programName));
-    VLOG(INFO, "-h                          help\n");
-    VLOG(INFO, "-n [num]                    output frame number, -1,0:unlimited encoding(depends on YUV size)\n");
-    VLOG(INFO, "-v                          print version information\n");
-    VLOG(INFO, "-c                          compare with golden bitstream\n");
+    VLOG(ERR, "------------------------------------------------------------------------------\n");
+    VLOG(ERR, "%s(API v%d.%d.%d)\n", GetBasename(programName), API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);
+    VLOG(ERR, "\tAll rights reserved by Amlogic Inc\n");
+    VLOG(ERR, "------------------------------------------------------------------------------\n");
+    VLOG(ERR, "%s [option] --input bistream\n", GetBasename(programName));
+    VLOG(ERR, "-h                          help\n");
+    VLOG(ERR, "-n [num]                    output frame number, -1,0:unlimited encoding(depends on YUV size)\n");
+    VLOG(ERR, "-v                          print version information\n");
+    VLOG(ERR, "-c                          compare with golden bitstream\n");
 
     for (i = 0;i < MAX_GETOPT_OPTIONS;i++) {
         if (opt[i].name == NULL)
             break;
-        VLOG(INFO, "%s", opt[i].help);
+        VLOG(ERR, "%s", opt[i].help);
     }
 }
 
@@ -95,15 +95,15 @@ static BOOL ParseArgumentAndSetTestConfig(CommandLineArgument argument, TestEncC
         {"enable-cbcrInterleave", 0, NULL, 0, "--enable-cbcrInterleave     enable cbcr interleave\n"},
         {"nv21",                  1, NULL, 0, "--nv21                      enable NV21(must set enable-cbcrInterleave)\n"},
         {"packedFormat",          1, NULL, 0, "--packedFormat              1:YUYV, 2:YVYU, 3:UYVY, 4:VYUY\n"},
-        {"rotAngle",              1, NULL, 0, "--rotAngle                  rotation angle(0,90,180,270), Not supported on WAVE420L, WAVE525\n"},
-        {"mirDir",                1, NULL, 0, "--mirDir                    1:Vertical, 2: Horizontal, 3:Vert-Horz, Not supported on WAVE420L, WAVE525\n"}, /* 20 */
+        {"rotAngle",              1, NULL, 0, "--rotAngle                  rotation angle(0,90,180,270), Not supported on VP420L, VP525\n"},
+        {"mirDir",                1, NULL, 0, "--mirDir                    1:Vertical, 2: Horizontal, 3:Vert-Horz, Not supported on VP420L, VP525\n"}, /* 20 */
         {"secondary-axi",         1, NULL, 0, "--secondary-axi             0~3: bit mask values, Please refer programmer's guide or datasheet\n"
         "                            1: RDO, 2: LF\n"},
         {"frame-endian",          1, NULL, 0, "--frame-endian              16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"stream-endian",         1, NULL, 0, "--stream-endian             16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"source-endian",         1, NULL, 0, "--source-endian             16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"ref_stream_path",       1, NULL, 0, "--ref_stream_path           golden data which is compared with encoded stream when -c option\n"},
-        {"srcFormat3p4b",         1, NULL, 0, "--srcFormat3p4b             [WAVE420]This option MUST BE enabled when format of source yuv is 3pixel 4byte format\n"},
+        {"srcFormat3p4b",         1, NULL, 0, "--srcFormat3p4b             [VP420]This option MUST BE enabled when format of source yuv is 3pixel 4byte format\n"},
         {NULL,                    0, NULL, 0},
     };
   
@@ -191,10 +191,13 @@ static BOOL ParseArgumentAndSetTestConfig(CommandLineArgument argument, TestEncC
     return TRUE;
 }
 
+#define LOAD_FW     0
 
 int main(int argc, char **argv)
 {
+#if LOAD_FW
     char*               fwPath     = NULL;
+#endif
     TestEncConfig       testConfig;
     CommandLineArgument argument;
     CNMComponentConfig  config;
@@ -229,6 +232,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+#if LOAD_FW
     switch (testConfig.productId) {
     case PRODUCT_ID_520:    fwPath = CORE_4_BIT_CODE_FILE_PATH; break;
     case PRODUCT_ID_525:    fwPath = CORE_4_BIT_CODE_FILE_PATH; break;
@@ -244,7 +248,10 @@ int main(int argc, char **argv)
         VLOG(ERR, "%s:%d Failed to load firmware: %s\n", __FUNCTION__, __LINE__, fwPath);
         return 1;
     }
-
+#else
+    sizeInWord = 0;
+    pusBitCode = NULL;
+#endif
 
     config.testEncConfig = testConfig;
     config.bitcode       = (Uint8*)pusBitCode;

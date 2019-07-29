@@ -16,16 +16,12 @@
 
 #include "vpuapifunc.h"
 #include "product.h"
-#include "wave/wave5_regdefine.h"
-#include "wave/wave5.h"
+#include "enc_regdefine.h"
+#include "enc_driver.h"
 #include "debug.h"
 #include "vdi_osal.h"
 #include "vpuapi.h"
 #include "chagall.h"
-
-
-
-#define W5_RET_DEC_DISPLAY_SIZE (W5_REG_BASE + 0x01D8)      // [FIX ME] delete ? or not?
 
 #define INVALID_CORE_INDEX_RETURN_ERROR(_coreIdx)  \
     if (_coreIdx >= MAX_NUM_VPU_CORE) \
@@ -636,7 +632,7 @@ RetCode VPU_EncRegisterFrameBuffer(EncHandle handle, FrameBuffer* bufArray, int 
             pEncInfo->frameBufPool[i] = bufArray[i];
         }
 
-        if (openParam->EncStdParam.waveParam.svcEnable == TRUE) {
+        if (openParam->EncStdParam.vpParam.svcEnable == TRUE) {
             for(i=num; i<num*2; i++) {
                 pEncInfo->frameBufPool[i] = bufArray[i];
             }
@@ -1103,7 +1099,7 @@ RetCode VPU_EncGiveCommand(
             }
             if (pCodecInst->codecMode == W_HEVC_ENC || pCodecInst->codecMode == W_SVAC_ENC || pCodecInst->codecMode == W_AVC_ENC) {
                 if (handle->productId == PRODUCT_ID_520 || handle->productId == PRODUCT_ID_525 || handle->productId == PRODUCT_ID_521)
-                    return Wave5VpuEncGetHeader(handle, encHeaderParam);
+                    return Vp5VpuEncGetHeader(handle, encHeaderParam);
                 else
                     return RETCODE_INVALID_PARAM;
             }
@@ -1273,8 +1269,8 @@ RetCode VPU_EncGiveCommand(
             }
             secAxiUse = *(SecAxiUse *)param;
             if (handle->productId == PRODUCT_ID_520 || handle->productId == PRODUCT_ID_525 || handle->productId == PRODUCT_ID_521) {
-                pEncInfo->secAxiInfo.u.wave.useEncRdoEnable = secAxiUse.u.wave.useEncRdoEnable;
-                pEncInfo->secAxiInfo.u.wave.useEncLfEnable  = secAxiUse.u.wave.useEncLfEnable;
+                pEncInfo->secAxiInfo.u.vp.useEncRdoEnable = secAxiUse.u.vp.useEncRdoEnable;
+                pEncInfo->secAxiInfo.u.vp.useEncLfEnable  = secAxiUse.u.vp.useEncLfEnable;
             }
 #if 0
             else { // coda9 or coda7q or ... 
@@ -1334,7 +1330,7 @@ RetCode VPU_EncGiveCommand(
         {
             EncChangeParam* option = (EncChangeParam*)param;
             if (handle->productId == PRODUCT_ID_520 || handle->productId == PRODUCT_ID_525 || handle->productId == PRODUCT_ID_521)
-                return Wave5VpuEncParaChange(handle, option);
+                return Vp5VpuEncParaChange(handle, option);
             else
                 return RETCODE_INVALID_PARAM;
         }

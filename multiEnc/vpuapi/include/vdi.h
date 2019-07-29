@@ -148,7 +148,7 @@ typedef enum {
     VDI_BIG_ENDIAN,             /* 64bit BE */
     VDI_32BIT_LITTLE_ENDIAN,
     VDI_32BIT_BIG_ENDIAN,
-    /* WAVE PRODUCTS */
+    /* VPU PRODUCTS */
     VDI_128BIT_LITTLE_ENDIAN    = 16,
     VDI_128BIT_LE_BYTE_SWAP,
     VDI_128BIT_LE_WORD_SWAP,
@@ -221,8 +221,8 @@ extern "C" {
     void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb);
     int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb);
     int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb);
-    int flush_memory(u32 core_idx, vpu_buffer_t *vb);
-    int invidate_memory(u32 core_idx, vpu_buffer_t *vb);
+    int vdi_flush_memory(u32 core_idx, vpu_buffer_t *vb);
+    int vdi_invalidate_memory(u32 core_idx, vpu_buffer_t *vb);
     int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info);
     int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t *info);
 
@@ -265,7 +265,6 @@ extern "C" {
     int vdi_set_bit_firmware_to_pm(u32 core_idx, const u16 *code);
     int vdi_get_system_endian(u32 core_idx);
     int vdi_convert_endian(u32 core_idx, unsigned int endian);
-
 
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
 	int vdi_get_task_num(u32 core_idx);

@@ -20,25 +20,6 @@
 #include "vpuapi.h"
 #include "vpuapifunc.h"
 
-#if 0
-#define IS_CODA_DECODER_HANDLE(_inst)      (_inst->codecMode < AVC_ENC)
-
-//#define IS_WAVE_DECODER_HANDLE(_inst)      (_inst->codecMode == W_HEVC_DEC || _inst->codecMode == W_SVAC_DEC || _inst->codecMode == W_AVC_DEC || _inst->codecMode == W_VP9_DEC || _inst->codecMode == W_AVS2_DEC )
-
-enum {
-    FramebufCacheNone,
-    FramebufCacheMaverickI,
-    FramebufCacheMaverickII,
-};
-
-
-
-typedef struct _tag_FramebufferIndex {
-    Int16 tiledIndex;
-    Int16 linearIndex;
-} FramebufferIndex;
-#endif
-
 typedef struct _tag_VpuAttrStruct {
     Uint32  productId;
     Uint32  productNumber;
@@ -55,7 +36,7 @@ typedef struct _tag_VpuAttrStruct {
     BOOL    support128bitBus;
     BOOL    supportThumbnailMode;
     BOOL    supportBitstreamMode;
-    BOOL    supportFBCBWOptimization;   /* WAVExxx decoder feature */
+    BOOL    supportFBCBWOptimization;   /* VPUxxx decoder feature */
     BOOL    supportGDIHW;
     BOOL    supportCommandQueue;
     BOOL    supportBackbone;            /* Enhanced version of GDI */
@@ -145,80 +126,6 @@ extern RetCode ProductVpuClearInterrupt(
     Uint32      flags
     );
 
-#if 0
-extern RetCode ProductVpuDecBuildUpOpenParam(
-    CodecInst*    instance,
-    DecOpenParam* param
-    );
-
-extern RetCode ProductCheckDecOpenParam(
-    DecOpenParam* param
-    );
-
-extern RetCode ProductVpuDecInitSeq(
-    CodecInst*  instance
-    );
-
-extern RetCode ProductVpuDecFiniSeq(
-    CodecInst*  instance
-    );
-
-extern RetCode ProductVpuDecSetBitstreamFlag(
-    CodecInst*  instance,
-    BOOL        running,
-    Int32       size
-    );
-
-/*
- * FINI_SEQ
- */
-extern RetCode ProductVpuDecEndSequence(
-    CodecInst*  instance
-    );
-
-/**
- *  @brief      Abstract function for SEQ_INIT.
- */
-extern RetCode ProductVpuDecGetSeqInfo(
-    CodecInst*      instance, 
-    DecInitialInfo* info
-    );
-
-/**
- *  \brief      Check parameters for product specific decoder.
- */
-extern RetCode ProductVpuDecCheckCapability(
-    CodecInst*  instance
-    );
-
-/**
- * \brief       Decode a coded picture.  
- */
-extern RetCode ProductVpuDecode(
-    CodecInst*  instance,
-    DecParam*   option
-    );
-
-/**
- *
- */
-extern RetCode ProductVpuDecGetResult(
-    CodecInst*      instance,
-    DecOutputInfo*  result
-    );
-
-/**
- * \brief                   Flush framebuffers to prepare decoding new sequence
- * \param   instance        decoder handle
- * \param   retIndexes      Storing framebuffer indexes in display order. 
- *                          If retIndexes[i] is -1 then there is no display index from i-th.
- */
-extern RetCode ProductVpuDecFlush(
-    CodecInst*          instance,
-    FramebufferIndex*   retIndexes,
-    Uint32              size
-    );
-#endif
 /**
  *  \brief      Allocate framebuffers with given parameters 
  */
@@ -245,15 +152,6 @@ extern RetCode ProductVpuRegisterFramebuffer(
     CodecInst*      instance
     );
 
-extern RetCode ProductVpuDecUpdateFrameBuffer(
-    CodecInst*   instance,
-    FrameBuffer* fbcFb,
-    FrameBuffer* linearFb,
-    Uint32       mvColIndex,
-    Uint32       picWidth, 
-    Uint32       picHeight
-    );
-
 extern Int32 ProductCalculateFrameBufSize(
     Int32               productId, 
     Int32               stride, 
@@ -268,20 +166,6 @@ extern Int32 ProductCalculateAuxBufferSize(
     CodStd          codStd, 
     Int32           width, 
     Int32           height
-    );
-
-extern RetCode ProductClrDispFlag(
-    CodecInst* instance, 
-    Uint32 index
-    );
-
-extern RetCode ProductSetDispFlag(
-    CodecInst* instance, 
-    Uint32 dispFlag
-    );
-
-extern PhysicalAddress ProductVpuDecGetRdPtr(
-    CodecInst* instance
     );
 
 extern RetCode ProductVpuGetBandwidth(

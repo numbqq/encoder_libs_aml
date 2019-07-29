@@ -67,7 +67,7 @@ BIN_LIB:
 
 BINLIBCOPY:
 	-cp ./vpuapi/libamvenc_api.so ./lib/
-	-cp ./test_sample/w5_enc_test ./bin/
+	-cp ./test_sample/vp5_enc_test ./bin/
 
 
 clean:

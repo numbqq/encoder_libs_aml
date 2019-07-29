@@ -17,10 +17,7 @@
 #include "vpuapifunc.h"
 #include "product.h"
 #include "vdi_osal.h"
-//#include "coda9/coda9.h"
-//#include "coda9/coda9_regdefine.h"
-//#include "coda9/coda9_vpuconfig.h"
-#include "wave/wave5_regdefine.h"
+#include "enc_regdefine.h"
 #include "debug.h"
 
 
@@ -1940,20 +1937,20 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
 
     if (!vb.size) {
         sa->bufSize                = 0;
-        sa->u.wave.useIpEnable    = 0;
-        sa->u.wave.useLfRowEnable = 0;
-        sa->u.wave.useBitEnable   = 0;
-        sa->u.wave.useEncImdEnable   = 0;
-        sa->u.wave.useEncLfEnable    = 0;
-        sa->u.wave.useEncRdoEnable   = 0;
+        sa->u.vp.useIpEnable    = 0;
+        sa->u.vp.useLfRowEnable = 0;
+        sa->u.vp.useBitEnable   = 0;
+        sa->u.vp.useEncImdEnable   = 0;
+        sa->u.vp.useEncLfEnable    = 0;
+        sa->u.vp.useEncRdoEnable   = 0;
         return 0;
     }
     
     sa->bufBase = vb.phys_addr;
     offset      = 0;
     /* Intra Prediction */
-    if (sa->u.wave.useIpEnable == TRUE) {
-        sa->u.wave.bufIp = sa->bufBase + offset;
+    if (sa->u.vp.useIpEnable == TRUE) {
+        sa->u.vp.bufIp = sa->bufBase + offset;
 
         switch (productId) {
         case PRODUCT_ID_512:
@@ -2022,8 +2019,8 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
     }
 
     /* Loopfilter row */
-    if (sa->u.wave.useLfRowEnable == TRUE) {
-        sa->u.wave.bufLfRow = sa->bufBase + offset;
+    if (sa->u.vp.useLfRowEnable == TRUE) {
+        sa->u.vp.bufLfRow = sa->bufBase + offset;
         if ( codecMode == W_VP9_DEC ) {
             if ( profile == VP9_PROFILE_2)
             {
@@ -2105,8 +2102,8 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
         }
     }
 
-    if (sa->u.wave.useBitEnable == TRUE) {
-        sa->u.wave.bufBit = sa->bufBase + offset;
+    if (sa->u.vp.useBitEnable == TRUE) {
+        sa->u.vp.bufBit = sa->bufBase + offset;
         if (codecMode == W_VP9_DEC) {
             size = VPU_ALIGN64(width)/64 * (70*8);
         }
@@ -2129,11 +2126,11 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
         }
     }
 
-    if (sa->u.wave.useEncImdEnable == TRUE) {
+    if (sa->u.vp.useEncImdEnable == TRUE) {
          /* Main   profile(8bit) : Align32(picWidth)
           * Main10 profile(10bit): Align32(picWidth)
           */
-        sa->u.wave.bufImd = sa->bufBase + offset;
+        sa->u.vp.bufImd = sa->bufBase + offset;
         offset    += VPU_ALIGN32(width);
         if (offset > vb.size) {
             sa->bufSize = 0;
@@ -2141,11 +2138,11 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
         }
     }
 
-    if (sa->u.wave.useEncLfEnable == TRUE) {
+    if (sa->u.vp.useEncLfEnable == TRUE) {
 
         Uint32 luma, chroma;
 
-        sa->u.wave.bufLf = sa->bufBase + offset;
+        sa->u.vp.bufLf = sa->bufBase + offset;
 
         if (codecMode == W_AVC_ENC) {
             luma   = (profile == HEVC_PROFILE_MAIN10 ? 5 : 4);
@@ -2172,16 +2169,16 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
         }
     }
 
-    if (sa->u.wave.useEncRdoEnable == TRUE) {
+    if (sa->u.vp.useEncRdoEnable == TRUE) {
 
         switch (productId) {
         case PRODUCT_ID_520:
         case PRODUCT_ID_525:
-            sa->u.wave.bufRdo = sa->bufBase + offset;
+            sa->u.vp.bufRdo = sa->bufBase + offset;
             offset += (VPU_ALIGN64(width)>>6) * 288;
             break;
         case PRODUCT_ID_521:
-            sa->u.wave.bufRdo = sa->bufBase + offset;
+            sa->u.vp.bufRdo = sa->bufBase + offset;
             if (codecMode == W_AVC_ENC) {
                 offset += (VPU_ALIGN64(width)>>6)*384;
             }
@@ -2193,7 +2190,7 @@ Int32 ConfigSecAXIWave(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 w
              /* Main   profile(8bit) : (Align64(picWidth)/64) * 336
              * Main10 profile(10bit): (Align64(picWidth)/64) * 336
              */
-            sa->u.wave.bufRdo = sa->bufBase + offset;
+            sa->u.vp.bufRdo = sa->bufBase + offset;
             offset    += (VPU_ALIGN64(width)/64) * 336;
             break;
         }
@@ -4366,15 +4363,15 @@ Int32 CalcLumaSize(
         size_dpb_lum = stride * height;
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT || mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_10BIT) {
-        size_dpb_lum = WAVE5_ENC_FBC50_LOSSLESS_LUMA_10BIT_FRAME_SIZE(stride, height);
+        size_dpb_lum = VP5_ENC_FBC50_LOSSLESS_LUMA_10BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_8BIT || mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_8BIT) {
-        size_dpb_lum = WAVE5_ENC_FBC50_LOSSLESS_LUMA_8BIT_FRAME_SIZE(stride, height);
+        size_dpb_lum = VP5_ENC_FBC50_LOSSLESS_LUMA_8BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSY || mapType == COMPRESSED_FRAME_MAP_V50_LOSSY_422) {
         if (pDramCfg == NULL)
             return 0;
-        size_dpb_lum = WAVE5_ENC_FBC50_LOSSY_LUMA_FRAME_SIZE(stride, height, pDramCfg->tx16y);
+        size_dpb_lum = VP5_ENC_FBC50_LOSSY_LUMA_FRAME_SIZE(stride, height, pDramCfg->tx16y);
     }
     else if (mapType == TILED_FRAME_NO_BANK_MAP || mapType == TILED_FIELD_NO_BANK_MAP) {
         unit_size_hor_lum = stride;
@@ -4639,26 +4636,26 @@ Int32 CalcChromaSize(
         size_dpb_chr = size_dpb_chr / 2;
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT) {
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSLESS_CHROMA_10BIT_FRAME_SIZE(stride, height);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSLESS_CHROMA_10BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_8BIT) {
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSLESS_CHROMA_8BIT_FRAME_SIZE(stride, height);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSLESS_CHROMA_8BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSY) {
         if (pDramCfg == NULL)
             return 0;
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSY_CHROMA_FRAME_SIZE(stride, height, pDramCfg->tx16c);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSY_CHROMA_FRAME_SIZE(stride, height, pDramCfg->tx16c);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_10BIT) {
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSLESS_422_CHROMA_10BIT_FRAME_SIZE(stride, height);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSLESS_422_CHROMA_10BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_8BIT) {
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSLESS_422_CHROMA_8BIT_FRAME_SIZE(stride, height);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSLESS_422_CHROMA_8BIT_FRAME_SIZE(stride, height);
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSY_422) {
         if (pDramCfg == NULL)
             return 0;
-        size_dpb_chr = WAVE5_ENC_FBC50_LOSSY_422_CHROMA_FRAME_SIZE(stride, height, pDramCfg->tx16c);
+        size_dpb_chr = VP5_ENC_FBC50_LOSSY_422_CHROMA_FRAME_SIZE(stride, height, pDramCfg->tx16c);
     }
 
     else if (mapType == TILED_FRAME_NO_BANK_MAP || mapType == TILED_FIELD_NO_BANK_MAP) {
@@ -4816,7 +4813,7 @@ void SwUartHandler(void *context)
 	osal_memset(uartTx, 0, sizeof(char)*1024);
 	while(s_SwUartContext.sw_uart_thread_run == 1)
 	{
-		regSwUartStatus = vdi_read_register(s_SwUartContext.core_idx, W5_SW_UART_STATUS); 
+		regSwUartStatus = vdi_read_register(s_SwUartContext.core_idx, VP5_SW_UART_STATUS);
 		if (regSwUartStatus == (unsigned int)-1)
 		{
 			continue;
@@ -4824,13 +4821,13 @@ void SwUartHandler(void *context)
 
 		if ((regSwUartStatus & (1<<1)))
 		{
-			regSwUartTxData = vdi_read_register(s_SwUartContext.core_idx, W5_SW_UART_TX_DATA); 
+			regSwUartTxData = vdi_read_register(s_SwUartContext.core_idx, VP5_SW_UART_TX_DATA);
 			if (regSwUartTxData == (unsigned int)-1)
 			{
 				continue;
 			}
 			regSwUartStatus &= ~(1<<1);
-			vdi_write_register(s_SwUartContext.core_idx, W5_SW_UART_STATUS, regSwUartStatus);
+			vdi_write_register(s_SwUartContext.core_idx, VP5_SW_UART_STATUS, regSwUartStatus);
 			strRegSwUartTxData = (unsigned char *)&regSwUartTxData;
 			for (i=0; i < 4; i++)
 			{
@@ -4858,7 +4855,7 @@ int create_sw_uart_thread(unsigned long coreIdx)
 	if (s_SwUartContext.sw_uart_thread_run == 1)
 		return 1;
 
-	vdi_write_register(coreIdx, W5_SW_UART_STATUS,  (1<<0)); // enable SW UART. this will be checked by firmware to know SW UART enabled    
+	vdi_write_register(coreIdx, VP5_SW_UART_STATUS,  (1<<0)); // enable SW UART. this will be checked by firmware to know SW UART enabled
 
 	
 	s_SwUartContext.core_idx = coreIdx;
@@ -4902,7 +4899,7 @@ void destory_sw_uart_thread(unsigned long coreIdx)
 	{
 		s_SwUartContext.sw_uart_thread_run = 0;
 
-		vdi_write_register(coreIdx, W5_SW_UART_STATUS, 0); // disable SW UART. this will be checked by firmware to know SW UART enabled    
+		vdi_write_register(coreIdx, VP5_SW_UART_STATUS, 0); // disable SW UART. this will be checked by firmware to know SW UART enabled
 
 		if (s_SwUartContext.thread_id)
 		{

@@ -44,13 +44,13 @@
 #define SUPPORT_MULTI_INST_INTR
 #endif
 
-// do not define BIT_CODE_FILE_PATH in case of multiple product support. because wave410 and coda980 has different firmware binary format.
-#define CORE_0_BIT_CODE_FILE_PATH   "coda960.out"     // for coda960
-#define CORE_1_BIT_CODE_FILE_PATH   "coda980.out"     // for coda980
-#define CORE_2_BIT_CODE_FILE_PATH   "picasso.bin"     // for wave510
-#define CORE_4_BIT_CODE_FILE_PATH   "millet.bin"      // for wave520
-#define CORE_5_BIT_CODE_FILE_PATH   "kepler.bin"      // for wave515
-#define CORE_6_BIT_CODE_FILE_PATH   "chagall.bin"     // for wave521
+// do not define BIT_CODE_FILE_PATH in case of multiple product support. 
+#define CORE_0_BIT_CODE_FILE_PATH   "coda960.out"
+#define CORE_1_BIT_CODE_FILE_PATH   "coda980.out"
+#define CORE_2_BIT_CODE_FILE_PATH   "picasso.bin"     
+#define CORE_4_BIT_CODE_FILE_PATH   "millet.bin"      
+#define CORE_5_BIT_CODE_FILE_PATH   "kepler.bin"     
+#define CORE_6_BIT_CODE_FILE_PATH   "chagall.bin" 
 
 //------------------------------------------------------------------------------
 // OMX
@@ -64,16 +64,16 @@
 
 
 //------------------------------------------------------------------------------
-// WAVE521 or WAVE521C
+// VP521 or VP521C
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// WAVE511
+// VP511
 //------------------------------------------------------------------------------
 
 
 //#define SUPPORT_SW_UART
-//#define SUPPORT_SW_UART_V2	// WAVE511 or WAVE521 or WAVE521C
+//#define SUPPORT_SW_UART_V2	// VP511 or VP521 or VP521C
 #endif /* __CONFIG_H__ */
  
 

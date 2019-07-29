@@ -12,7 +12,7 @@
 
 #include <string.h>
 
-const WaveCfgInfo waveCfgInfo[MAX_CFG] = {
+const WaveCfgInfo vpCfgInfo[MAX_CFG] = {
     //name                          min            max              default
     {"InputFile",                   0,              0,                      0}, //0
     {"SourceWidth",                 0,              W4_MAX_ENC_PIC_WIDTH,   0},
@@ -120,7 +120,7 @@ const WaveCfgInfo waveCfgInfo[MAX_CFG] = {
     {"CustomVpsLayerId0",           0,              INT_MAX,                0}, 
     {"CustomVpsLayerId1",           0,              INT_MAX,                0},
     {"CustomSpsLog2MaxPocMinus4",   0,              12,                     4},
-// newly added for WAVE520
+// newly added for VP520
     {"EncMonochrome",               0,              1,                      0},
     {"StrongIntraSmoothing",        0,              1,                      1},
     {"RoiAvgQP",                    0,              63,                     0}, 
@@ -182,7 +182,7 @@ const WaveCfgInfo waveCfgInfo[MAX_CFG] = {
     {"SvcMode",                     0,              1,                      1},
     {"VbvBufferSize",              10,             3000,                   3000},
     {"EncBitrateBL",                0,              700000000,              0},
-    // newly added for H.264 on WAVE5
+    // newly added for H.264 on VP5
     {"RdoSkip",                     0,              1,                      1},
     {"LambdaScaling",               0,              1,                      1},
     {"Transform8x8",                0,              1,                      1},
@@ -768,7 +768,7 @@ __end_parseAvcCfgFile:
     return ret;
 }
 
-static int WAVE_GetStringValue(
+static int VP_GetStringValue(
     osal_file_t fp,
     char* para,
     char* value
@@ -816,7 +816,7 @@ static int WAVE_GetStringValue(
     }
 }
 
-static int WAVE_GetValue(
+static int VP_GetValue(
     osal_file_t fp,
     char* cfgName,
     int* value
@@ -828,7 +828,7 @@ static int WAVE_GetValue(
     char sValue[256] = {0, };
     
     for (i=0; i < MAX_CFG ;i++) {
-        if ( strcmp(waveCfgInfo[i].name, cfgName) == 0)
+        if ( strcmp(vpCfgInfo[i].name, cfgName) == 0)
             break;
     }
     if ( i == MAX_CFG ) {
@@ -836,30 +836,30 @@ static int WAVE_GetValue(
         return 0;
     }
 
-    ret = WAVE_GetStringValue(fp, cfgName, sValue);
+    ret = VP_GetStringValue(fp, cfgName, sValue);
     if(ret == 1) {
         iValue = atoi(sValue);
-        if( (iValue >= waveCfgInfo[i].min) && (iValue <= waveCfgInfo[i].max) ) { // Check min, max
+        if( (iValue >= vpCfgInfo[i].min) && (iValue <= vpCfgInfo[i].max) ) { // Check min, max
             *value = iValue;
             return 1;
         }
         else {
-            VLOG(ERR, "CFG file error : %s value is not available. ( min = %d, max = %d)\n", waveCfgInfo[i].name, waveCfgInfo[i].min, waveCfgInfo[i].max);
+            VLOG(ERR, "CFG file error : %s value is not available. ( min = %d, max = %d)\n", vpCfgInfo[i].name, vpCfgInfo[i].min, vpCfgInfo[i].max);
             return 0;
         }
     }
     else if ( ret == -1 ) {
-            VLOG(ERR, "CFG file error : %s value is not available. ( min = %d, max = %d)\n", waveCfgInfo[i].name, waveCfgInfo[i].min, waveCfgInfo[i].max);
+            VLOG(ERR, "CFG file error : %s value is not available. ( min = %d, max = %d)\n", vpCfgInfo[i].name, vpCfgInfo[i].min, vpCfgInfo[i].max);
             return 0;
     }
     else {
-        *value = waveCfgInfo[i].def;
+        *value = vpCfgInfo[i].def;
         return 1;
     }
 }
 
 
-static int WAVE_SetGOPInfo(
+static int VP_SetGOPInfo(
     char* lineStr,
     CustomGopPicParam* gopPicParam,
     int useDeriveLambdaWeight,
@@ -913,7 +913,7 @@ static int WAVE_SetGOPInfo(
 }
 
 
-static int WAVE_AVCSetGOPInfo(
+static int VP_AVCSetGOPInfo(
     char* lineStr,
     CustomGopPicParam* gopPicParam,
     int useDeriveLambdaWeight,
@@ -1021,451 +1021,451 @@ int parseWaveEncCfgFile(
         return ret;
     }
 
-    if (WAVE_GetStringValue(fp, "BitstreamFile", sValue) == 1)
+    if (VP_GetStringValue(fp, "BitstreamFile", sValue) == 1)
         strcpy(pEncCfg->BitStreamFileName, sValue);
 
-    if (WAVE_GetStringValue(fp, "InputFile", sValue) == 1)
+    if (VP_GetStringValue(fp, "InputFile", sValue) == 1)
         strcpy(pEncCfg->SrcFileName, sValue);
     else
         goto __end_parse;
 
-    if (WAVE_GetValue(fp, "SourceWidth", &iValue) == 0)
+    if (VP_GetValue(fp, "SourceWidth", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.picX = iValue;
-    if (WAVE_GetValue(fp, "SourceHeight", &iValue) == 0)
+        pEncCfg->vpCfg.picX = iValue;
+    if (VP_GetValue(fp, "SourceHeight", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.picY = iValue;
-    if (WAVE_GetValue(fp, "FramesToBeEncoded", &iValue) == 0)
+        pEncCfg->vpCfg.picY = iValue;
+    if (VP_GetValue(fp, "FramesToBeEncoded", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->NumFrame = iValue;
-    if (WAVE_GetValue(fp, "InputBitDepth", &iValue) == 0)
+    if (VP_GetValue(fp, "InputBitDepth", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->SrcBitDepth = iValue; // BitDepth == 8 ? HEVC_PROFILE_MAIN : HEVC_PROFILE_MAIN10
 
-    if (WAVE_GetValue(fp, "InternalBitDepth", &iValue) == 0)
+    if (VP_GetValue(fp, "InternalBitDepth", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.internalBitDepth   = iValue;
+        pEncCfg->vpCfg.internalBitDepth   = iValue;
 
-    if (WAVE_GetValue(fp, "LosslessCoding", &iValue) == 0)
+    if (VP_GetValue(fp, "LosslessCoding", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.losslessEnable = iValue;
-    if (WAVE_GetValue(fp, "ConstrainedIntraPred", &iValue) == 0)
+        pEncCfg->vpCfg.losslessEnable = iValue;
+    if (VP_GetValue(fp, "ConstrainedIntraPred", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.constIntraPredFlag = iValue;
-    if (WAVE_GetValue(fp, "DecodingRefreshType", &iValue) == 0)
+        pEncCfg->vpCfg.constIntraPredFlag = iValue;
+    if (VP_GetValue(fp, "DecodingRefreshType", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.decodingRefreshType = iValue;
+        pEncCfg->vpCfg.decodingRefreshType = iValue;
 
-    if (WAVE_GetValue(fp, "StillPictureProfile", &iValue) == 0)
+    if (VP_GetValue(fp, "StillPictureProfile", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.enStillPicture = iValue;
+        pEncCfg->vpCfg.enStillPicture = iValue;
 
     // BitAllocMode
-    if (WAVE_GetValue(fp, "BitAllocMode", &iValue) == 0)
+    if (VP_GetValue(fp, "BitAllocMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bitAllocMode = iValue;
+        pEncCfg->vpCfg.bitAllocMode = iValue;
 
     // FixedBitRatio 0 ~ 7
 #define FIXED_BIT_RATIO 49
     for (i=0; i<MAX_GOP_NUM; i++) {
         sprintf(tempStr, "FixedBitRatio%d", i);
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
             iValue = atoi(sValue);
-            if ( iValue >= waveCfgInfo[FIXED_BIT_RATIO].min && iValue <= waveCfgInfo[FIXED_BIT_RATIO].max )
-                pEncCfg->waveCfg.fixedBitRatio[i] = iValue;
+            if ( iValue >= vpCfgInfo[FIXED_BIT_RATIO].min && iValue <= vpCfgInfo[FIXED_BIT_RATIO].max )
+                pEncCfg->vpCfg.fixedBitRatio[i] = iValue;
             else
-                pEncCfg->waveCfg.fixedBitRatio[i] = waveCfgInfo[FIXED_BIT_RATIO].def;
+                pEncCfg->vpCfg.fixedBitRatio[i] = vpCfgInfo[FIXED_BIT_RATIO].def;
         }
 		else
-			pEncCfg->waveCfg.fixedBitRatio[i] = waveCfgInfo[FIXED_BIT_RATIO].def;
+			pEncCfg->vpCfg.fixedBitRatio[i] = vpCfgInfo[FIXED_BIT_RATIO].def;
 
     }
 
-    if (WAVE_GetValue(fp, "QP", &iValue) == 0) //INTRA_QP
+    if (VP_GetValue(fp, "QP", &iValue) == 0) //INTRA_QP
         goto __end_parse;
     else 
-        pEncCfg->waveCfg.intraQP = iValue;
+        pEncCfg->vpCfg.intraQP = iValue;
 
-    if (WAVE_GetValue(fp, "IntraPeriod", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraPeriod", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraPeriod = iValue;
+        pEncCfg->vpCfg.intraPeriod = iValue;
 
-    if (WAVE_GetValue(fp, "ConfWindSizeTop", &iValue) == 0)
+    if (VP_GetValue(fp, "ConfWindSizeTop", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.confWinTop = iValue;
+        pEncCfg->vpCfg.confWinTop = iValue;
 
-    if (WAVE_GetValue(fp, "ConfWindSizeBot", &iValue) == 0)
+    if (VP_GetValue(fp, "ConfWindSizeBot", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.confWinBot = iValue;
+        pEncCfg->vpCfg.confWinBot = iValue;
 
-    if (WAVE_GetValue(fp, "ConfWindSizeRight", &iValue) == 0)
+    if (VP_GetValue(fp, "ConfWindSizeRight", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.confWinRight = iValue;
+        pEncCfg->vpCfg.confWinRight = iValue;
 
-    if (WAVE_GetValue(fp, "ConfWindSizeLeft", &iValue) == 0)
+    if (VP_GetValue(fp, "ConfWindSizeLeft", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.confWinLeft = iValue;
+        pEncCfg->vpCfg.confWinLeft = iValue;
 
-    if (WAVE_GetValue(fp, "FrameRate", &iValue) == 0)
+    if (VP_GetValue(fp, "FrameRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.frameRate = iValue;
+        pEncCfg->vpCfg.frameRate = iValue;
 
-    if (WAVE_GetValue(fp, "IndeSliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "IndeSliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.independSliceMode = iValue;
+        pEncCfg->vpCfg.independSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "IndeSliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "IndeSliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.independSliceModeArg = iValue;
+        pEncCfg->vpCfg.independSliceModeArg = iValue;
 
-    if (WAVE_GetValue(fp, "DeSliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "DeSliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.dependSliceMode = iValue;
+        pEncCfg->vpCfg.dependSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "DeSliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "DeSliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.dependSliceModeArg = iValue;
+        pEncCfg->vpCfg.dependSliceModeArg = iValue;
 
 
-    if (WAVE_GetValue(fp, "IntraCtuRefreshMode", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraCtuRefreshMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraRefreshMode = iValue;
+        pEncCfg->vpCfg.intraRefreshMode = iValue;
 
 
-    if (WAVE_GetValue(fp, "IntraCtuRefreshArg", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraCtuRefreshArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraRefreshArg = iValue;
+        pEncCfg->vpCfg.intraRefreshArg = iValue;
 
-    if (WAVE_GetValue(fp, "UsePresetEncTools", &iValue) == 0)
+    if (VP_GetValue(fp, "UsePresetEncTools", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.useRecommendEncParam = iValue;
+        pEncCfg->vpCfg.useRecommendEncParam = iValue;
 
-    if (WAVE_GetValue(fp, "ScalingList", &iValue) == 0)
+    if (VP_GetValue(fp, "ScalingList", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.scalingListEnable = iValue;
+        pEncCfg->vpCfg.scalingListEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnCu8x8", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCu8x8", &iValue) == 0)
         goto __end_parse;
     else
         intra8 = iValue;
 
-    if (WAVE_GetValue(fp, "EnCu16x16", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCu16x16", &iValue) == 0)
         goto __end_parse;
     else
         intra16 = iValue;
 
-    if (WAVE_GetValue(fp, "EnCu32x32", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCu32x32", &iValue) == 0)
         goto __end_parse;
     else
         intra32 = iValue;
 
-    pEncCfg->waveCfg.cuSizeMode = (intra8&0x01) | (intra16&0x01)<<1 | (intra32&0x01)<<2;
+    pEncCfg->vpCfg.cuSizeMode = (intra8&0x01) | (intra16&0x01)<<1 | (intra32&0x01)<<2;
 
-    if (WAVE_GetValue(fp, "EnTemporalMVP", &iValue) == 0)
+    if (VP_GetValue(fp, "EnTemporalMVP", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.tmvpEnable = iValue;
+        pEncCfg->vpCfg.tmvpEnable = iValue;
 
-    if (WAVE_GetValue(fp, "WaveFrontSynchro", &iValue) == 0)
+    if (VP_GetValue(fp, "WaveFrontSynchro", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.wppenable = iValue;
+        pEncCfg->vpCfg.wppenable = iValue;
 
-    if (WAVE_GetValue(fp, "MaxNumMerge", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxNumMerge", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxNumMerge = iValue;
+        pEncCfg->vpCfg.maxNumMerge = iValue;
 
-    if (WAVE_GetValue(fp, "EnDBK", &iValue) == 0)
+    if (VP_GetValue(fp, "EnDBK", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.disableDeblk = !(iValue);
+        pEncCfg->vpCfg.disableDeblk = !(iValue);
 
-    if (WAVE_GetValue(fp, "LFCrossSliceBoundaryFlag", &iValue) == 0)
+    if (VP_GetValue(fp, "LFCrossSliceBoundaryFlag", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.lfCrossSliceBoundaryEnable = iValue;
+        pEncCfg->vpCfg.lfCrossSliceBoundaryEnable = iValue;
 
-    if (WAVE_GetValue(fp, "BetaOffsetDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "BetaOffsetDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.betaOffsetDiv2 = iValue;
+        pEncCfg->vpCfg.betaOffsetDiv2 = iValue;
 
-    if (WAVE_GetValue(fp, "TcOffsetDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "TcOffsetDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.tcOffsetDiv2 = iValue;
+        pEncCfg->vpCfg.tcOffsetDiv2 = iValue;
 
-    if (WAVE_GetValue(fp, "IntraTransSkip", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraTransSkip", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.skipIntraTrans = iValue;
+        pEncCfg->vpCfg.skipIntraTrans = iValue;
 
-    if (WAVE_GetValue(fp, "EnSAO", &iValue) == 0)
+    if (VP_GetValue(fp, "EnSAO", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.saoEnable = iValue;
+        pEncCfg->vpCfg.saoEnable = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNxN", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNxN", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraNxNEnable = iValue;
+        pEncCfg->vpCfg.intraNxNEnable = iValue;
 
-    if (WAVE_GetValue(fp, "RateControl", &iValue) == 0)
+    if (VP_GetValue(fp, "RateControl", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->RcEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EncBitrate", &iValue) == 0)
+    if (VP_GetValue(fp, "EncBitrate", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->RcBitRate = iValue;
 
-    if (WAVE_GetValue(fp, "EncBitrateBL", &iValue) == 0)
+    if (VP_GetValue(fp, "EncBitrateBL", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->RcBitRateBL = iValue;
 
-    if (WAVE_GetValue(fp, "CULevelRateControl", &iValue) == 0)
+    if (VP_GetValue(fp, "CULevelRateControl", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cuLevelRCEnable = iValue;
+        pEncCfg->vpCfg.cuLevelRCEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnHvsQp", &iValue) == 0)
+    if (VP_GetValue(fp, "EnHvsQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.hvsQPEnable = iValue;
+        pEncCfg->vpCfg.hvsQPEnable = iValue;
 
-    if (WAVE_GetValue(fp, "HvsQpScaleDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "HvsQpScaleDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.hvsQpScale = iValue;
+        pEncCfg->vpCfg.hvsQpScale = iValue;
 
-    if (WAVE_GetValue(fp, "InitialDelay", &iValue) == 0)
+    if (VP_GetValue(fp, "InitialDelay", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->VbvBufferSize = iValue;
 
     if (pEncCfg->VbvBufferSize == 0) {
-        if (WAVE_GetValue(fp, "VbvBufferSize", &iValue) == 0)
+        if (VP_GetValue(fp, "VbvBufferSize", &iValue) == 0)
             goto __end_parse;
         else
             pEncCfg->VbvBufferSize = iValue;
     }
     
-    if (WAVE_GetValue(fp, "MinQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MinQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.minQp = iValue;
+        pEncCfg->vpCfg.minQp = iValue;
 
-    if (WAVE_GetValue(fp, "MaxQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxQp = iValue;
+        pEncCfg->vpCfg.maxQp = iValue;
 
-    if (WAVE_GetValue(fp, "MaxDeltaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxDeltaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxDeltaQp = iValue;
+        pEncCfg->vpCfg.maxDeltaQp = iValue;
 
-    if (WAVE_GetValue(fp, "GOPSize", &iValue) == 0)
+    if (VP_GetValue(fp, "GOPSize", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.gopParam.customGopSize = iValue;
+        pEncCfg->vpCfg.gopParam.customGopSize = iValue;
 
-    if (WAVE_GetValue(fp, "EnRoi", &iValue) == 0)
+    if (VP_GetValue(fp, "EnRoi", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.roiEnable = iValue;
+        pEncCfg->vpCfg.roiEnable = iValue;
 
-    if (WAVE_GetValue(fp, "GopPreset", &iValue) == 0)
+    if (VP_GetValue(fp, "GopPreset", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.gopPresetIdx = iValue;
+        pEncCfg->vpCfg.gopPresetIdx = iValue;
 
-    if (WAVE_GetValue(fp, "FrameSkip", &iValue) == 0)
+    if (VP_GetValue(fp, "FrameSkip", &iValue) == 0)
         goto __end_parse;
     else
         frameSkip = iValue;
 
-    if (WAVE_GetValue(fp, "NumUnitsInTick", &iValue) == 0)
+    if (VP_GetValue(fp, "NumUnitsInTick", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.numUnitsInTick = iValue;
+        pEncCfg->vpCfg.numUnitsInTick = iValue;
 
-    if (WAVE_GetValue(fp, "TimeScale", &iValue) == 0)
+    if (VP_GetValue(fp, "TimeScale", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.timeScale = iValue;
+        pEncCfg->vpCfg.timeScale = iValue;
 
-    if (WAVE_GetValue(fp, "NumTicksPocDiffOne", &iValue) == 0)
+    if (VP_GetValue(fp, "NumTicksPocDiffOne", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.numTicksPocDiffOne = iValue;
+        pEncCfg->vpCfg.numTicksPocDiffOne = iValue;
 
-    if (WAVE_GetValue(fp, "EncAUD", &iValue) == 0)
+    if (VP_GetValue(fp, "EncAUD", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.encAUD = iValue;
+        pEncCfg->vpCfg.encAUD = iValue;
 
-    if (WAVE_GetValue(fp, "EncEOS", &iValue) == 0)
+    if (VP_GetValue(fp, "EncEOS", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.encEOS = iValue;
+        pEncCfg->vpCfg.encEOS = iValue;
 
-    if (WAVE_GetValue(fp, "EncEOB", &iValue) == 0)
+    if (VP_GetValue(fp, "EncEOB", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.encEOB = iValue;
+        pEncCfg->vpCfg.encEOB = iValue;
 
-    if (WAVE_GetValue(fp, "CbQpOffset", &iValue) == 0)
+    if (VP_GetValue(fp, "CbQpOffset", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.chromaCbQpOffset = iValue;
+        pEncCfg->vpCfg.chromaCbQpOffset = iValue;
 
-    if (WAVE_GetValue(fp, "CrQpOffset", &iValue) == 0)
+    if (VP_GetValue(fp, "CrQpOffset", &iValue) == 0)
             goto __end_parse;
     else
-        pEncCfg->waveCfg.chromaCrQpOffset = iValue;
+        pEncCfg->vpCfg.chromaCrQpOffset = iValue;
 
-    if (WAVE_GetValue(fp, "RcInitialQp", &iValue) == 0)
+    if (VP_GetValue(fp, "RcInitialQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.initialRcQp = iValue;
+        pEncCfg->vpCfg.initialRcQp = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionY", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrYEnable = iValue;
+        pEncCfg->vpCfg.nrYEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionCb", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrCbEnable = iValue;
+        pEncCfg->vpCfg.nrCbEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionCr", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrCrEnable = iValue;
+        pEncCfg->vpCfg.nrCrEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseEst", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseEst", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseEstEnable = iValue;
+        pEncCfg->vpCfg.nrNoiseEstEnable = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaY", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaY = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaY = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaCb", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaCb = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaCb = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaCr", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaCr = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaCr = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightY", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightY = iValue;
+        pEncCfg->vpCfg.nrIntraWeightY = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightCb", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightCb= iValue;
+        pEncCfg->vpCfg.nrIntraWeightCb= iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightCr", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightCr = iValue;
+        pEncCfg->vpCfg.nrIntraWeightCr = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightY", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightY = iValue;
+        pEncCfg->vpCfg.nrInterWeightY = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightCb", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightCb = iValue;
+        pEncCfg->vpCfg.nrInterWeightCb = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightCr", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightCr = iValue;
+        pEncCfg->vpCfg.nrInterWeightCr = iValue;
 
-    if (WAVE_GetValue(fp, "UseAsLongTermRefPeriod", &iValue) == 0)
+    if (VP_GetValue(fp, "UseAsLongTermRefPeriod", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.useAsLongtermPeriod = iValue;
+        pEncCfg->vpCfg.useAsLongtermPeriod = iValue;
 
-    if (WAVE_GetValue(fp, "RefLongTermPeriod", &iValue) == 0)
+    if (VP_GetValue(fp, "RefLongTermPeriod", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.refLongtermPeriod = iValue;
+        pEncCfg->vpCfg.refLongtermPeriod = iValue;
 
 
 
     //GOP
-    if (pEncCfg->waveCfg.intraPeriod == 1) {
-        pEncCfg->waveCfg.gopParam.picParam[0].picType = PIC_TYPE_I;
-        pEncCfg->waveCfg.gopParam.picParam[0].picQp = pEncCfg->waveCfg.intraQP;
-        if (pEncCfg->waveCfg.gopParam.customGopSize > 1) {
+    if (pEncCfg->vpCfg.intraPeriod == 1) {
+        pEncCfg->vpCfg.gopParam.picParam[0].picType = PIC_TYPE_I;
+        pEncCfg->vpCfg.gopParam.picParam[0].picQp = pEncCfg->vpCfg.intraQP;
+        if (pEncCfg->vpCfg.gopParam.customGopSize > 1) {
             VLOG(ERR, "CFG file error : gop size should be smaller than 2 for all intra case\n");
             goto __end_parse;
         }
     }
     else {
-        for (i = 0; pEncCfg->waveCfg.gopPresetIdx == PRESET_IDX_CUSTOM_GOP && i < pEncCfg->waveCfg.gopParam.customGopSize; i++) {
+        for (i = 0; pEncCfg->vpCfg.gopPresetIdx == PRESET_IDX_CUSTOM_GOP && i < pEncCfg->vpCfg.gopParam.customGopSize; i++) {
 
             sprintf(tempStr, "Frame%d", i+1);
-            if (WAVE_GetStringValue(fp, tempStr, sValue) != 1) {
+            if (VP_GetStringValue(fp, tempStr, sValue) != 1) {
                 VLOG(ERR, "CFG file error : %s value is not available. \n", tempStr);
                 goto __end_parse;
             }
 
             if ( bitFormat == STD_AVC ) {
-                if ( WAVE_AVCSetGOPInfo(sValue, &pEncCfg->waveCfg.gopParam.picParam[i], 0, pEncCfg->waveCfg.intraQP) != 1) {
+                if ( VP_AVCSetGOPInfo(sValue, &pEncCfg->vpCfg.gopParam.picParam[i], 0, pEncCfg->vpCfg.intraQP) != 1) {
                     VLOG(ERR, "CFG file error : %s value is not available. \n", tempStr);
                     goto __end_parse;
                 }
             }
             else {
-                if ( WAVE_SetGOPInfo(sValue, &pEncCfg->waveCfg.gopParam.picParam[i], 0, pEncCfg->waveCfg.intraQP) != 1) {
+                if ( VP_SetGOPInfo(sValue, &pEncCfg->vpCfg.gopParam.picParam[i], 0, pEncCfg->vpCfg.intraQP) != 1) {
                     VLOG(ERR, "CFG file error : %s value is not available. \n", tempStr);
                     goto __end_parse;
                 }
 #if TEMP_SCALABLE_RC
-                if ( (pEncCfg->waveCfg.gopParam.picParam[i].temporalId + 1) > MAX_NUM_TEMPORAL_LAYER) {
-                    VLOG(ERR, "CFG file error : %s MaxTempLayer %d exceeds MAX_TEMP_LAYER(7). \n", tempStr, pEncCfg->waveCfg.gopParam.picParam[i].temporalId + 1);
+                if ( (pEncCfg->vpCfg.gopParam.picParam[i].temporalId + 1) > MAX_NUM_TEMPORAL_LAYER) {
+                    VLOG(ERR, "CFG file error : %s MaxTempLayer %d exceeds MAX_TEMP_LAYER(7). \n", tempStr, pEncCfg->vpCfg.gopParam.picParam[i].temporalId + 1);
                     goto __end_parse;
                 }
 #endif
@@ -1474,344 +1474,344 @@ int parseWaveEncCfgFile(
     }
 
     //ROI
-    if (pEncCfg->waveCfg.roiEnable) {
+    if (pEncCfg->vpCfg.roiEnable) {
         sprintf(tempStr, "RoiFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.roiFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.roiFileName);
         }
     }
 
-    if (pEncCfg->waveCfg.losslessEnable) {
-        pEncCfg->waveCfg.disableDeblk = 1;
-        pEncCfg->waveCfg.saoEnable = 0;
+    if (pEncCfg->vpCfg.losslessEnable) {
+        pEncCfg->vpCfg.disableDeblk = 1;
+        pEncCfg->vpCfg.saoEnable = 0;
         pEncCfg->RcEnable = 0;
     }
 
-    if (pEncCfg->waveCfg.roiEnable) {
+    if (pEncCfg->vpCfg.roiEnable) {
         sprintf(tempStr, "RoiQpMapFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.roiQpMapFile);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.roiQpMapFile);
         }
     }
 
     /*======================================================*/
     /*          ONLY for H.264                              */
     /*======================================================*/
-    if (WAVE_GetValue(fp, "RdoSkip", &iValue) == 0)
+    if (VP_GetValue(fp, "RdoSkip", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.rdoSkip = iValue;
+        pEncCfg->vpCfg.rdoSkip = iValue;
 
-    if (WAVE_GetValue(fp, "LambdaScaling", &iValue) == 0)
+    if (VP_GetValue(fp, "LambdaScaling", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.lambdaScalingEnable = iValue;
+        pEncCfg->vpCfg.lambdaScalingEnable = iValue;
 
-    if (WAVE_GetValue(fp, "Transform8x8", &iValue) == 0)
+    if (VP_GetValue(fp, "Transform8x8", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.transform8x8 = iValue;
+        pEncCfg->vpCfg.transform8x8 = iValue;
 
-    if (WAVE_GetValue(fp, "SliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "SliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.avcSliceMode = iValue;
+        pEncCfg->vpCfg.avcSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "SliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "SliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.avcSliceArg = iValue;
+        pEncCfg->vpCfg.avcSliceArg = iValue;
 
-    if (WAVE_GetValue(fp, "IntraMbRefreshMode", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraMbRefreshMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraMbRefreshMode = iValue;
+        pEncCfg->vpCfg.intraMbRefreshMode = iValue;
 
-    if (WAVE_GetValue(fp, "IntraMbRefreshArg", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraMbRefreshArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraMbRefreshArg = iValue;
+        pEncCfg->vpCfg.intraMbRefreshArg = iValue;
 
-    if (WAVE_GetValue(fp, "MBLevelRateControl", &iValue) == 0)
+    if (VP_GetValue(fp, "MBLevelRateControl", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.mbLevelRc = iValue;
+        pEncCfg->vpCfg.mbLevelRc = iValue;
 
-    if (WAVE_GetValue(fp, "CABAC", &iValue) == 0)
+    if (VP_GetValue(fp, "CABAC", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.entropyCodingMode = iValue;
+        pEncCfg->vpCfg.entropyCodingMode = iValue;
     
     // H.264 END
 
 
 
-    if (WAVE_GetValue(fp, "EncMonochrome", &iValue) == 0)
+    if (VP_GetValue(fp, "EncMonochrome", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.monochromeEnable = iValue;
+        pEncCfg->vpCfg.monochromeEnable = iValue;
 
-    if (WAVE_GetValue(fp, "StrongIntraSmoothing", &iValue) == 0)
+    if (VP_GetValue(fp, "StrongIntraSmoothing", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.strongIntraSmoothEnable = iValue;
+        pEncCfg->vpCfg.strongIntraSmoothEnable = iValue;
 
-    if (WAVE_GetValue(fp, "RoiAvgQP", &iValue) == 0)
+    if (VP_GetValue(fp, "RoiAvgQP", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.roiAvgQp = iValue;
+        pEncCfg->vpCfg.roiAvgQp = iValue;
 
-    if (WAVE_GetValue(fp, "WeightedPred", &iValue) == 0)
+    if (VP_GetValue(fp, "WeightedPred", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.weightPredEnable = iValue & 1;
+        pEncCfg->vpCfg.weightPredEnable = iValue & 1;
 
-    if (WAVE_GetValue(fp, "EnBgDetect", &iValue) == 0)
+    if (VP_GetValue(fp, "EnBgDetect", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgDetectEnable = iValue;
+        pEncCfg->vpCfg.bgDetectEnable = iValue;
 
-    if (WAVE_GetValue(fp, "BgThDiff", &iValue) == 0)
+    if (VP_GetValue(fp, "BgThDiff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgThrDiff = iValue;
+        pEncCfg->vpCfg.bgThrDiff = iValue;
 
-    if (WAVE_GetValue(fp, "S2fmeOff", &iValue) == 0)
+    if (VP_GetValue(fp, "S2fmeOff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.s2fmeDisable = iValue;
+        pEncCfg->vpCfg.s2fmeDisable = iValue;
 
-    if (WAVE_GetValue(fp, "BgThMeanDiff", &iValue) == 0)
+    if (VP_GetValue(fp, "BgThMeanDiff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgThrMeanDiff = iValue;
+        pEncCfg->vpCfg.bgThrMeanDiff = iValue;
 
-    if (WAVE_GetValue(fp, "BgLambdaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "BgLambdaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgLambdaQp = iValue;
+        pEncCfg->vpCfg.bgLambdaQp = iValue;
 
-    if (WAVE_GetValue(fp, "BgDeltaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "BgDeltaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgDeltaQp = iValue;
+        pEncCfg->vpCfg.bgDeltaQp = iValue;
 
-    if (WAVE_GetValue(fp, "EnLambdaMap", &iValue) == 0)
+    if (VP_GetValue(fp, "EnLambdaMap", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customLambdaMapEnable = iValue;
+        pEncCfg->vpCfg.customLambdaMapEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnCustomLambda", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCustomLambda", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customLambdaEnable = iValue;
+        pEncCfg->vpCfg.customLambdaEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnCustomMD", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCustomMD", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customMDEnable = iValue;
+        pEncCfg->vpCfg.customMDEnable = iValue;
 
-    if (WAVE_GetValue(fp, "PU04DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04DeltaRate = iValue;
+        pEncCfg->vpCfg.pu04DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08DeltaRate = iValue;
+        pEncCfg->vpCfg.pu08DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16DeltaRate = iValue;
+        pEncCfg->vpCfg.pu16DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32DeltaRate = iValue;
+        pEncCfg->vpCfg.pu32DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08MergeDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16MergeDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32MergeDeltaRate = iValue;
 
    
-    if (WAVE_GetValue(fp, "DisableCoefClear", &iValue) == 0)
+    if (VP_GetValue(fp, "DisableCoefClear", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.coefClearDisable = iValue;
+        pEncCfg->vpCfg.coefClearDisable = iValue;
 
 
-    if (WAVE_GetValue(fp, "EnModeMap", &iValue) == 0)
+    if (VP_GetValue(fp, "EnModeMap", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customModeMapFlag = iValue;
+        pEncCfg->vpCfg.customModeMapFlag = iValue;
 
     
-    if (WAVE_GetValue(fp, "ForcePicSkipStart", &iValue) == 0)
+    if (VP_GetValue(fp, "ForcePicSkipStart", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.forcePicSkipStart = iValue;
+        pEncCfg->vpCfg.forcePicSkipStart = iValue;
 
-    if (WAVE_GetValue(fp, "ForcePicSkipEnd", &iValue) == 0)
+    if (VP_GetValue(fp, "ForcePicSkipEnd", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.forcePicSkipEnd = iValue;
+        pEncCfg->vpCfg.forcePicSkipEnd = iValue;
 
-    if (WAVE_GetValue(fp, "ForceCoefDropStart", &iValue) == 0)
+    if (VP_GetValue(fp, "ForceCoefDropStart", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.forceCoefDropStart = iValue;
+        pEncCfg->vpCfg.forceCoefDropStart = iValue;
 
-    if (WAVE_GetValue(fp, "ForceCoefDropEnd", &iValue) == 0)
+    if (VP_GetValue(fp, "ForceCoefDropEnd", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.forceCoefDropEnd = iValue;
+        pEncCfg->vpCfg.forceCoefDropEnd = iValue;
 
     // Scaling list
-    if (pEncCfg->waveCfg.scalingListEnable) {
+    if (pEncCfg->vpCfg.scalingListEnable) {
         sprintf(tempStr, "ScalingListFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.scalingListFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.scalingListFileName);
         }
     }
     // Custom Lambda
-    if (pEncCfg->waveCfg.customLambdaEnable) {
+    if (pEncCfg->vpCfg.customLambdaEnable) {
         sprintf(tempStr, "CustomLambdaFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.customLambdaFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.customLambdaFileName);
         }
     }
 
 
     // custom Lambda Map
-    if (pEncCfg->waveCfg.customLambdaMapEnable) {
+    if (pEncCfg->vpCfg.customLambdaMapEnable) {
         sprintf(tempStr, "LambdaMapFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.customLambdaMapFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.customLambdaMapFileName);
         }
     }
 
     // custom Lambda Map
-    if (pEncCfg->waveCfg.customModeMapFlag) {
+    if (pEncCfg->vpCfg.customModeMapFlag) {
         sprintf(tempStr, "ModeMapFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.customModeMapFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.customModeMapFileName);
         }
     }
 
-    if (pEncCfg->waveCfg.weightPredEnable & 0x1) {
+    if (pEncCfg->vpCfg.weightPredEnable & 0x1) {
         sprintf(tempStr, "WpParamFile");
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
-            sscanf(sValue, "%s\n", pEncCfg->waveCfg.WpParamFileName);
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
+            sscanf(sValue, "%s\n", pEncCfg->vpCfg.WpParamFileName);
         }
     }
     
 #define NUM_MAX_PARAM_CHANGE    10
     for (i=0; i<NUM_MAX_PARAM_CHANGE; i++) {
         sprintf(tempStr, "SPCh%d", i+1);
-        if (WAVE_GetStringValue(fp, tempStr, sValue) != 0) {
+        if (VP_GetStringValue(fp, tempStr, sValue) != 0) {
             sscanf(sValue, "%d %x %s\n", &(pEncCfg->changeParam[i].setParaChgFrmNum), &(pEncCfg->changeParam[i].enableOption), pEncCfg->changeParam[i].cfgName);
 
         }
@@ -1843,422 +1843,422 @@ int parseWaveChangeParamCfgFile(
         return ret;
     }
 
-    if (WAVE_GetValue(fp, "ConstrainedIntraPred", &iValue) == 0)
+    if (VP_GetValue(fp, "ConstrainedIntraPred", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.constIntraPredFlag = iValue;
+        pEncCfg->vpCfg.constIntraPredFlag = iValue;
 
     // FixedBitRatio 0 ~ 7
     for (i=0; i<MAX_GOP_NUM; i++) {
         sprintf(tempStr, "FixedBitRatio%d", i);
-        if (WAVE_GetStringValue(fp, tempStr, sValue) == 1) {
+        if (VP_GetStringValue(fp, tempStr, sValue) == 1) {
             iValue = atoi(sValue);
-            if ( iValue >= waveCfgInfo[FIXED_BIT_RATIO].min && iValue <= waveCfgInfo[FIXED_BIT_RATIO].max )
-                pEncCfg->waveCfg.fixedBitRatio[i] = iValue;
+            if ( iValue >= vpCfgInfo[FIXED_BIT_RATIO].min && iValue <= vpCfgInfo[FIXED_BIT_RATIO].max )
+                pEncCfg->vpCfg.fixedBitRatio[i] = iValue;
             else
-                pEncCfg->waveCfg.fixedBitRatio[i] = waveCfgInfo[FIXED_BIT_RATIO].def;
+                pEncCfg->vpCfg.fixedBitRatio[i] = vpCfgInfo[FIXED_BIT_RATIO].def;
         }
         else
-            pEncCfg->waveCfg.fixedBitRatio[i] = waveCfgInfo[FIXED_BIT_RATIO].def;
+            pEncCfg->vpCfg.fixedBitRatio[i] = vpCfgInfo[FIXED_BIT_RATIO].def;
 
     }
 
-    if (WAVE_GetValue(fp, "IndeSliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "IndeSliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.independSliceMode = iValue;
+        pEncCfg->vpCfg.independSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "IndeSliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "IndeSliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.independSliceModeArg = iValue;
+        pEncCfg->vpCfg.independSliceModeArg = iValue;
 
-    if (WAVE_GetValue(fp, "DeSliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "DeSliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.dependSliceMode = iValue;
+        pEncCfg->vpCfg.dependSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "DeSliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "DeSliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.dependSliceModeArg = iValue;
+        pEncCfg->vpCfg.dependSliceModeArg = iValue;
 
-    if (WAVE_GetValue(fp, "MaxNumMerge", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxNumMerge", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxNumMerge = iValue;
+        pEncCfg->vpCfg.maxNumMerge = iValue;
 
-    if (WAVE_GetValue(fp, "EnDBK", &iValue) == 0)
+    if (VP_GetValue(fp, "EnDBK", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.disableDeblk = !(iValue);
+        pEncCfg->vpCfg.disableDeblk = !(iValue);
 
-    if (WAVE_GetValue(fp, "LFCrossSliceBoundaryFlag", &iValue) == 0)
+    if (VP_GetValue(fp, "LFCrossSliceBoundaryFlag", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.lfCrossSliceBoundaryEnable = iValue;
+        pEncCfg->vpCfg.lfCrossSliceBoundaryEnable = iValue;
 
-    if (WAVE_GetValue(fp, "DecodingRefreshType", &iValue) == 0)
+    if (VP_GetValue(fp, "DecodingRefreshType", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.decodingRefreshType = iValue;
+        pEncCfg->vpCfg.decodingRefreshType = iValue;
 
-    if (WAVE_GetValue(fp, "BetaOffsetDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "BetaOffsetDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.betaOffsetDiv2 = iValue;
+        pEncCfg->vpCfg.betaOffsetDiv2 = iValue;
 
-    if (WAVE_GetValue(fp, "TcOffsetDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "TcOffsetDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.tcOffsetDiv2 = iValue;
+        pEncCfg->vpCfg.tcOffsetDiv2 = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNxN", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNxN", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraNxNEnable = iValue;
+        pEncCfg->vpCfg.intraNxNEnable = iValue;
 
-    if (WAVE_GetValue(fp, "QP", &iValue) == 0)
+    if (VP_GetValue(fp, "QP", &iValue) == 0)
         goto __end_parse;
     else 
-        pEncCfg->waveCfg.intraQP = iValue;
+        pEncCfg->vpCfg.intraQP = iValue;
 
-    if (WAVE_GetValue(fp, "IntraPeriod", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraPeriod", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.intraPeriod = iValue;
+        pEncCfg->vpCfg.intraPeriod = iValue;
 
-    if (WAVE_GetValue(fp, "EncBitrate", &iValue) == 0)
+    if (VP_GetValue(fp, "EncBitrate", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->RcBitRate = iValue;
 
-    if (WAVE_GetValue(fp, "EnHvsQp", &iValue) == 0)
+    if (VP_GetValue(fp, "EnHvsQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.hvsQPEnable = iValue;
+        pEncCfg->vpCfg.hvsQPEnable = iValue;
 
-    if (WAVE_GetValue(fp, "HvsQpScaleDiv2", &iValue) == 0)
+    if (VP_GetValue(fp, "HvsQpScaleDiv2", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.hvsQpScale = iValue;
+        pEncCfg->vpCfg.hvsQpScale = iValue;
 
-    if (WAVE_GetValue(fp, "InitialDelay", &iValue) == 0)
+    if (VP_GetValue(fp, "InitialDelay", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->VbvBufferSize = iValue;
 
     if (pEncCfg->VbvBufferSize == 0) {
-        if (WAVE_GetValue(fp, "VbvBufferSize", &iValue) == 0)
+        if (VP_GetValue(fp, "VbvBufferSize", &iValue) == 0)
             goto __end_parse;
         else
             pEncCfg->VbvBufferSize = iValue;
     }
     
-    if (WAVE_GetValue(fp, "MinQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MinQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.minQp = iValue;
+        pEncCfg->vpCfg.minQp = iValue;
 
-    if (WAVE_GetValue(fp, "MaxQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxQp = iValue;
+        pEncCfg->vpCfg.maxQp = iValue;
 
-    if (WAVE_GetValue(fp, "MaxDeltaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "MaxDeltaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.maxDeltaQp = iValue;
+        pEncCfg->vpCfg.maxDeltaQp = iValue;
 
 
-    if (WAVE_GetValue(fp, "CbQpOffset", &iValue) == 0)
+    if (VP_GetValue(fp, "CbQpOffset", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.chromaCbQpOffset = iValue;
+        pEncCfg->vpCfg.chromaCbQpOffset = iValue;
 
-    if (WAVE_GetValue(fp, "CrQpOffset", &iValue) == 0)
+    if (VP_GetValue(fp, "CrQpOffset", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.chromaCrQpOffset = iValue;
+        pEncCfg->vpCfg.chromaCrQpOffset = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionY", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrYEnable = iValue;
+        pEncCfg->vpCfg.nrYEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionCb", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrCbEnable = iValue;
+        pEncCfg->vpCfg.nrCbEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseReductionCr", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseReductionCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrCrEnable = iValue;
+        pEncCfg->vpCfg.nrCrEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnNoiseEst", &iValue) == 0)
+    if (VP_GetValue(fp, "EnNoiseEst", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseEstEnable = iValue;
+        pEncCfg->vpCfg.nrNoiseEstEnable = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaY", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaY = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaY = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaCb", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaCb = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaCb = iValue;
 
-    if (WAVE_GetValue(fp, "NoiseSigmaCr", &iValue) == 0)
+    if (VP_GetValue(fp, "NoiseSigmaCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrNoiseSigmaCr = iValue;
+        pEncCfg->vpCfg.nrNoiseSigmaCr = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightY", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightY = iValue;
+        pEncCfg->vpCfg.nrIntraWeightY = iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightCb", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightCb= iValue;
+        pEncCfg->vpCfg.nrIntraWeightCb= iValue;
 
-    if (WAVE_GetValue(fp, "IntraNoiseWeightCr", &iValue) == 0)
+    if (VP_GetValue(fp, "IntraNoiseWeightCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrIntraWeightCr = iValue;
+        pEncCfg->vpCfg.nrIntraWeightCr = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightY", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightY", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightY = iValue;
+        pEncCfg->vpCfg.nrInterWeightY = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightCb", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightCb", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightCb = iValue;
+        pEncCfg->vpCfg.nrInterWeightCb = iValue;
 
-    if (WAVE_GetValue(fp, "InterNoiseWeightCr", &iValue) == 0)
+    if (VP_GetValue(fp, "InterNoiseWeightCr", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.nrInterWeightCr = iValue;
+        pEncCfg->vpCfg.nrInterWeightCr = iValue;
 
 
     /*======================================================*/
-    /*          newly added for WAVE520                     */
+    /*          newly added for VP520                     */
     /*======================================================*/
 
-    if (WAVE_GetValue(fp, "WeightedPred", &iValue) == 0)
+    if (VP_GetValue(fp, "WeightedPred", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.weightPredEnable = iValue & 1;
+        pEncCfg->vpCfg.weightPredEnable = iValue & 1;
 
-    if (WAVE_GetValue(fp, "EnBgDetect", &iValue) == 0)
+    if (VP_GetValue(fp, "EnBgDetect", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgDetectEnable = iValue;
+        pEncCfg->vpCfg.bgDetectEnable = iValue;
 
-    if (WAVE_GetValue(fp, "BgThDiff", &iValue) == 0)
+    if (VP_GetValue(fp, "BgThDiff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgThrDiff = iValue;
+        pEncCfg->vpCfg.bgThrDiff = iValue;
 
-    if (WAVE_GetValue(fp, "S2fmeOff", &iValue) == 0)
+    if (VP_GetValue(fp, "S2fmeOff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.s2fmeDisable = iValue;
+        pEncCfg->vpCfg.s2fmeDisable = iValue;
 
-    if (WAVE_GetValue(fp, "BgThMeanDiff", &iValue) == 0)
+    if (VP_GetValue(fp, "BgThMeanDiff", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgThrMeanDiff = iValue;
+        pEncCfg->vpCfg.bgThrMeanDiff = iValue;
 
-    if (WAVE_GetValue(fp, "BgLambdaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "BgLambdaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgLambdaQp = iValue;
+        pEncCfg->vpCfg.bgLambdaQp = iValue;
 
-    if (WAVE_GetValue(fp, "BgDeltaQp", &iValue) == 0)
+    if (VP_GetValue(fp, "BgDeltaQp", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.bgDeltaQp = iValue;
+        pEncCfg->vpCfg.bgDeltaQp = iValue;
 
 
-    if (WAVE_GetValue(fp, "EnCustomLambda", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCustomLambda", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customLambdaEnable = iValue;
+        pEncCfg->vpCfg.customLambdaEnable = iValue;
 
-    if (WAVE_GetValue(fp, "EnCustomMD", &iValue) == 0)
+    if (VP_GetValue(fp, "EnCustomMD", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.customMDEnable = iValue;
+        pEncCfg->vpCfg.customMDEnable = iValue;
 
-    if (WAVE_GetValue(fp, "DisableCoefClear", &iValue) == 0)
+    if (VP_GetValue(fp, "DisableCoefClear", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.coefClearDisable = iValue;
+        pEncCfg->vpCfg.coefClearDisable = iValue;
 
-    if (WAVE_GetValue(fp, "PU04DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04DeltaRate = iValue;
+        pEncCfg->vpCfg.pu04DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08DeltaRate = iValue;
+        pEncCfg->vpCfg.pu08DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16DeltaRate = iValue;
+        pEncCfg->vpCfg.pu16DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32DeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32DeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32DeltaRate = iValue;
+        pEncCfg->vpCfg.pu32DeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU04IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU04IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu04IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu04IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU08IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU08IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu08IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu08IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU16IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU16IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu16IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu16IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraPlanarDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraPlanarDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraPlanarDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraPlanarDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraDcDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraDcDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraDcDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraDcDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "PU32IntraAngleDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "PU32IntraAngleDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.pu32IntraAngleDeltaRate = iValue;
+        pEncCfg->vpCfg.pu32IntraAngleDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU08MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU08MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu08MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu08MergeDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU16MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU16MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu16MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu16MergeDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32IntraDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32IntraDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32IntraDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32IntraDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32InterDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32InterDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32InterDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32InterDeltaRate = iValue;
 
-    if (WAVE_GetValue(fp, "CU32MergeDeltaRate", &iValue) == 0)
+    if (VP_GetValue(fp, "CU32MergeDeltaRate", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.cu32MergeDeltaRate = iValue;
+        pEncCfg->vpCfg.cu32MergeDeltaRate = iValue;
 
     /*======================================================*/
     /*          only for H.264 encoder                      */
     /*======================================================*/
-    if (WAVE_GetValue(fp, "Transform8x8", &iValue) == 0)
+    if (VP_GetValue(fp, "Transform8x8", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.transform8x8 = iValue;
+        pEncCfg->vpCfg.transform8x8 = iValue;
 
-    if (WAVE_GetValue(fp, "SliceMode", &iValue) == 0)
+    if (VP_GetValue(fp, "SliceMode", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.avcSliceMode = iValue;
+        pEncCfg->vpCfg.avcSliceMode = iValue;
 
-    if (WAVE_GetValue(fp, "SliceArg", &iValue) == 0)
+    if (VP_GetValue(fp, "SliceArg", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.avcSliceArg = iValue;
+        pEncCfg->vpCfg.avcSliceArg = iValue;
 
-    if (WAVE_GetValue(fp, "CABAC", &iValue) == 0)
+    if (VP_GetValue(fp, "CABAC", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.entropyCodingMode = iValue;
+        pEncCfg->vpCfg.entropyCodingMode = iValue;
 
-    if (WAVE_GetValue(fp, "RdoSkip", &iValue) == 0)
+    if (VP_GetValue(fp, "RdoSkip", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.rdoSkip = iValue;
+        pEncCfg->vpCfg.rdoSkip = iValue;
 
-    if (WAVE_GetValue(fp, "LambdaScaling", &iValue) == 0)
+    if (VP_GetValue(fp, "LambdaScaling", &iValue) == 0)
         goto __end_parse;
     else
-        pEncCfg->waveCfg.lambdaScalingEnable = iValue;
+        pEncCfg->vpCfg.lambdaScalingEnable = iValue;
 
     ret = 1; /* Success */
 

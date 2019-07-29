@@ -148,8 +148,8 @@ static void SetEncPicParam(ComponentImpl* com, PortContainerYuv* in, EncParam* e
         if ((testEncConfig.wp_param_flag & 0x1)) {
             char lineStr[256] = {0,};
             Uint32 meanY, meanCb, meanCr, sigmaY, sigmaCb, sigmaCr;
-            Uint32 maxMean  = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff : ((1 << ctx->encOpenParam.EncStdParam.waveParam.internalBitDepth) - 1);
-            Uint32 maxSigma = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff : ((1 << (ctx->encOpenParam.EncStdParam.waveParam.internalBitDepth + 6)) - 1);
+            Uint32 maxMean  = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff : ((1 << ctx->encOpenParam.EncStdParam.vpParam.internalBitDepth) - 1);
+            Uint32 maxSigma = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff : ((1 << (ctx->encOpenParam.EncStdParam.vpParam.internalBitDepth + 6)) - 1);
             fgets(lineStr, 256, testEncConfig.wp_param_file);
             sscanf(lineStr, "%d %d %d %d %d %d\n", &meanY, &meanCb, &meanCr, &sigmaY, &sigmaCb, &sigmaCr);
 
@@ -311,22 +311,22 @@ static ENC_INT_STATUS HandlingInterruptFlag(ComponentImpl* com)
             ctx->startTimeout = 0ULL;
         }
 
-        if (interruptFlag & (1<<INT_WAVE5_ENC_SET_PARAM)) {
+        if (interruptFlag & (1<<INT_VP5_ENC_SET_PARAM)) {
             status = ENC_INT_STATUS_DONE;
             break;
         }
 
-        if (interruptFlag & (1<<INT_WAVE5_ENC_PIC)) {
+        if (interruptFlag & (1<<INT_VP5_ENC_PIC)) {
             status = ENC_INT_STATUS_DONE;
             break;
         }
 
-        if (interruptFlag & (1<<INT_WAVE5_BSBUF_FULL)) {
+        if (interruptFlag & (1<<INT_VP5_BSBUF_FULL)) {
             status = ENC_INT_STATUS_FULL;
             break;
         }
 
-        if (interruptFlag & (1<<INT_WAVE5_ENC_LOW_LATENCY)) {
+        if (interruptFlag & (1<<INT_VP5_ENC_LOW_LATENCY)) {
             status = ENC_INT_STATUS_LOW_LATENCY;
         }
     } while (FALSE);
@@ -639,7 +639,7 @@ static BOOL AllocateCustomBuffer(ComponentImpl* com)
     TestEncConfig testEncConfig = ctx->testEncConfig;
 
     /* Allocate Buffer and Set Data */
-    if (ctx->encOpenParam.EncStdParam.waveParam.scalingListEnable) {
+    if (ctx->encOpenParam.EncStdParam.vpParam.scalingListEnable) {
         ctx->vbScalingList.size = 0x1000;
         vdi_lock(testEncConfig.coreIdx);
         if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbScalingList) < 0) {
@@ -648,13 +648,13 @@ static BOOL AllocateCustomBuffer(ComponentImpl* com)
             return FALSE;
         }
         vdi_unlock(testEncConfig.coreIdx);
-        ctx->encOpenParam.EncStdParam.waveParam.userScalingListAddr = ctx->vbScalingList.phys_addr;
+        ctx->encOpenParam.EncStdParam.vpParam.userScalingListAddr = ctx->vbScalingList.phys_addr;
 
         parse_user_scaling_list(&ctx->scalingList, testEncConfig.scaling_list_file, testEncConfig.stdMode);
         vdi_write_memory(testEncConfig.coreIdx, ctx->vbScalingList.phys_addr, (unsigned char*)&ctx->scalingList, ctx->vbScalingList.size, VDI_LITTLE_ENDIAN);
     }
 
-    if (ctx->encOpenParam.EncStdParam.waveParam.customLambdaEnable) {
+    if (ctx->encOpenParam.EncStdParam.vpParam.customLambdaEnable) {
         ctx->vbCustomLambda.size = 0x200;
         vdi_lock(testEncConfig.coreIdx);
         if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbCustomLambda) < 0) {
@@ -663,7 +663,7 @@ static BOOL AllocateCustomBuffer(ComponentImpl* com)
             return FALSE;
         }
         vdi_unlock(testEncConfig.coreIdx);
-        ctx->encOpenParam.EncStdParam.waveParam.customLambdaAddr = ctx->vbCustomLambda.phys_addr;
+        ctx->encOpenParam.EncStdParam.vpParam.customLambdaAddr = ctx->vbCustomLambda.phys_addr;
 
         parse_custom_lambda(ctx->customLambda, testEncConfig.custom_lambda_file);
         vdi_write_memory(testEncConfig.coreIdx, ctx->vbCustomLambda.phys_addr, (unsigned char*)&ctx->customLambda[0], ctx->vbCustomLambda.size, VDI_LITTLE_ENDIAN);
@@ -707,8 +707,8 @@ static BOOL OpenEncoder(ComponentImpl* com)
     }
 
     osal_memset(&secAxiUse,   0x00, sizeof(SecAxiUse));
-    secAxiUse.u.wave.useEncRdoEnable = (ctx->testEncConfig.secondaryAXI & 0x1) ? TRUE : FALSE;  //USE_RDO_INTERNAL_BUF
-    secAxiUse.u.wave.useEncLfEnable  = (ctx->testEncConfig.secondaryAXI & 0x2) ? TRUE : FALSE;  //USE_LF_INTERNAL_BUF
+    secAxiUse.u.vp.useEncRdoEnable = (ctx->testEncConfig.secondaryAXI & 0x1) ? TRUE : FALSE;  //USE_RDO_INTERNAL_BUF
+    secAxiUse.u.vp.useEncLfEnable  = (ctx->testEncConfig.secondaryAXI & 0x2) ? TRUE : FALSE;  //USE_LF_INTERNAL_BUF
     VPU_EncGiveCommand(ctx->handle, SET_SEC_AXI, &secAxiUse);
     VPU_EncGiveCommand(ctx->handle, SET_CYCLE_PER_TICK,   (void*)&ctx->cyclePerTick);
     ctx->stateDoing = FALSE;
@@ -780,7 +780,7 @@ static BOOL PrepareEncoder(ComponentImpl* com, BOOL* done)
     }
 
     /* Open Data File*/
-    if (ctx->encOpenParam.EncStdParam.waveParam.scalingListEnable) {
+    if (ctx->encOpenParam.EncStdParam.vpParam.scalingListEnable) {
         if (testEncConfig->scaling_list_fileName) {
             ChangePathStyle(testEncConfig->scaling_list_fileName);
             if ((testEncConfig->scaling_list_file = osal_fopen(testEncConfig->scaling_list_fileName, "r")) == NULL) {
@@ -790,7 +790,7 @@ static BOOL PrepareEncoder(ComponentImpl* com, BOOL* done)
         }
     }
 
-    if (ctx->encOpenParam.EncStdParam.waveParam.customLambdaEnable) {
+    if (ctx->encOpenParam.EncStdParam.vpParam.customLambdaEnable) {
         if (testEncConfig->custom_lambda_fileName) {
             ChangePathStyle(testEncConfig->custom_lambda_fileName);
             if ((testEncConfig->custom_lambda_file = osal_fopen(testEncConfig->custom_lambda_fileName, "r")) == NULL) {
@@ -915,16 +915,25 @@ static Component CreateEncoder(ComponentImpl* com, CNMComponentConfig* component
     EncoderContext* ctx; 
     RetCode         retCode;
     Uint32          coreIdx      = componentParam->testEncConfig.coreIdx;
-    Uint16*         firmware     = (Uint16*)componentParam->bitcode;
-    Uint32          firmwareSize = componentParam->sizeOfBitcode;
     Uint32          i;
     ProductInfo     productInfo;
+#if 0
+    Uint16*         firmware     = (Uint16*)componentParam->bitcode;
+    Uint32          firmwareSize = componentParam->sizeOfBitcode;
 
     retCode = VPU_InitWithBitcode(coreIdx, firmware, firmwareSize);
     if (retCode != RETCODE_SUCCESS && retCode != RETCODE_CALLED_BEFORE) {
         VLOG(INFO, "%s:%d Failed to VPU_InitWidthBitCode, ret(%08x)\n", __FUNCTION__, __LINE__, retCode);
         return FALSE;
     }
+#else
+    retCode = VPU_Init(coreIdx);
+    if (retCode != RETCODE_SUCCESS && retCode != RETCODE_CALLED_BEFORE) {
+        VLOG(INFO, "Failed to VPU_Init, ret(%08x)\n", retCode);
+        return FALSE;
+    }
+#endif
+
 
     com->context = osal_malloc(sizeof(EncoderContext));
     ctx     = (EncoderContext*)com->context;

@@ -13,7 +13,7 @@ LDFLAGS =
 #CLFAGS += -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning
 #CLFAGS += -Wall -Werror
 
-INC = -I./include -I. -I../vpuapi/include -I../vpuapi -I../test_sample/helper/
+INC = -I./include -I. -I../vpuapi/include -I../vpuapi
 
 
 CFLAGS  +=  $(INC) $(DEFINES) $(PLATFORM_FLAGS)

@@ -1,3 +1,35 @@
+/*
+* Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+*
+* This source code is subject to the terms and conditions defined in below
+* which is part of this source code package.
+*
+* Description:
+*/
+
+// Copyright (C) 2019 Amlogic, Inc. All rights reserved.
+//
+// All information contained herein is Amlogic confidential.
+//
+// This software is provided to you pursuant to Software License
+// Agreement (SLA) with Amlogic Inc ("Amlogic"). This software may be
+// used only in accordance with the terms of this agreement.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification is strictly prohibited without prior written permission
+// from Amlogic.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,17 +118,16 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.encode_once = 1;
 
   if (encode_info.img_format == IMG_FMT_NV12) {
-    VLOG(INFO, "[%s] img_format is IMG_FMT_NV12 \n", __func__);
+    VLOG(INFO, "img_format is IMG_FMT_NV12 \n");
     handle->fmt = AMVENC_NV12;
   } else if (encode_info.img_format == IMG_FMT_NV21) {
-    VLOG(INFO, "[%s] img_format is IMG_FMT_NV21 \n", __func__);
+    VLOG(INFO, "img_format is IMG_FMT_NV21 \n");
     handle->fmt = AMVENC_NV21;
   } else if (encode_info.img_format == IMG_FMT_YUV420P) {
-    VLOG(INFO, "[%s] img_format is IMG_FMT_YUV420 \n", __func__);
+    VLOG(INFO, "img_format is IMG_FMT_YUV420P \n");
     handle->fmt = AMVENC_YUV420P;
   } else {
-    VLOG(ERR, "[%s] img_format %d not supprot\n", __func__,
-         encode_info.img_format);
+    VLOG(ERR, "img_format %d not supprot\n",encode_info.img_format);
     return AMVENC_FAIL;
   }
      handle->mEncParams.fmt = handle->fmt;
@@ -326,8 +357,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
 
     VLOG(NONE, "AML_MultiEncSetInput ret %d\n", ret);
     if (ret < AMVENC_SUCCESS) {
-      VLOG(ERR, "encoderStatus = %d at line %d, handle: %p", ret, __LINE__,
-           (void*)handle);
+      VLOG(ERR, "encoderStatus = %d, handle: %p", ret,(void*)handle);
       result.is_valid = false;
       return result;
     }
@@ -344,8 +374,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           memmove(out + handle->mSPSPPSDataSize, out, dataLength);
           memcpy(out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
           dataLength += handle->mSPSPPSDataSize;
-          VLOG(DEBUG, "copy mSPSPPSData to buffer size= %d at line %d \n",
-               handle->mSPSPPSDataSize, __LINE__);
+          VLOG(DEBUG, "copy mSPSPPSData to buffer size= %d\n",handle->mSPSPPSDataSize);
         }
         result.is_key_frame = true;
       }
@@ -355,15 +384,13 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         handle->mKeyFrameRequested = true;
         ret = AMVENC_SKIPPED_PICTURE;
       }
-      VLOG(INFO, "ret = %d at line %d, handle: %p", ret, __LINE__,
-           (void*)handle);
+      VLOG(INFO, "ret = %d, handle: %p", ret,(void*)handle);
     } else if (ret != AMVENC_SUCCESS) {
       dataLength = 0;
     }
 
     if (ret < AMVENC_SUCCESS) {
-      VLOG(ERR, "encoderStatus = %d at line %d, handle: %p", ret, __LINE__,
-           (void*)handle);
+      VLOG(ERR, "encoderStatus = %d, handle: %p", ret,(void*)handle);
       result.is_valid = false;
       return result;
     }

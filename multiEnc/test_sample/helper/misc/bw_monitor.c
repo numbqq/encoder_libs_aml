@@ -159,7 +159,7 @@ static BWMonitorOps_t s_dummy_ops = {
 
 
 /************************************************************************/
-/* WAVE5 BACKBONE INTERFACE                                             */
+/* VP5 BACKBONE INTERFACE                                             */
 /************************************************************************/
 typedef struct _tag_backbone_bw_context_struct {
     BW_CONTEXT_COMMON_VARS
@@ -351,7 +351,7 @@ backbone_bw_monitor_get_data(
     return (BWData)idata;
 }
 
-static BWMonitorOps_t s_wave_backbone_ops = {
+static BWMonitorOps_t s_vp_backbone_ops = {
     backbone_bw_monitor_allocate,
     backbone_bw_monitor_release,
     backbone_bw_monitor_reset,
@@ -386,7 +386,7 @@ BWMonitorSetup(
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        bwOps = &s_wave_backbone_ops;
+        bwOps = &s_vp_backbone_ops;
         break;
     default:
         bwOps = &s_dummy_ops;

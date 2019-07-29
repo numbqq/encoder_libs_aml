@@ -35,7 +35,7 @@ enum {
     MAX_CODECS,
 };
 
-// new COD_STD since WAVE series
+// new COD_STD since VPU series
 enum {
     W_HEVC_DEC                 = 0x00,
     W_HEVC_ENC                 = 0x01,
@@ -127,7 +127,7 @@ typedef enum {
 
 extern Uint32 __VPU_BUSY_TIMEOUT;
 /**
- * PRODUCT: CODA960/CODA980/WAVE320
+ * PRODUCT: CODA960/CODA980/VPU320
  */
 typedef struct {
     union {
@@ -158,7 +158,7 @@ typedef struct {
             PhysicalAddress bufImd;
             PhysicalAddress bufRdo;
             PhysicalAddress bufLf;
-        } wave;
+        } vp;
     } u;
     int             bufSize;
     PhysicalAddress bufBase;
@@ -227,7 +227,7 @@ typedef struct {
 
     Uint32          userDataEnable;                    /* User Data Enable Flag
                                                           CODA9xx: TRUE or FALSE
-                                                          WAVExxx: Refer to H265_USERDATA_FLAG_xxx values in vpuapi.h */
+                                                          VPUxxx: Refer to H265_USERDATA_FLAG_xxx values in vpuapi.h */
     int             userDataBufSize;
     int             userDataReportMode;                // User Data report mode (0 : interrupt mode, 1 interrupt disable mode)
 
@@ -247,8 +247,8 @@ typedef struct {
     Uint32          avcErrorConcealMode;
     DRAMConfig      dramCfg;            //coda960 only
     int             thumbnailMode;
-    int             seqChangeMask;      // WAVE410
-    Uint32          prevFrameEndPos;      //!<< WAVE410v2: end position of previous frame
+    int             seqChangeMask;      // VPU410
+    Uint32          prevFrameEndPos;      //!<< VPU410v2: end position of previous frame
     Int32           targetSubLayerId;       //!<< H.265 temporal scalability 
 
     int             rdPtrValidFlag;
@@ -296,7 +296,7 @@ typedef struct {
     SecAxiInfo          secAxiInfo;
     MaverickCacheConfig cacheConfig;
 
-    int                 sliceIntEnable;       /*!<< WAVE420 only */
+    int                 sliceIntEnable;       /*!<< VPU420 only */
 
     int                 ActivePPSIdx;           /*!<< CODA980 */
     int                 frameIdx;               /*!<< CODA980 */
@@ -305,15 +305,15 @@ typedef struct {
     vpu_buffer_t        vbWork;
     vpu_buffer_t        vbScratch;
 
-    vpu_buffer_t        vbTemp;                 //!< Temp buffer (WAVE encoder )
-    vpu_buffer_t        vbMV;                   //!< colMV buffer (WAVE encoder)
-    vpu_buffer_t        vbMVBL;                 //!< colMV buffer (WAVE encoder)
-    vpu_buffer_t        vbFbcYTbl;              //!< FBC Luma table buffer (WAVE encoder)
-    vpu_buffer_t        vbFbcCTbl;              //!< FBC Chroma table buffer (WAVE encoder)
-    vpu_buffer_t        vbFbcYTblBL;            //!< FBC Luma table buffer (WAVE encoder)
-    vpu_buffer_t        vbFbcCTblBL;            //!< FBC Chroma table buffer (WAVE encoder)
-    vpu_buffer_t        vbSubSamBuf;            //!< Sub-sampled buffer for ME (WAVE encoder)
-    vpu_buffer_t        vbSubSamBufBL;          //!< Sub-sampled buffer for ME (WAVE encoder)
+    vpu_buffer_t        vbTemp;                 //!< Temp buffer (VPU encoder )
+    vpu_buffer_t        vbMV;                   //!< colMV buffer (VPU encoder)
+    vpu_buffer_t        vbMVBL;                 //!< colMV buffer (VPU encoder)
+    vpu_buffer_t        vbFbcYTbl;              //!< FBC Luma table buffer (VPU encoder)
+    vpu_buffer_t        vbFbcCTbl;              //!< FBC Chroma table buffer (VPU encoder)
+    vpu_buffer_t        vbFbcYTblBL;            //!< FBC Luma table buffer (VPU encoder)
+    vpu_buffer_t        vbFbcCTblBL;            //!< FBC Chroma table buffer (VPU encoder)
+    vpu_buffer_t        vbSubSamBuf;            //!< Sub-sampled buffer for ME (VPU encoder)
+    vpu_buffer_t        vbSubSamBufBL;          //!< Sub-sampled buffer for ME (VPU encoder)
 
     TiledMapConfig      mapCfg;    
     DRAMConfig          dramCfg;                /*!<< CODA960 */
@@ -761,7 +761,7 @@ Int32 CalcChromaSize(
     );
 
 /**
-* @brief This structure is used for reporting bandwidth (only for WAVE5).
+* @brief This structure is used for reporting bandwidth (only for VP5).
 */
 typedef struct {
     Uint32 prpBwRead;

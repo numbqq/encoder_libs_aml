@@ -5,7 +5,7 @@
 # ----------------------------------------------------------------------
 .PHONY: CREATE_DIR clean all
 
-PRODUCT := WAVE521C
+PRODUCT := VP521C
 
 $(shell cp component_list_encoder.h component/component_list.h)
 
@@ -72,8 +72,7 @@ LDLIBS  += -lpthread
 endif
 LDLIBS  += -lm
 
-TARGET=w5_enc_test
-#MAKEFILE=Wave5xxEncV2.mak
+TARGET=vp5_enc_test
 OBJDIR=obj
 ALLOBJS=*.o
 ALLDEPS=*.dep
@@ -107,23 +106,6 @@ SOURCES = main_enc_test.c              \
           bw_monitor.c                 \
           pf_monitor.c
 
-#SOURCES += component_dec_decoder.c      \
-#          component_dec_feeder.c       \
-#          component_dec_renderer.c     \
-#          decoder_listener.c           \
-#          bsfeeder_fixedsize_impl.c    \
-#          bsfeeder_framesize_impl.c    \
-#          bsfeeder_size_plus_es_impl.c \
-#
-#SOURCES += debug.c
-#SOURCES += $(VDI_C)                                               \
-#         $(VDI_OSAL_C)                                           \
-#          $(MM_C)                                                 \
-#          vpuapi/product.c                                        \
-#          vpuapi/vpuapifunc.c                                     \
-#          vpuapi/vpuapi.c                                         \
-#          vpuapi/coda9/coda9.c                                    \
-#          vpuapi/wave/wave5.c
 
 ifeq ($(USE_RTL_SIM), yes)
 	SOURCES += sample/main_sim.c							
@@ -135,8 +117,6 @@ VPATH += helper:
 VPATH += helper/bitstream:
 VPATH += helper/comparator:
 VPATH += helper/display:helper/misc:helper/yuv:component:
-#VPATH += vdi:
-#VPATH += $(VDI_VPATH):vpuapi:vpuapi/coda9:vpuapi/wave
 LDLIBS  += -L../vpuapi/ -lamvenc_api
 
 OBJECTNAMES=$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES)))

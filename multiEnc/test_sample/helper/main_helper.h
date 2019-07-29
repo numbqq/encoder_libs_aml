@@ -96,14 +96,14 @@ typedef union {
         Uint32  lambda_sad_2    :  8; //[55:48]
         Uint32  lambda_sad_3    :  8; //[63:56]
     } field;
-} EncCustomMap; // for wave5xx custom map (1 CTU = 64bits)
+} EncCustomMap; // for vp5xx custom map (1 CTU = 64bits)
 
 typedef union {
     struct {
         Uint8  mb_force_mode  :  2; //lint !e46 [ 1: 0]
         Uint8  mb_qp          :  6; //lint !e46 [ 7: 2]
     } field;
-} AvcEncCustomMap; // for AVC custom map on wave  (1 MB = 8bits)
+} AvcEncCustomMap; // for AVC custom map on vp  (1 MB = 8bits)
 
 typedef enum {
     MODE_YUV_LOAD = 0,
@@ -216,7 +216,7 @@ typedef struct {
     Uint32 useAsLongtermPeriod;
     Uint32 refLongtermPeriod;
 
-    // newly added for WAVE520
+    // newly added for VP520
     Uint32 monochromeEnable;
     Uint32 strongIntraSmoothEnable;
     Uint32 roiAvgQp;
@@ -272,7 +272,7 @@ typedef struct {
 
     char   WpParamFileName[MAX_FILE_PATH];
 
-    // for H.264 on WAVE
+    // for H.264 on VP
     int rdoSkip;
     int lambdaScalingEnable;
     int transform8x8;
@@ -284,14 +284,14 @@ typedef struct {
     int entropyCodingMode;
 
     int s2fmeDisable;
-} WAVE_ENC_CFG;
+} VP_ENC_CFG;
 
 typedef struct {
     // ChangePara
     int setParaChgFrmNum;
     int enableOption;
     char cfgName[MAX_FILE_PATH];
-} W5ChangeParam;
+} VP5ChangeParam;
 
 typedef struct {
     char SrcFileName[MAX_FILE_PATH];
@@ -386,10 +386,10 @@ typedef struct {
     int IDRInterval;
     int SrcBitDepth;
 
-    WAVE_ENC_CFG waveCfg;
+    VP_ENC_CFG vpCfg;
 
     int numChangeParam;
-    W5ChangeParam changeParam[10];
+    VP5ChangeParam changeParam[10];
 } ENC_CFG;
 
 
@@ -1325,7 +1325,7 @@ typedef struct TestDecConfig_struct {
         Uint32      numVCores;                      //!<< This numVCores is valid on PRODUCT_ID_4102 multi-core version 
         BOOL        bwOptimization;                 //!<< On/Off bandwidth optimization function
         BOOL        craAsBla;
-    } wave;
+    } vp;
     Uint32          pfClock;                        //!<< performance clock in Hz
     BOOL            performance;
     BOOL            bandwidth;
@@ -1475,7 +1475,7 @@ typedef struct TestEncConfig_struct {
     int useAsLongtermPeriod;
     int refLongtermPeriod;
 
-    // newly added for WAVE520
+    // newly added for VP520
     FILE*  scaling_list_file;
     char   scaling_list_fileName[MAX_FILE_PATH];
 
@@ -1500,7 +1500,7 @@ typedef struct TestEncConfig_struct {
     Int32  force_coefdrop_start;
     Int32  force_coefdrop_end;
     Int32  numChangeParam;
-    W5ChangeParam   changeParam[10];
+    VP5ChangeParam   changeParam[10];
 
     Int32  lowLatencyMode;
 
@@ -1600,7 +1600,7 @@ void SetDefaultEncTestConfig(
     );
 
 /************************************************************************/
-/* User Parameters (WAVE520)                                            */
+/* User Parameters (VP520)                                            */
 /************************************************************************/
 // user scaling list
 #define SL_NUM_MATRIX (6)

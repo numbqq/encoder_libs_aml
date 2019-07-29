@@ -18,7 +18,7 @@ LDFLAGS =
 #CLFAGS += -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning
 #CLFAGS += -Wall -Werror
 
-INC = -I./include -I./wave -I.
+INC = -I./include -I.
 
 
 CFLAGS  +=  $(INC) $(DEFINES) $(PLATFORM_FLAGS)
@@ -30,7 +30,7 @@ LDLIBS += -lm -lrt
 LDLIBS += -lpthread 
 LDFLAGS += -shared
 
-INC = -I. -I./include -I./wave 
+INC = -I. -I./include
 	
 OBJDIR=obj
 ALLOBJS=*.o
@@ -42,13 +42,12 @@ MKDIR=mkdir -p
 SOURCES = product.c \
 		  vdi.c \
 		  vdi_osal.c \
-          vpuapifunc.c \
-          vpuapi.c \
-          wave/wave5.c \
+		  vpuapifunc.c \
+		  vpuapi.c \
+		  enc_driver.c \
 		  debug.c
 
 VPATH = .:
-VPATH += wave
 
 OBJECTNAMES=$(patsubst %.c,%.o, $(SOURCES))
 OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))

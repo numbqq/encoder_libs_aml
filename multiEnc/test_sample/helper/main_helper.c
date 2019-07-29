@@ -28,8 +28,7 @@
 #include <time.h>
 #include <errno.h>
 #include "vpuapifunc.h"
-//#include "coda9/coda9_regdefine.h"
-#include "wave/wave5_regdefine.h"
+#include "enc_regdefine.h"
 #include "vpuerror.h"
 #include "main_helper.h"
 #include "debug.h"
@@ -44,8 +43,8 @@
 
 #define BIT_DUMMY_READ_GEN          0x06000000
 #define BIT_READ_LATENCY            0x06000004
-#define W5_SET_READ_DELAY           0x01000000
-#define W5_SET_WRITE_DELAY          0x01000004
+#define VP5_SET_READ_DELAY           0x01000000
+#define VP5_SET_WRITE_DELAY          0x01000004
 #define MAX_CODE_BUF_SIZE           (512*1024)
 
 #ifdef PLATFORM_WIN32
@@ -65,9 +64,9 @@ char* EncPicTypeStringMPEG4[] = {
 char* productNameList[] = {
     "CODA980",
     "CODA960",
-    "WAVE512",
-    "WAVE520",
-    "WAVE515",
+    "VP512",
+    "VP520",
+    "VP515",
     "Unknown",
 };
 
@@ -87,7 +86,7 @@ void SetDefaultDecTestConfig(TestDecConfig* testConfig)
     testConfig->enableWTL       = TRUE;
     testConfig->wtlMode         = FF_FRAME;
     testConfig->wtlFormat       = FORMAT_420;           //!<< 8 bit YUV
-    testConfig->wave.bwOptimization = FALSE;            //!<< TRUE: non-ref pictures are not stored at reference picture buffer
+    testConfig->vp.bwOptimization = FALSE;            //!<< TRUE: non-ref pictures are not stored at reference picture buffer
                                                         //!<<       for saving bandwidth.
     testConfig->fps             = 30;
 }
@@ -752,7 +751,7 @@ void SetDefaultEncTestConfig(TestEncConfig* testConfig) {
 }
 
 
-static void Wave5DisplayEncodedInformation(
+static void Vp5DisplayEncodedInformation(
     EncHandle       handle, 
     CodStd          codec,
     Uint32          frameNo, 
@@ -847,7 +846,7 @@ void
         srcFrameIdx = va_arg(ap, Uint32);
         performance = va_arg(ap, Uint32);
         va_end(ap);
-        Wave5DisplayEncodedInformation(handle, codec, frameNo, encodedInfo, srcEndFlag , srcFrameIdx, performance);
+        Vp5DisplayEncodedInformation(handle, codec, frameNo, encodedInfo, srcEndFlag , srcFrameIdx, performance);
         break;
     case STD_AVC:
         if(handle->productId == PRODUCT_ID_521) {
@@ -856,7 +855,7 @@ void
             srcFrameIdx = va_arg(ap, Uint32);
             performance = va_arg(ap, Uint32);
             va_end(ap);
-            Wave5DisplayEncodedInformation(handle, codec, frameNo, encodedInfo, srcEndFlag , srcFrameIdx, performance);
+            Vp5DisplayEncodedInformation(handle, codec, frameNo, encodedInfo, srcEndFlag , srcFrameIdx, performance);
         }
         else
             Coda9DisplayEncodedInformation(handle, codec, frameNo, encodedInfo);
@@ -1535,7 +1534,7 @@ BOOL SetupEncoderOpenParam(
     param->coreIdx        = config->coreIdx;
     param->cbcrOrder      = CBCR_ORDER_NORMAL;
     param->lowLatencyMode = (config->lowLatencyMode&0x3);		// 2bits lowlatency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable.
-    param->EncStdParam.waveParam.useLongTerm = (config->useAsLongtermPeriod > 0 && config->refLongtermPeriod > 0) ? 1 : 0;
+    param->EncStdParam.vpParam.useLongTerm = (config->useAsLongtermPeriod > 0 && config->refLongtermPeriod > 0) ? 1 : 0;
     return TRUE;
 }
 
@@ -2435,43 +2434,43 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
     changeParam.enable_option           = encConfig.changeParam[changedCount].enableOption;
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_PPS) {
-        changeParam.constIntraPredFlag			= ParaChagCfg.waveCfg.constIntraPredFlag;
-        changeParam.lfCrossSliceBoundaryEnable	= ParaChagCfg.waveCfg.lfCrossSliceBoundaryEnable;
-        changeParam.weightPredEnable			= ParaChagCfg.waveCfg.weightPredEnable;
-        changeParam.disableDeblk				= ParaChagCfg.waveCfg.disableDeblk;
-        changeParam.betaOffsetDiv2				= ParaChagCfg.waveCfg.betaOffsetDiv2;
-        changeParam.tcOffsetDiv2				= ParaChagCfg.waveCfg.tcOffsetDiv2;
-        changeParam.chromaCbQpOffset			= ParaChagCfg.waveCfg.chromaCbQpOffset;
-        changeParam.chromaCrQpOffset			= ParaChagCfg.waveCfg.chromaCrQpOffset;
+        changeParam.constIntraPredFlag			= ParaChagCfg.vpCfg.constIntraPredFlag;
+        changeParam.lfCrossSliceBoundaryEnable	= ParaChagCfg.vpCfg.lfCrossSliceBoundaryEnable;
+        changeParam.weightPredEnable			= ParaChagCfg.vpCfg.weightPredEnable;
+        changeParam.disableDeblk				= ParaChagCfg.vpCfg.disableDeblk;
+        changeParam.betaOffsetDiv2				= ParaChagCfg.vpCfg.betaOffsetDiv2;
+        changeParam.tcOffsetDiv2				= ParaChagCfg.vpCfg.tcOffsetDiv2;
+        changeParam.chromaCbQpOffset			= ParaChagCfg.vpCfg.chromaCbQpOffset;
+        changeParam.chromaCrQpOffset			= ParaChagCfg.vpCfg.chromaCrQpOffset;
         if (encConfig.stdMode == STD_AVC) {
-            changeParam.transform8x8Enable      = ParaChagCfg.waveCfg.transform8x8;
-            changeParam.entropyCodingMode       = ParaChagCfg.waveCfg.entropyCodingMode;
+            changeParam.transform8x8Enable      = ParaChagCfg.vpCfg.transform8x8;
+            changeParam.entropyCodingMode       = ParaChagCfg.vpCfg.entropyCodingMode;
         }
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_INDEPEND_SLICE) {
-        changeParam.independSliceMode			= ParaChagCfg.waveCfg.independSliceMode;
-        changeParam.independSliceModeArg		= ParaChagCfg.waveCfg.independSliceModeArg;
+        changeParam.independSliceMode			= ParaChagCfg.vpCfg.independSliceMode;
+        changeParam.independSliceModeArg		= ParaChagCfg.vpCfg.independSliceModeArg;
         if (encConfig.stdMode == STD_AVC) {
-            changeParam.avcSliceMode            = ParaChagCfg.waveCfg.avcSliceMode;
-            changeParam.avcSliceArg             = ParaChagCfg.waveCfg.avcSliceArg;
+            changeParam.avcSliceMode            = ParaChagCfg.vpCfg.avcSliceMode;
+            changeParam.avcSliceArg             = ParaChagCfg.vpCfg.avcSliceArg;
         }
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_DEPEND_SLICE) {
-        changeParam.dependSliceMode				= ParaChagCfg.waveCfg.dependSliceMode;                
-        changeParam.dependSliceModeArg			= ParaChagCfg.waveCfg.dependSliceModeArg;
+        changeParam.dependSliceMode				= ParaChagCfg.vpCfg.dependSliceMode;                
+        changeParam.dependSliceModeArg			= ParaChagCfg.vpCfg.dependSliceModeArg;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RDO) {
-        changeParam.coefClearDisable			= ParaChagCfg.waveCfg.coefClearDisable;
-        changeParam.intraNxNEnable				= ParaChagCfg.waveCfg.intraNxNEnable;
-        changeParam.maxNumMerge					= ParaChagCfg.waveCfg.maxNumMerge;
-        changeParam.customLambdaEnable			= ParaChagCfg.waveCfg.customLambdaEnable;
-        changeParam.customMDEnable				= ParaChagCfg.waveCfg.customMDEnable;
+        changeParam.coefClearDisable			= ParaChagCfg.vpCfg.coefClearDisable;
+        changeParam.intraNxNEnable				= ParaChagCfg.vpCfg.intraNxNEnable;
+        changeParam.maxNumMerge					= ParaChagCfg.vpCfg.maxNumMerge;
+        changeParam.customLambdaEnable			= ParaChagCfg.vpCfg.customLambdaEnable;
+        changeParam.customMDEnable				= ParaChagCfg.vpCfg.customMDEnable;
         if (encConfig.stdMode == STD_AVC) {
-            changeParam.rdoSkip                 = ParaChagCfg.waveCfg.rdoSkip;
-            changeParam.lambdaScalingEnable     = ParaChagCfg.waveCfg.lambdaScalingEnable;
+            changeParam.rdoSkip                 = ParaChagCfg.vpCfg.rdoSkip;
+            changeParam.lambdaScalingEnable     = ParaChagCfg.vpCfg.lambdaScalingEnable;
         }
     }
 
@@ -2480,83 +2479,83 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC) {
-        changeParam.hvsQPEnable					= ParaChagCfg.waveCfg.hvsQPEnable;
-        changeParam.hvsQpScale					= ParaChagCfg.waveCfg.hvsQpScale;
+        changeParam.hvsQPEnable					= ParaChagCfg.vpCfg.hvsQPEnable;
+        changeParam.hvsQpScale					= ParaChagCfg.vpCfg.hvsQpScale;
         changeParam.vbvBufferSize				= ParaChagCfg.VbvBufferSize;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP) {
-        changeParam.minQpI						= ParaChagCfg.waveCfg.minQp;
-        changeParam.minQpP						= ParaChagCfg.waveCfg.minQp;
-        changeParam.minQpB						= ParaChagCfg.waveCfg.minQp;
-        changeParam.maxQpI						= ParaChagCfg.waveCfg.maxQp;
-        changeParam.maxQpP						= ParaChagCfg.waveCfg.maxQp;
-        changeParam.maxQpB						= ParaChagCfg.waveCfg.maxQp;
-        changeParam.maxDeltaQp					= ParaChagCfg.waveCfg.maxDeltaQp; 
+        changeParam.minQpI						= ParaChagCfg.vpCfg.minQp;
+        changeParam.minQpP						= ParaChagCfg.vpCfg.minQp;
+        changeParam.minQpB						= ParaChagCfg.vpCfg.minQp;
+        changeParam.maxQpI						= ParaChagCfg.vpCfg.maxQp;
+        changeParam.maxQpP						= ParaChagCfg.vpCfg.maxQp;
+        changeParam.maxQpB						= ParaChagCfg.vpCfg.maxQp;
+        changeParam.maxDeltaQp					= ParaChagCfg.vpCfg.maxDeltaQp; 
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC_BIT_RATIO_LAYER) {
         for (i=0 ; i<MAX_GOP_NUM; i++)
-            changeParam.fixedBitRatio[i]	= ParaChagCfg.waveCfg.fixedBitRatio[i];
+            changeParam.fixedBitRatio[i]	= ParaChagCfg.vpCfg.fixedBitRatio[i];
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_BG) {
-        changeParam.s2fmeDisable                = ParaChagCfg.waveCfg.s2fmeDisable;
-        changeParam.bgThrDiff					= ParaChagCfg.waveCfg.bgThrDiff;
-        changeParam.bgThrMeanDiff				= ParaChagCfg.waveCfg.bgThrMeanDiff;
-        changeParam.bgLambdaQp					= ParaChagCfg.waveCfg.bgLambdaQp;
-        changeParam.bgDeltaQp					= ParaChagCfg.waveCfg.bgDeltaQp;
-        changeParam.s2fmeDisable                = ParaChagCfg.waveCfg.s2fmeDisable;
+        changeParam.s2fmeDisable                = ParaChagCfg.vpCfg.s2fmeDisable;
+        changeParam.bgThrDiff					= ParaChagCfg.vpCfg.bgThrDiff;
+        changeParam.bgThrMeanDiff				= ParaChagCfg.vpCfg.bgThrMeanDiff;
+        changeParam.bgLambdaQp					= ParaChagCfg.vpCfg.bgLambdaQp;
+        changeParam.bgDeltaQp					= ParaChagCfg.vpCfg.bgDeltaQp;
+        changeParam.s2fmeDisable                = ParaChagCfg.vpCfg.s2fmeDisable;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_NR) {
-        changeParam.nrYEnable					= ParaChagCfg.waveCfg.nrYEnable;
-        changeParam.nrCbEnable					= ParaChagCfg.waveCfg.nrCbEnable;
-        changeParam.nrCrEnable					= ParaChagCfg.waveCfg.nrCrEnable;
-        changeParam.nrNoiseEstEnable			= ParaChagCfg.waveCfg.nrNoiseEstEnable;
-        changeParam.nrNoiseSigmaY				= ParaChagCfg.waveCfg.nrNoiseSigmaY;
-        changeParam.nrNoiseSigmaCb				= ParaChagCfg.waveCfg.nrNoiseSigmaCb;
-        changeParam.nrNoiseSigmaCr				= ParaChagCfg.waveCfg.nrNoiseSigmaCr;
+        changeParam.nrYEnable					= ParaChagCfg.vpCfg.nrYEnable;
+        changeParam.nrCbEnable					= ParaChagCfg.vpCfg.nrCbEnable;
+        changeParam.nrCrEnable					= ParaChagCfg.vpCfg.nrCrEnable;
+        changeParam.nrNoiseEstEnable			= ParaChagCfg.vpCfg.nrNoiseEstEnable;
+        changeParam.nrNoiseSigmaY				= ParaChagCfg.vpCfg.nrNoiseSigmaY;
+        changeParam.nrNoiseSigmaCb				= ParaChagCfg.vpCfg.nrNoiseSigmaCb;
+        changeParam.nrNoiseSigmaCr				= ParaChagCfg.vpCfg.nrNoiseSigmaCr;
 
-        changeParam.nrIntraWeightY				= ParaChagCfg.waveCfg.nrIntraWeightY; 
-        changeParam.nrIntraWeightCb				= ParaChagCfg.waveCfg.nrIntraWeightCb;
-        changeParam.nrIntraWeightCr				= ParaChagCfg.waveCfg.nrIntraWeightCr;
-        changeParam.nrInterWeightY				= ParaChagCfg.waveCfg.nrInterWeightY; 
-        changeParam.nrInterWeightCb				= ParaChagCfg.waveCfg.nrInterWeightCb;
-        changeParam.nrInterWeightCr				= ParaChagCfg.waveCfg.nrInterWeightCr;
+        changeParam.nrIntraWeightY				= ParaChagCfg.vpCfg.nrIntraWeightY; 
+        changeParam.nrIntraWeightCb				= ParaChagCfg.vpCfg.nrIntraWeightCb;
+        changeParam.nrIntraWeightCr				= ParaChagCfg.vpCfg.nrIntraWeightCr;
+        changeParam.nrInterWeightY				= ParaChagCfg.vpCfg.nrInterWeightY; 
+        changeParam.nrInterWeightCb				= ParaChagCfg.vpCfg.nrInterWeightCb;
+        changeParam.nrInterWeightCr				= ParaChagCfg.vpCfg.nrInterWeightCr;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_CUSTOM_MD) {
-        changeParam.pu04DeltaRate               = ParaChagCfg.waveCfg.pu04DeltaRate;
-        changeParam.pu08DeltaRate               = ParaChagCfg.waveCfg.pu08DeltaRate;
-        changeParam.pu16DeltaRate               = ParaChagCfg.waveCfg.pu16DeltaRate;
-        changeParam.pu32DeltaRate               = ParaChagCfg.waveCfg.pu32DeltaRate;
-        changeParam.pu04IntraPlanarDeltaRate    = ParaChagCfg.waveCfg.pu04IntraPlanarDeltaRate;
-        changeParam.pu04IntraDcDeltaRate        = ParaChagCfg.waveCfg.pu04IntraDcDeltaRate;
-        changeParam.pu04IntraAngleDeltaRate     = ParaChagCfg.waveCfg.pu04IntraAngleDeltaRate;
-        changeParam.pu08IntraPlanarDeltaRate    = ParaChagCfg.waveCfg.pu08IntraPlanarDeltaRate;
-        changeParam.pu08IntraDcDeltaRate        = ParaChagCfg.waveCfg.pu08IntraDcDeltaRate;
-        changeParam.pu08IntraAngleDeltaRate     = ParaChagCfg.waveCfg.pu08IntraAngleDeltaRate;
-        changeParam.pu16IntraPlanarDeltaRate    = ParaChagCfg.waveCfg.pu16IntraPlanarDeltaRate;
-        changeParam.pu16IntraDcDeltaRate        = ParaChagCfg.waveCfg.pu16IntraDcDeltaRate;
-        changeParam.pu16IntraAngleDeltaRate     = ParaChagCfg.waveCfg.pu16IntraAngleDeltaRate;
-        changeParam.pu32IntraPlanarDeltaRate    = ParaChagCfg.waveCfg.pu32IntraPlanarDeltaRate;
-        changeParam.pu32IntraDcDeltaRate        = ParaChagCfg.waveCfg.pu32IntraDcDeltaRate;
-        changeParam.pu32IntraAngleDeltaRate     = ParaChagCfg.waveCfg.pu32IntraAngleDeltaRate;
-        changeParam.cu08IntraDeltaRate          = ParaChagCfg.waveCfg.cu08IntraDeltaRate;
-        changeParam.cu08InterDeltaRate          = ParaChagCfg.waveCfg.cu08InterDeltaRate;
-        changeParam.cu08MergeDeltaRate          = ParaChagCfg.waveCfg.cu08MergeDeltaRate;
-        changeParam.cu16IntraDeltaRate          = ParaChagCfg.waveCfg.cu16IntraDeltaRate;
-        changeParam.cu16InterDeltaRate          = ParaChagCfg.waveCfg.cu16InterDeltaRate;
-        changeParam.cu16MergeDeltaRate          = ParaChagCfg.waveCfg.cu16MergeDeltaRate;
-        changeParam.cu32IntraDeltaRate          = ParaChagCfg.waveCfg.cu32IntraDeltaRate;
-        changeParam.cu32InterDeltaRate          = ParaChagCfg.waveCfg.cu32InterDeltaRate;
-        changeParam.cu32MergeDeltaRate          = ParaChagCfg.waveCfg.cu32MergeDeltaRate;
+        changeParam.pu04DeltaRate               = ParaChagCfg.vpCfg.pu04DeltaRate;
+        changeParam.pu08DeltaRate               = ParaChagCfg.vpCfg.pu08DeltaRate;
+        changeParam.pu16DeltaRate               = ParaChagCfg.vpCfg.pu16DeltaRate;
+        changeParam.pu32DeltaRate               = ParaChagCfg.vpCfg.pu32DeltaRate;
+        changeParam.pu04IntraPlanarDeltaRate    = ParaChagCfg.vpCfg.pu04IntraPlanarDeltaRate;
+        changeParam.pu04IntraDcDeltaRate        = ParaChagCfg.vpCfg.pu04IntraDcDeltaRate;
+        changeParam.pu04IntraAngleDeltaRate     = ParaChagCfg.vpCfg.pu04IntraAngleDeltaRate;
+        changeParam.pu08IntraPlanarDeltaRate    = ParaChagCfg.vpCfg.pu08IntraPlanarDeltaRate;
+        changeParam.pu08IntraDcDeltaRate        = ParaChagCfg.vpCfg.pu08IntraDcDeltaRate;
+        changeParam.pu08IntraAngleDeltaRate     = ParaChagCfg.vpCfg.pu08IntraAngleDeltaRate;
+        changeParam.pu16IntraPlanarDeltaRate    = ParaChagCfg.vpCfg.pu16IntraPlanarDeltaRate;
+        changeParam.pu16IntraDcDeltaRate        = ParaChagCfg.vpCfg.pu16IntraDcDeltaRate;
+        changeParam.pu16IntraAngleDeltaRate     = ParaChagCfg.vpCfg.pu16IntraAngleDeltaRate;
+        changeParam.pu32IntraPlanarDeltaRate    = ParaChagCfg.vpCfg.pu32IntraPlanarDeltaRate;
+        changeParam.pu32IntraDcDeltaRate        = ParaChagCfg.vpCfg.pu32IntraDcDeltaRate;
+        changeParam.pu32IntraAngleDeltaRate     = ParaChagCfg.vpCfg.pu32IntraAngleDeltaRate;
+        changeParam.cu08IntraDeltaRate          = ParaChagCfg.vpCfg.cu08IntraDeltaRate;
+        changeParam.cu08InterDeltaRate          = ParaChagCfg.vpCfg.cu08InterDeltaRate;
+        changeParam.cu08MergeDeltaRate          = ParaChagCfg.vpCfg.cu08MergeDeltaRate;
+        changeParam.cu16IntraDeltaRate          = ParaChagCfg.vpCfg.cu16IntraDeltaRate;
+        changeParam.cu16InterDeltaRate          = ParaChagCfg.vpCfg.cu16InterDeltaRate;
+        changeParam.cu16MergeDeltaRate          = ParaChagCfg.vpCfg.cu16MergeDeltaRate;
+        changeParam.cu32IntraDeltaRate          = ParaChagCfg.vpCfg.cu32IntraDeltaRate;
+        changeParam.cu32InterDeltaRate          = ParaChagCfg.vpCfg.cu32InterDeltaRate;
+        changeParam.cu32MergeDeltaRate          = ParaChagCfg.vpCfg.cu32MergeDeltaRate;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_INTRA_PARAM) {
-        changeParam.intraQP                     = ParaChagCfg.waveCfg.intraQP;
-        changeParam.intraPeriod                 = ParaChagCfg.waveCfg.intraPeriod;
+        changeParam.intraQP                     = ParaChagCfg.vpCfg.intraQP;
+        changeParam.intraPeriod                 = ParaChagCfg.vpCfg.intraPeriod;
     }
 
     ret = VPU_EncGiveCommand(handle, ENC_SET_PARA_CHANGE, &changeParam);

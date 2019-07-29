@@ -24,36 +24,36 @@
 #define MAX_REG_FRAME                           MAX_GDI_IDX*2 // 2 for WTL
 #define MAX_SRC_FRAME                           32
 
-#define WAVE5_ENC_FBC50_LUMA_TABLE_SIZE(_w, _h)     (VPU_ALIGN2048(VPU_ALIGN32(_w))*VPU_ALIGN4(_h)/64)
-#define WAVE5_ENC_FBC50_CHROMA_TABLE_SIZE(_w, _h)   (VPU_ALIGN2048(VPU_ALIGN32(_w)/2)*VPU_ALIGN4(_h)/128)
+#define VP5_ENC_FBC50_LUMA_TABLE_SIZE(_w, _h)     (VPU_ALIGN2048(VPU_ALIGN32(_w))*VPU_ALIGN4(_h)/64)
+#define VP5_ENC_FBC50_CHROMA_TABLE_SIZE(_w, _h)   (VPU_ALIGN2048(VPU_ALIGN32(_w)/2)*VPU_ALIGN4(_h)/128)
 
-#define WAVE5_ENC_FBC50_LOSSLESS_LUMA_10BIT_FRAME_SIZE(_w, _h)    ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*160)
-#define WAVE5_ENC_FBC50_LOSSLESS_LUMA_8BIT_FRAME_SIZE(_w, _h)     ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*128)
-#define WAVE5_ENC_FBC50_LOSSLESS_CHROMA_10BIT_FRAME_SIZE(_w, _h)  ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*160)
-#define WAVE5_ENC_FBC50_LOSSLESS_CHROMA_8BIT_FRAME_SIZE(_w, _h)   ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*128)
-#define WAVE5_ENC_FBC50_LOSSY_LUMA_FRAME_SIZE(_w, _h, _tx)        ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*VPU_ALIGN32(_tx))
-#define WAVE5_ENC_FBC50_LOSSY_CHROMA_FRAME_SIZE(_w, _h, _tx)      ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*VPU_ALIGN32(_tx))
+#define VP5_ENC_FBC50_LOSSLESS_LUMA_10BIT_FRAME_SIZE(_w, _h)    ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*160)
+#define VP5_ENC_FBC50_LOSSLESS_LUMA_8BIT_FRAME_SIZE(_w, _h)     ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*128)
+#define VP5_ENC_FBC50_LOSSLESS_CHROMA_10BIT_FRAME_SIZE(_w, _h)  ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*160)
+#define VP5_ENC_FBC50_LOSSLESS_CHROMA_8BIT_FRAME_SIZE(_w, _h)   ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*128)
+#define VP5_ENC_FBC50_LOSSY_LUMA_FRAME_SIZE(_w, _h, _tx)        ((VPU_ALIGN32(_w)+127)/128*VPU_ALIGN4(_h)*VPU_ALIGN32(_tx))
+#define VP5_ENC_FBC50_LOSSY_CHROMA_FRAME_SIZE(_w, _h, _tx)      ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)/2*VPU_ALIGN32(_tx))
 
 /* YUV422 cframe */
-#define WAVE5_ENC_FBC50_422_CHROMA_TABLE_SIZE(_w, _h)   (VPU_ALIGN2048(VPU_ALIGN32(_w)/2)*VPU_ALIGN4(_h)/128*2)
-#define WAVE5_ENC_FBC50_LOSSLESS_422_CHROMA_10BIT_FRAME_SIZE(_w, _h)  ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*160)
-#define WAVE5_ENC_FBC50_LOSSLESS_422_CHROMA_8BIT_FRAME_SIZE(_w, _h)   ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*128)
-#define WAVE5_ENC_FBC50_LOSSY_422_CHROMA_FRAME_SIZE(_w, _h, _tx)      ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*VPU_ALIGN32(_tx))
+#define VP5_ENC_FBC50_422_CHROMA_TABLE_SIZE(_w, _h)   (VPU_ALIGN2048(VPU_ALIGN32(_w)/2)*VPU_ALIGN4(_h)/128*2)
+#define VP5_ENC_FBC50_LOSSLESS_422_CHROMA_10BIT_FRAME_SIZE(_w, _h)  ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*160)
+#define VP5_ENC_FBC50_LOSSLESS_422_CHROMA_8BIT_FRAME_SIZE(_w, _h)   ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*128)
+#define VP5_ENC_FBC50_LOSSY_422_CHROMA_FRAME_SIZE(_w, _h, _tx)      ((VPU_ALIGN32(_w)/2+127)/128*VPU_ALIGN4(_h)*VPU_ALIGN32(_tx))
 
-#define WAVE5_DEC_HEVC_MVCOL_BUF_SIZE(_w, _h)       (((_w+63)/64)*((_h+63)/64)*256+ 64)     
-#define WAVE5_DEC_AVC_MVCOL_BUF_SIZE(_w, _h)        ((((VPU_ALIGN256(_w)/16)*(VPU_ALIGN16(_h)/16)) + 16)*80)
-#define WAVE5_DEC_VP9_MVCOL_BUF_SIZE(_w, _h)        (((VPU_ALIGN64(_w)*VPU_ALIGN64(_h))>>2))
-#define WAVE5_DEC_AVS2_MVCOL_BUF_SIZE(_w, _h)       (((VPU_ALIGN64(_w)*VPU_ALIGN64(_h))>>5))    // 1 CTU16 = 8bytes, VPU_ALIGN64(w)/16*VPU_ALIGN64(h)/16 * 8 = VPU_ALIGN64(w)*VPU_ALIGN64(h)/32
-#define WAVE5_DEC_SVAC_MVCOL_BUF_SIZE(_w, _h)       (((VPU_ALIGN128(_w)*VPU_ALIGN128(_h))>>2))     
+#define VP5_DEC_HEVC_MVCOL_BUF_SIZE(_w, _h)       (((_w+63)/64)*((_h+63)/64)*256+ 64)
+#define VP5_DEC_AVC_MVCOL_BUF_SIZE(_w, _h)        ((((VPU_ALIGN256(_w)/16)*(VPU_ALIGN16(_h)/16)) + 16)*80)
+#define VP5_DEC_VP9_MVCOL_BUF_SIZE(_w, _h)        (((VPU_ALIGN64(_w)*VPU_ALIGN64(_h))>>2))
+#define VP5_DEC_AVS2_MVCOL_BUF_SIZE(_w, _h)       (((VPU_ALIGN64(_w)*VPU_ALIGN64(_h))>>5))    // 1 CTU16 = 8bytes, VPU_ALIGN64(w)/16*VPU_ALIGN64(h)/16 * 8 = VPU_ALIGN64(w)*VPU_ALIGN64(h)/32
+#define VP5_DEC_SVAC_MVCOL_BUF_SIZE(_w, _h)       (((VPU_ALIGN128(_w)*VPU_ALIGN128(_h))>>2))
 
 
-#define WAVE5_FBC_LUMA_TABLE_SIZE(_w, _h)           (VPU_ALIGN16(_h)*VPU_ALIGN256(_w)/32)
-#define WAVE5_FBC_CHROMA_TABLE_SIZE(_w, _h)         (VPU_ALIGN16(_h)*VPU_ALIGN256(_w/2)/32)
+#define VP5_FBC_LUMA_TABLE_SIZE(_w, _h)           (VPU_ALIGN16(_h)*VPU_ALIGN256(_w)/32)
+#define VP5_FBC_CHROMA_TABLE_SIZE(_w, _h)         (VPU_ALIGN16(_h)*VPU_ALIGN256(_w/2)/32)
 
-#define WAVE5_ENC_HEVC_MVCOL_BUF_SIZE(_w, _h)       (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*128)
-#define WAVE5_ENC_AVC_MVCOL_BUF_SIZE(_w, _h)        (VPU_ALIGN64(_w)*VPU_ALIGN64(_h)/32)
-#define WAVE5_ENC_SVAC_MVCOL_0_BUF_SIZE(_w, _h)     (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*128)   // same as hevc enc.
-#define WAVE5_ENC_SVAC_MVCOL_1_BUF_SIZE(_w, _h)     (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*512)   // 2nd col-mv buffer (fixed size)
+#define VP5_ENC_HEVC_MVCOL_BUF_SIZE(_w, _h)       (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*128)
+#define VP5_ENC_AVC_MVCOL_BUF_SIZE(_w, _h)        (VPU_ALIGN64(_w)*VPU_ALIGN64(_h)/32)
+#define VP5_ENC_SVAC_MVCOL_0_BUF_SIZE(_w, _h)     (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*128)   // same as hevc enc.
+#define VP5_ENC_SVAC_MVCOL_1_BUF_SIZE(_w, _h)     (VPU_ALIGN64(_w)/64*VPU_ALIGN64(_h)/64*512)   // 2nd col-mv buffer (fixed size)
 
 //------------------------------------------------------------------------------
 // common struct and definition
@@ -95,7 +95,7 @@ typedef enum {
 This is an enumeration for declaring SET_PARAM command options.
 Depending on this, SET_PARAM command parameter registers have different settings.
 
-NOTE: This is only for WAVE encoder IP. 
+NOTE: This is only for VPU encoder IP.
 
 @endverbatim
 */
@@ -104,13 +104,13 @@ typedef enum {
     OPT_CUSTOM_GOP      = 1, /**< SET_PARAM command option for setting custom GOP */
     OPT_CUSTOM_HEADER   = 2, /**< SET_PARAM command option for setting custom VPS/SPS/PPS */
     OPT_VUI             = 3, /**< SET_PARAM command option for encoding VUI  */
-    OPT_CHANGE_PARAM    = 16 /**< SET_PARAM command option for parameters change (WAVE520 only)  */
+    OPT_CHANGE_PARAM    = 16 /**< SET_PARAM command option for parameters change (VP520 only)  */
 } SET_PARAM_OPTION;
 
 /**
 * @brief 
 @verbatim 
-This is an enumeration for declaring options of getting a write pointer of bitstream buffer. (WAVE encoder only)
+This is an enumeration for declaring options of getting a write pointer of bitstream buffer. (VPU encoder only)
 
 @endverbatim
 */
@@ -219,15 +219,15 @@ typedef enum {
     RETCODE_NOT_FOUND_BITCODE_PATH,     /**< This means that BIT_CODE_FILE_PATH has a wrong firmware path or firmware size is 0 when calling VPU_InitWithBitcode() function.  */
     RETCODE_NOT_SUPPORTED_FEATURE,      /**< This means that HOST application uses an API option that is not supported in current hardware.  */
     RETCODE_NOT_FOUND_VPU_DEVICE,       /**< This means that HOST application uses the undefined product ID. */   /* 20 */
-    RETCODE_CP0_EXCEPTION,              /**< This means that coprocessor exception has occurred. (WAVE only) */
+    RETCODE_CP0_EXCEPTION,              /**< This means that coprocessor exception has occurred. (VPU only) */
     RETCODE_STREAM_BUF_FULL,            /**< This means that stream buffer is full in encoder. */
-    RETCODE_ACCESS_VIOLATION_HW,        /**< This means that GDI access error has occurred. It might come from violation of write protection region or spec-out GDI read/write request. (WAVE only) */
-    RETCODE_QUERY_FAILURE,              /**< This means that query command was not successful. (WAVE5 only) */
-    RETCODE_QUEUEING_FAILURE,           /**< This means that commands cannot be queued. (WAVE5 only) */
-    RETCODE_VPU_STILL_RUNNING,          /**< This means that VPU cannot be flushed or closed now, because VPU is running. (WAVE5 only) */
-    RETCODE_REPORT_NOT_READY,           /**< This means that report is not ready for Query(GET_RESULT) command. (WAVE5 only) */
-    RETCODE_VLC_BUF_FULL,               /**< This means that VLC buffer is full in encoder. (WAVE5 only) */
-    RETCODE_INVALID_SFS_INSTANCE,       /**< This means that current instance can't run sub-framesync. (already an instance was running with sub-frame sync (WAVE5 only) */
+    RETCODE_ACCESS_VIOLATION_HW,        /**< This means that GDI access error has occurred. It might come from violation of write protection region or spec-out GDI read/write request. (VPU only) */
+    RETCODE_QUERY_FAILURE,              /**< This means that query command was not successful. (VP5 only) */
+    RETCODE_QUEUEING_FAILURE,           /**< This means that commands cannot be queued. (VP5 only) */
+    RETCODE_VPU_STILL_RUNNING,          /**< This means that VPU cannot be flushed or closed now, because VPU is running. (VP5 only) */
+    RETCODE_REPORT_NOT_READY,           /**< This means that report is not ready for Query(GET_RESULT) command. (VP5 only) */
+    RETCODE_VLC_BUF_FULL,               /**< This means that VLC buffer is full in encoder. (VP5 only) */
+    RETCODE_INVALID_SFS_INSTANCE,       /**< This means that current instance can't run sub-framesync. (already an instance was running with sub-frame sync (VP5 only) */
 #ifdef AUTO_FRM_SKIP_DROP
     RETCODE_FRAME_DROP,                 /**< This means that frame is dropped. HOST application don't have to wait INT_BIT_PIC_RUN.  (CODA9 only) */
 #endif
@@ -294,7 +294,7 @@ typedef enum {
 #define DECODED_IDX_FLAG_NO_FB       -1
 #define DECODED_IDX_FLAG_SKIP        -2
 
-#define DECODED_IDX_FLAG_UNSUPPORT   -4     // avc decoder in WAVE5
+#define DECODED_IDX_FLAG_UNSUPPORT   -4     // avc decoder in VP5
 
 #define RECON_IDX_FLAG_ENC_END       -1
 #define RECON_IDX_FLAG_ENC_DELAY     -2
@@ -655,7 +655,7 @@ VPU_DecGiveCommand(handle, DEC_GET_DISPLAY_OUTPUT_INFO, & decOutputInfo);
     DEC_GET_DISPLAY_OUTPUT_INFO,
 /**
 @verbatim 
-HOST can enable display buffer reordering when decoding H.264 streams. (CODA9 H.264 decoder and WAVE decoder only) 
+HOST can enable display buffer reordering when decoding H.264 streams. (CODA9 H.264 decoder and VPU decoder only)
 In H.264 case, output decoded picture may be re-ordered if pic_order_cnt_type is 0 or 1. In that case, decoder
 must delay output display for re-ordering but some applications (ex. video telephony) do not
 want such display delay. 
@@ -697,7 +697,7 @@ Then VPU_DecGetInitialInfo() and VPU_DecIsseuSeqInit() are called before frame b
 @endverbatim
 */
     DEC_FREE_FRAME_BUFFER, 
-    DEC_GET_FRAMEBUF_INFO, /**< This command gives HOST the information of framebuffer in <<vpuapi_h_DecGetFramebufInfo>>. (WAVE only) */  
+    DEC_GET_FRAMEBUF_INFO, /**< This command gives HOST the information of framebuffer in <<vpuapi_h_DecGetFramebufInfo>>. (VPU only) */
     DEC_RESET_FRAMEBUF_INFO, /**< This command resets the information of framebuffer. Unlike DEC_FREE_FRAME_BUFFER, it does not release the assigned memory itself.  This command is used for sequence change along with DEC_GET_FRAMEBUF_INFO. */ 
 /**
 @verbatim 
@@ -937,7 +937,7 @@ Operation has not received any response from VPU and has timed out.
 
 /**
 @verbatim 
-This command changes encoding parameter(s) during the encoding operation. (WAVE encoder only)  
+This command changes encoding parameter(s) during the encoding operation. (VPU encoder only)  
 The argument `parameter` is interpreted as a pointer to <<vpuapi_h_EncChangeParam>> structure holding 
 
 * enable_option : Set an enum value that is associated with parameters to change (multiple option allowed).
@@ -975,7 +975,7 @@ Operation has not received any response from VPU and has timed out.
     DISABLE_LOGGING, /**< HOST can deactivate message logging which is off as default. */
     DEC_GET_QUEUE_STATUS, /**< This command returns the number of queued commands for the current decode instance and the number of queued commands for the total decode instances.  */
     ENC_GET_QUEUE_STATUS, /**< This command returns the number of queued commands for the current encode instance and the number of queued commands for the total encode instances.  */
-    GET_BANDWIDTH_REPORT, /**< This command reports the amount of bytes which are transferred on AXI bus. */     /* WAVE52x products. */
+    GET_BANDWIDTH_REPORT, /**< This command reports the amount of bytes which are transferred on AXI bus. */     /* VP52x products. */
     ENC_WRPTR_SEL, /**< This command sets <<vpuapi_h_ENC_QUERY_WRPTR_SEL>>.  */
     SET_CYCLE_PER_TICK,
     CMD_END
@@ -1113,25 +1113,25 @@ typedef InterruptBit Coda9InterruptBit;
 /**
 * @brief    This is an enumeration type for representing interrupt bit positions.
 
-NOTE: This is only for WAVE5 IP.
+NOTE: This is only for VP5 IP.
 */
 typedef enum {
-    INT_WAVE5_INIT_VPU          = 0,
-    INT_WAVE5_WAKEUP_VPU        = 1,
-    INT_WAVE5_SLEEP_VPU         = 2,
-    INT_WAVE5_CREATE_INSTANCE   = 3, 
-    INT_WAVE5_FLUSH_INSTANCE    = 4,
-    INT_WAVE5_DESTORY_INSTANCE  = 5,
-    INT_WAVE5_INIT_SEQ          = 6,
-    INT_WAVE5_SET_FRAMEBUF      = 7,
-    INT_WAVE5_DEC_PIC           = 8,
-    INT_WAVE5_ENC_PIC           = 8,
-    INT_WAVE5_ENC_SET_PARAM     = 9,
-    INT_WAVE5_ENC_LOW_LATENCY   = 13,
-    INT_WAVE5_DEC_QUERY         = 14,
-    INT_WAVE5_BSBUF_EMPTY       = 15,
-    INT_WAVE5_BSBUF_FULL        = 15,
-} Wave5InterruptBit;
+    INT_VP5_INIT_VPU          = 0,
+    INT_VP5_WAKEUP_VPU        = 1,
+    INT_VP5_SLEEP_VPU         = 2,
+    INT_VP5_CREATE_INSTANCE   = 3, 
+    INT_VP5_FLUSH_INSTANCE    = 4,
+    INT_VP5_DESTORY_INSTANCE  = 5,
+    INT_VP5_INIT_SEQ          = 6,
+    INT_VP5_SET_FRAMEBUF      = 7,
+    INT_VP5_DEC_PIC           = 8,
+    INT_VP5_ENC_PIC           = 8,
+    INT_VP5_ENC_SET_PARAM     = 9,
+    INT_VP5_ENC_LOW_LATENCY   = 13,
+    INT_VP5_DEC_QUERY         = 14,
+    INT_VP5_BSBUF_EMPTY       = 15,
+    INT_VP5_BSBUF_FULL        = 15,
+} Vp5InterruptBit;
 
 /**
 * @brief    This is an enumeration type for representing picture types.
@@ -1236,8 +1236,8 @@ NOTE: Products earlier than CODA9 can only set this linear map type.
     TILED_FIELD_NO_BANK_MAP                     = 8,  /**< Tiled field no bank map. (CODA9 only) */ // coda980 only  
     LINEAR_FIELD_MAP                            = 9,  /**< Linear field map type. (CODA9 only) */ // coda980 only 
     CODA_TILED_MAP_TYPE_MAX                     = 10,  
-    COMPRESSED_FRAME_MAP                        = 10, /**< Compressed frame map type (WAVE only) */ // WAVE4 only
-    ARM_COMPRESSED_FRAME_MAP                    = 11, /**< AFBC(ARM Frame Buffer Compression) compressed frame map type */ // AFBC enabled WAVE decoder
+    COMPRESSED_FRAME_MAP                        = 10, /**< Compressed frame map type (VPU only) */ // VPU4 only
+    ARM_COMPRESSED_FRAME_MAP                    = 11, /**< AFBC(ARM Frame Buffer Compression) compressed frame map type */ // AFBC enabled VPU decoder
     COMPRESSED_FRAME_MAP_V50_LOSSLESS_8BIT      = 12, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
     COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT     = 13, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
     COMPRESSED_FRAME_MAP_V50_LOSSY              = 14, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
@@ -1258,7 +1258,7 @@ typedef enum {
 } FramebufferAllocType;
 
 /**
-* @brief    This is data structure of product information. (WAVE only)
+* @brief    This is data structure of product information. (VPU only)
 */
 typedef struct {
     Uint32 productId;  /**< The product id */
@@ -1280,7 +1280,7 @@ typedef struct {
 @verbatim
 This is a data structure of tiled map information.
 
-NOTE: WAVE does not support tiledmap type so this structure is not used in the product. 
+NOTE: VPU does not support tiledmap type so this structure is not used in the product. 
 @endverbatim
 */
 typedef struct {
@@ -1307,7 +1307,7 @@ typedef struct {
 } TiledMapConfig;
 
 /**
-* @brief    This is a data structure of DRAM information(CODA960 and BODA950 only) and CFRAME50 configuration(WAVE5 only)
+* @brief    This is a data structure of DRAM information(CODA960 and BODA950 only) and CFRAME50 configuration(VP5 only)
 VPUAPI sets default values for this structure. 
 However, HOST application can configure if the default values are not associated with their DRAM
     or desirable to change. 
@@ -1317,8 +1317,8 @@ typedef struct {
     int casBit;     /**< This value is used for width of CAS bit. (9 on the CNM FPGA platform) */
     int bankBit;    /**< This value is used for width of BANK bit. (2 on the CNM FPGA platform) */
     int busBit;     /**< This value is used for width of system BUS bit. (3 on CNM FPGA platform) */  
-    int tx16y;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (WAVE5 only) */
-    int tx16c;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (WAVE5 only) */
+    int tx16y;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (VP5 only) */
+    int tx16c;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (VP5 only) */
 } DRAMConfig;
 
 /**
@@ -1338,8 +1338,8 @@ bufYBot, bufCbBot and bufCrBot should be set separately.
 @endverbatim
 */
 typedef struct {
-    PhysicalAddress bufY;       /**< It indicates the base address for Y component in the physical address space when linear map is used. It is the RAS base address for Y component when tiled map is used (CODA9). It is also compressed Y buffer or ARM compressed framebuffer (WAVE). */
-    PhysicalAddress bufCb;      /**< It indicates the base address for Cb component in the physical address space when linear map is used. It is the RAS base address for Cb component when tiled map is used (CODA9). It is also compressed CbCr buffer (WAVE) */
+    PhysicalAddress bufY;       /**< It indicates the base address for Y component in the physical address space when linear map is used. It is the RAS base address for Y component when tiled map is used (CODA9). It is also compressed Y buffer or ARM compressed framebuffer (VPU). */
+    PhysicalAddress bufCb;      /**< It indicates the base address for Cb component in the physical address space when linear map is used. It is the RAS base address for Cb component when tiled map is used (CODA9). It is also compressed CbCr buffer (VPU) */
     PhysicalAddress bufCr;      /**< It indicates the base address for Cr component in the physical address space when linear map is used. It is the RAS base address for Cr component when tiled map is used (CODA9). */
     PhysicalAddress bufYBot;    /**< It indicates the base address for Y bottom field component in the physical address space when linear map is used. It is the RAS base address for Y bottom field component when tiled map is used (CODA980 only). */ // coda980 only
     PhysicalAddress bufCbBot;   /**< It indicates the base address for Cb bottom field component in the physical address space when linear map is used. It is the RAS base address for Cb bottom field component when tiled map is used (CODA980 only). */ // coda980 only
@@ -1372,7 +1372,7 @@ It specifies endianess of frame buffer.
 @* 3 : 32 bit big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'. 
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'. 
 @endverbatim
 */
     int endian; 
@@ -1543,7 +1543,7 @@ typedef struct {
             int useEncImdEnable; /**< This enables AXI secondary channel for intra mode decision. */
             int useEncLfEnable;  /**< This enables AXI secondary channel for loopfilter. */
             int useEncRdoEnable; /**< This enables AXI secondary channel for RDO. */ 
-        } wave;
+        } vp;
     } u;
 } SecAxiUse;
 
@@ -1907,7 +1907,7 @@ Frame buffer endianness
 @* 3 : 32 bit big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'.      
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'.      
 @endverbatim
 */
     EndianMode      frameEndian; 
@@ -1921,7 +1921,7 @@ Bitstream buffer endianess
 @* 3 : 32 bits big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'.   
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'.   
 @endverbatim
 */    
     EndianMode      streamEndian; 
@@ -2193,9 +2193,9 @@ This is an output bit-depth. This is only for AVS2
 
 // Report Information
 
-#define WAVE_SKIPMODE_WAVE_NONE 0
-#define WAVE_SKIPMODE_NON_IRAP  1
-#define WAVE_SKIPMODE_NON_REF   2
+#define SKIPMODE_NONE      0
+#define SKIPMODE_NON_IRAP  1
+#define SKIPMODE_NON_REF   2
 
 
 #define SEL_SVAC_ALL_LAYER      0
@@ -2241,7 +2241,7 @@ In case of CODA9,
 After the skip, decoder returns -2 (0xFFFE) of the decoded index when decoder does not have any
 frames displayed.
 
-In case of WAVE5,
+In case of VP5,
 
 @* 0x0 : skip frame off
 @* 0x1 : skip non-RAP pictures (skip any picture which is neither IDR, CRA, nor BLA). 
@@ -2290,7 +2290,7 @@ FSets a de-blocking filter mode for RV streams.
 typedef struct {
 /**
 @verbatim
-This variable indicates which userdata is reported by VPU. (WAVE only)
+This variable indicates which userdata is reported by VPU. (VPU only)
 When this variable is not zero, each bit corresponds to the `H265_USERDATA_FLAG_XXX`.
 
  // H265 USER_DATA(SPS & SEI) ENABLE FLAG 
@@ -2518,7 +2518,7 @@ this index.
     int indexFrameDecoded;      
     int indexInterFrameDecoded;     /**< In case of VP9 codec, this indicates an index of the frame buffer to reallocate for the next frame's decoding. VPU returns this information when detecting change of the inter-frame resolution. */
     int indexFrameDecodedForTiled;  /**< In case of WTL mode, this indicates a decoded index of tiled or compressed framebuffer. */
-    int nalType;                    /**< This is nal Type of decoded picture. Please refer to nal_unit_type in Table 7-1 - NAL unit type codes and NAL unit type classes in H.265/HEVC specification. (WAVE only) */
+    int nalType;                    /**< This is nal Type of decoded picture. Please refer to nal_unit_type in Table 7-1 - NAL unit type codes and NAL unit type classes in H.265/HEVC specification. (VPU only) */
     int picType;                    /**< This is the picture type of decoded picture. It reports the picture type of bottom field for interlaced stream. <<vpuapi_h_PicType>>. */
     int picTypeFirst;               /**< This is only valid in interlaced mode and indicates the picture type of the top field. */
     int numOfErrMBs;                /**< This is the number of error coded unit in a decoded picture. */
@@ -2703,22 +2703,22 @@ For H.265/HEVC decoder, each bit has a different meaning as follows.
 */
     int sequenceChanged;     
     // CODA9: [0]   1 - sequence changed
-    // WAVEX: [5]   1 - H.265 profile changed
+    // VPUX: [5]   1 - H.265 profile changed
     //        [16]  1 - resolution changed
     //        [19]  1 - number of DPB changed
 
     int streamEndFlag;  /**< This variable reports the status of `end of stream` flag. This information can be used for low delay decoding (CODA980 only). */
     int frameCycle;     /**< This variable reports the cycle number of decoding one frame. */
     int errorReason;    /**< This variable reports the error reason that occurs while decoding. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. */
-    Uint32 errorReasonExt; /**< This variable reports the specific reason of error. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. (WAVE only) */
+    Uint32 errorReasonExt; /**< This variable reports the specific reason of error. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. (VPU only) */
     int warnInfo;       /**< This variable reports the warning information that occurs while decoding. For warning description, please find the 'Appendix: Error Definition' in the Programmer's Guide. */
-    Uint32 sequenceNo;  /**< This variable increases by 1 whenever sequence changes. If it happens, HOST should call VPU_DecFrameBufferFlush() to get the decoded result that remains in the buffer in the form of DecOutputInfo array. HOST can recognize with this variable whether this frame is in the current sequence or in the previous sequence when it is displayed. (WAVE only) */ 
+    Uint32 sequenceNo;  /**< This variable increases by 1 whenever sequence changes. If it happens, HOST should call VPU_DecFrameBufferFlush() to get the decoded result that remains in the buffer in the form of DecOutputInfo array. HOST can recognize with this variable whether this frame is in the current sequence or in the previous sequence when it is displayed. (VPU only) */ 
     int rvTr;           /**< This variable reports RV timestamp for Ref frame. */
     int rvTrB;          /**< This variable reports RV timestamp for B frame. */
     
 /**
 @verbatim
-This variable reports the result of pre-scan which is the start of decoding routine for DEC_PIC command. (WAVE only)
+This variable reports the result of pre-scan which is the start of decoding routine for DEC_PIC command. (VPU only)
 In the prescan phase, VPU parses bitstream and pre-allocates frame buffers. 
 
 @* -2 : it is when VPU prescanned bitstream(bitstream consumed), but a decode buffer was not allocated for the bitstream during pre-scan, since there was only header information.
@@ -2742,7 +2742,7 @@ In the prescan phase, VPU parses bitstream and pre-allocates frame buffers.
 
 /**
 @verbatim
-A CTU size (only for WAVE series)
+A CTU size (only for VPU series)
 
 @* 16 : CTU16x16
 @* 32 : CTU32x32
@@ -2750,7 +2750,7 @@ A CTU size (only for WAVE series)
 @endverbatim
 */
     Int32 ctuSize;
-    Int32 outputFlag;          /**< This variable reports whether the current frame is bumped out or not. (WAVE5 only) */
+    Int32 outputFlag;          /**< This variable reports whether the current frame is bumped out or not. (VP5 only) */
 } DecOutputInfo;
 
 /**
@@ -2766,7 +2766,7 @@ A CTU size (only for WAVE series)
 } DecGetFramebufInfo;
 
 /**
- * @brief   This is a data structure of queue command information. It is used for parameter when host issues DEC_GET_QUEUE_STATUS of <<vpuapi_h_VPU_DecGiveCommand>>. (WAVE5 only)
+ * @brief   This is a data structure of queue command information. It is used for parameter when host issues DEC_GET_QUEUE_STATUS of <<vpuapi_h_VPU_DecGiveCommand>>. (VP5 only)
  */
 typedef struct {
     Uint32  instanceQueueCount; /**< This variable indicates the number of queued commands of the instance.  */
@@ -2829,7 +2829,7 @@ typedef struct {
 
 
 /**
-* @brief    This is a data structure for custom GOP parameters of the given picture. (WAVE encoder only)
+* @brief    This is a data structure for custom GOP parameters of the given picture. (VPU encoder only)
 */
 typedef struct {
     int picType;                        /**< A picture type of Nth picture in the custom GOP */
@@ -2842,7 +2842,7 @@ typedef struct {
 } CustomGopPicParam;
 
 /**
-* @brief    This is a data structure for custom GOP parameters. (WAVE encoder only)
+* @brief    This is a data structure for custom GOP parameters. (VPU encoder only)
 */
 typedef struct {
     int customGopSize;                  /**< The size of custom GOP (0~8) */
@@ -2850,7 +2850,7 @@ typedef struct {
 } CustomGopParam;
 
 /**
-* @brief    This is a data structure for setting custom map options in H.265/HEVC encoder. (WAVE5 encoder only). 
+* @brief    This is a data structure for setting custom map options in H.265/HEVC encoder. (VP5 encoder only). 
 */
 typedef struct {
     int roiAvgQp;  /**< It sets an average QP of ROI map. */
@@ -2863,7 +2863,7 @@ typedef struct {
 It indicates the start buffer address of custom map. 
 Each custom CTU map takes 8 bytes and holds mode, coefficient drop flag, QPs, and lambdas like the below illustration. 
 
-image::../figure/wave520_ctumap.svg["Format of custom Map", width=300]
+image::../figure/vp520_ctumap.svg["Format of custom Map", width=300]
 
 @endverbatim
 */
@@ -3080,7 +3080,7 @@ the fixed bit ratio 2:1:1. This is only valid when BitAllocMode is 2.
 
     Uint32 useLongTerm;                 /**< It enables long-term reference function. */
 
-    // newly added for WAVE520
+    // newly added for VP520
     Uint32 monochromeEnable;           /**< It enables monochrom encoding mode. */
     Uint32 strongIntraSmoothEnable;    /**< It enables strong intra smoothing. */
     
@@ -3137,7 +3137,7 @@ the fixed bit ratio 2:1:1. This is only valid when BitAllocMode is 2.
 
 
 
-    // for H.264 on WAVE
+    // for H.264 on VPU
     int rdoSkip;					/**< It skips RDO(rate distortion optimization). */
     int lambdaScalingEnable;		/**< It enables lambda scaling using custom GOP. */
     int transform8x8Enable;			/**< It enables 8x8 intra prediction and 8x8 transform. */
@@ -3192,7 +3192,7 @@ It selects the entropy coding mode used in encoding process.
 }EncWaveParam;
 
 /**
-* @brief This is an enumeration of SVC layer types. (WAVE525 encoder only)
+* @brief This is an enumeration of SVC layer types. (VP525 encoder only)
 */
 typedef enum {
     SVAC_SVC_BL = 0,             /**< This is a base layer picture in scalable video coding  */
@@ -3200,7 +3200,7 @@ typedef enum {
 } SVACSvcType;
 
 /**
-* @brief This is an enumeration for encoder parameter change. (WAVE5 encoder only)
+* @brief This is an enumeration for encoder parameter change. (VP5 encoder only)
 */
 typedef enum {
     // COMMON parameters which can be changed frame by frame.
@@ -3217,7 +3217,7 @@ typedef enum {
     ENC_SET_CHANGE_PARAM_BG                  = (1<<20),
     ENC_SET_CHANGE_PARAM_CUSTOM_MD           = (1<<21),
     ENC_SET_CHANGE_PARAM_CUSTOM_LAMBDA       = (1<<22),
-} Wave5ChangeParam;
+} Vp5ChangeParam;
 
 /**
 * @brief This is a data structure for encoding parameters that have changed.
@@ -3794,7 +3794,7 @@ decoder buffer delay constraints.
     int             rcInitDelay;
 /**
 @verbatim
-@* WAVE series
+@* VPU series
 @** 0 : rate control is off.
 @** 1 : rate control is on. 
 
@@ -3811,7 +3811,7 @@ decoder buffer delay constraints.
         EncMp4Param     mp4Param;       /**< <<vpuapi_h_EncMp4Param>>  */
         EncH263Param    h263Param;      /**< <<vpuapi_h_EncH263Param>> */
         EncAvcParam     avcParam;       /**< <<vpuapi_h_EncAvcParam>> */
-        EncWaveParam    waveParam;      /**< <<vpuapi_h_EncWaveParam>> */
+        EncWaveParam    vpParam;      /**< <<vpuapi_h_EncVpParam>> */
     } EncStdParam;
 
     // Maverick-II Cache Configuration
@@ -3850,7 +3850,7 @@ Frame buffer endianness
 @* 3 : 32 bit big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'. 
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'. 
 @endverbatim
 */
     int             frameEndian;
@@ -3864,7 +3864,7 @@ Bistream buffer endianness
 @* 3 : 32 bit big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'. 
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'. 
 @endverbatim
 */
     int             streamEndian;
@@ -3878,7 +3878,7 @@ Endianness of source YUV
 @* 3 : 32 bit big endian format
 @* 16 ~ 31 : 128 bit endian format
     
-NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE Datasheet'. 
+NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU Datasheet'. 
 @endverbatim
 */    
     int             sourceEndian;
@@ -3929,7 +3929,7 @@ VPU core index number
     Uint32          virtAxiID; /**< AXI-ID for the V-CPU part (for virtualization) */
 
     BOOL            enablePTS; /**< An enable flag to report PTS(Presentation Timestamp) */
-    int             lowLatencyMode; /**< 2bits low latency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable (only for WAVE5) */
+    int             lowLatencyMode; /**< 2bits low latency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable (only for VP5) */
 
     BOOL            enableNonRefFbcWrite;   /**< If it is TRUE, FBC data of non-reference picture are written into framebuffer. */
     int             picWidthBL;             /**< The width of the BL(base layer) picture in SVC (SVAC encoder only) */
@@ -3974,7 +3974,7 @@ typedef struct {
     int encodeEOS;                  /**< A flag to encode EOS nal unit explicitly. This should be set when to encode the last source picture of sequence. */
     int encodeEOB;                  /**< A flag to encode EOB nal unit explicitly. This should be set when to encode the last source picture of sequence. */
     int encodeVUI;                  /**< A flag to encode VUI nal unit explicitly */
-    int encodeFiller;               /**< A flag to encode Filler nal unit explicitly (WAVE5 only) */
+    int encodeFiller;               /**< A flag to encode Filler nal unit explicitly (VP5 only) */
 } EncCodeOpt;
 
 #ifdef ROI_MB_RC
@@ -4079,19 +4079,19 @@ This is only for CODA9.
     int             fieldRun;              
 
 
-    int             forcePicQpEnable;   /**< A flag to use a force picture quantization parameter (WAVE only) */
-    int             forcePicQpI;        /**< A force picture quantization parameter for I picture. It is valid when forcePicQpEnable is 1. (WAVE only) */
-    int             forcePicQpP;        /**< A force picture quantization parameter for P picture. It is valid when forcePicQpEnable is 1. (WAVE only) */
-    int             forcePicQpB;        /**< A force picture quantization parameter for B picture. It is valid when forcePicQpEnable is 1. (WAVE only) */
-    int             forcePicTypeEnable; /**< A flag to use a force picture type (WAVE only) */
-    int             forcePicType;       /**< A force picture type (I, P, B, IDR, CRA). It is valid when forcePicTypeEnable is 1. (WAVE only) */
-    int             srcIdx;             /**< A source frame buffer index (WAVE only) */
-    int             srcEndFlag;         /**< A flag indicating that there is no more source frame buffer to encode  (WAVE only) */
+    int             forcePicQpEnable;   /**< A flag to use a force picture quantization parameter (VPU only) */
+    int             forcePicQpI;        /**< A force picture quantization parameter for I picture. It is valid when forcePicQpEnable is 1. (VPU only) */
+    int             forcePicQpP;        /**< A force picture quantization parameter for P picture. It is valid when forcePicQpEnable is 1. (VPU only) */
+    int             forcePicQpB;        /**< A force picture quantization parameter for B picture. It is valid when forcePicQpEnable is 1. (VPU only) */
+    int             forcePicTypeEnable; /**< A flag to use a force picture type (VPU only) */
+    int             forcePicType;       /**< A force picture type (I, P, B, IDR, CRA). It is valid when forcePicTypeEnable is 1. (VPU only) */
+    int             srcIdx;             /**< A source frame buffer index (VPU only) */
+    int             srcEndFlag;         /**< A flag indicating that there is no more source frame buffer to encode  (VPU only) */
 
-    EncCodeOpt      codeOption;         /**< <<vpuapi_h_EncCodeOpt>> (WAVE only) */ 
+    EncCodeOpt      codeOption;         /**< <<vpuapi_h_EncCodeOpt>> (VPU only) */ 
 
-    Uint32  useCurSrcAsLongtermPic; /**< A flag for the current picture to be used as a longterm reference picture later when other picture's encoding (WAVE only) */
-    Uint32  useLongtermRef;         /**< A flag to use a longterm reference picture in DPB when encoding the current picture (WAVE only) */
+    Uint32  useCurSrcAsLongtermPic; /**< A flag for the current picture to be used as a longterm reference picture later when other picture's encoding (VPU only) */
+    Uint32  useLongtermRef;         /**< A flag to use a longterm reference picture in DPB when encoding the current picture (VPU only) */
     Uint32  pts;                    /**< The presentation Timestamp (PTS) of input source */
 
     Uint32 coda9RoiEnable;          /**< A flag to use ROI (CODA9 only) */
@@ -4101,7 +4101,7 @@ This is only for CODA9.
 #ifdef ROI_MB_RC
     EncSetROI setROI;               /**< This value sets ROI. If coda9RoiEnable is "0", ROI will not work and other member value of setROI will be ignored. (CODA9 Only)*/
 #endif
-    // belows are newly added for WAVE5 encoder
+    // belows are newly added for VP5 encoder
     WaveCustomMapOpt customMapOpt;  /**< <<vpuapi_h_WaveCustomMapOpt>> */
     Uint32 wpPixSigmaY;  /**< Pixel variance of Y component for weighted prediction  */
     Uint32 wpPixSigmaCb; /**< Pixel variance of Cb component for weighted prediction  */
@@ -4171,21 +4171,21 @@ identical with the specified picture stream buffer address by HOST.
 #ifdef AUTO_FRM_SKIP_DROP
     int picDropped;         /**< A flag which represents whether the current encoding has been dropped or not.*/
 #endif
-    int picSkipped;         /**< A flag which represents whether the current encoding has been skipped or not. (WAVE5 only) */
-    int numOfIntra;         /**< The number of intra coded block (WAVE5 only) */
-    int numOfMerge;         /**< The number of merge block in 8x8 (WAVE5 only) */
-    int numOfSkipBlock;     /**< The number of skip block in 8x8 (WAVE5 only) */
-    int avgCtuQp;           /**< The average value of CTU QPs (WAVE5 only) */
-    int encPicByte;         /**< The number of encoded picture bytes (WAVE5 only)  */
-    int encGopPicIdx;       /**< The GOP index of the currently encoded picture (WAVE5 only) */
-    int encPicPoc;          /**< The POC(picture order count) value of the currently encoded picture (WAVE5 only) */
-    int encSrcIdx;          /**< The source buffer index of the currently encoded picture (WAVE5 only) */
-    int encNumNut;          /**< The number of nal_unit_type of the currently encoded picture (WAVE5 only) */
-    int encNuts;            /**< Encoded NAL unit type (WAVE5 only)*/
-    int encNuts1;           /**< Encoded NAL unit type (WAVE5 only) */
-    int encPicCnt;          /**< Encoded picture number (WAVE5 only) */
-    int errorReason;        /**< Encoding error reason (WAVE5 only) */
-    int warnInfo;           /**< Encoding warn information (WAVE5 only) */ 
+    int picSkipped;         /**< A flag which represents whether the current encoding has been skipped or not. (VP5 only) */
+    int numOfIntra;         /**< The number of intra coded block (VP5 only) */
+    int numOfMerge;         /**< The number of merge block in 8x8 (VP5 only) */
+    int numOfSkipBlock;     /**< The number of skip block in 8x8 (VP5 only) */
+    int avgCtuQp;           /**< The average value of CTU QPs (VP5 only) */
+    int encPicByte;         /**< The number of encoded picture bytes (VP5 only)  */
+    int encGopPicIdx;       /**< The GOP index of the currently encoded picture (VP5 only) */
+    int encPicPoc;          /**< The POC(picture order count) value of the currently encoded picture (VP5 only) */
+    int encSrcIdx;          /**< The source buffer index of the currently encoded picture (VP5 only) */
+    int encNumNut;          /**< The number of nal_unit_type of the currently encoded picture (VP5 only) */
+    int encNuts;            /**< Encoded NAL unit type (VP5 only)*/
+    int encNuts1;           /**< Encoded NAL unit type (VP5 only) */
+    int encPicCnt;          /**< Encoded picture number (VP5 only) */
+    int errorReason;        /**< Encoding error reason (VP5 only) */
+    int warnInfo;           /**< Encoding warn information (VP5 only) */ 
 
     // Report Information
     EncReportInfo mbInfo;   /**<  The parameter for reporting MB data . Please refer to <<vpuapi_h_EncReportInfo>> structure. */
@@ -4259,7 +4259,7 @@ typedef enum {
 } AvcHeaderType;
 
 /**
- * @brief   This is a special enumeration type for explicit encoding headers such as VPS, SPS, PPS. (WAVE encoder only)
+ * @brief   This is a special enumeration type for explicit encoding headers such as VPS, SPS, PPS. (VPU encoder only)
 */
 typedef enum {
     CODEOPT_ENC_VPS             = (1 << 2), /**< A flag to encode VPS nal unit explicitly */
@@ -4395,7 +4395,7 @@ Int32 VPU_WaitInterrupt(
 * @brief 
 @verbatim
 This function waits for interrupts to be issued from VPU during the given timeout period. VPU sends an interrupt when 
-it completes a command or meets an exceptional case. (WAVE only)   
+it completes a command or meets an exceptional case. (VPU only)   
 
 The behavior of this function depends on VDI layer\'s implementation.
 Timeout may not work according to implementation of VDI layer. 
@@ -4960,7 +4960,7 @@ RetCode VPU_DecRegisterFrameBufferEx(
     DecHandle    handle,            /**< [Input] A decoder handle obtained from VPU_DecOpen() */
     FrameBuffer* bufArray,          /**< [Input] The allocated frame buffer address and information in <<vpuapi_h_FrameBuffer>>. If this parameter is NULL, this function (not HOST application) allocates frame buffers.  */
     int          numOfDecFbs,       /**< [Input] The number of compressed frame buffer  */
-    int          numOfDisplayFbs,   /**< [Input] The number of linear frame buffer when WTL is enabled. In WAVE, this should be equal to or larger than framebufDelay of <<vpuapi_h_DecInitialInfo>> + 2. */
+    int          numOfDisplayFbs,   /**< [Input] The number of linear frame buffer when WTL is enabled. In VPU, this should be equal to or larger than framebufDelay of <<vpuapi_h_DecInitialInfo>> + 2. */
     int          stride,            /**< [Input] A stride value of the given frame buffers  */
     int          height,            /**< [Input] A frame height   */ 
     int          mapType            /**< [Input] A Map type for GDI inferface or FBC (Frame Buffer Compression) in <<vpuapi_h_TiledMapType>>   */ 
@@ -5134,9 +5134,9 @@ instance already closed, or `handle` is a handle to a decoder instance.
 The given argument parameter, pInfo, was invalid, which means it has a null
 pointer, or given values for some member variables are improper values.
 *RETCODE_QUERY_FAILURE* ::
-This means this query command was not successful. (WAVE5 only)
+This means this query command was not successful. (VP5 only)
 *RETCODE_REPORT_NOT_READY* ::
-This means that report is not ready for this query(GET_RESULT) command. (WAVE5 only) 
+This means that report is not ready for this query(GET_RESULT) command. (VP5 only) 
 
 @endverbatim
  */
@@ -5314,7 +5314,7 @@ This function flushes all of the decoded framebuffer contexts that remain in dec
 It can be used to do random access (like skip picture) or to continue seamless decode operation without calling VPU_DecClose() 
 after change of sequence. 
 
-NOTE: In WAVE, this function returns all of the decoded framebuffer contexts that remain. 
+NOTE: In VPU, this function returns all of the decoded framebuffer contexts that remain. 
      pRetNum always has 0 in CODA9.
 @endverbatim
 *
@@ -5499,7 +5499,7 @@ RetCode VPU_EncGetInitialInfo(
 
 /**
 * @brief    Before starting encoder operation, HOST application should set sequence information including source width and height 
- and many other parameters such as coding tools, GOP preset, rate control, etc. (WAVE only)
+ and many other parameters such as coding tools, GOP preset, rate control, etc. (VPU only)
 * @return
 @verbatim
 *RETCODE_SUCCESS* ::
@@ -5545,7 +5545,7 @@ RetCode VPU_EncIssueSeqInit(
 
 /**
 * @brief    Before starting encoder operation, HOST application must allocate frame buffers
-according to the information obtained from this function. This function returns the required parameters such as minFrameBufferCount. (WAVE only)
+according to the information obtained from this function. This function returns the required parameters such as minFrameBufferCount. (VPU only)
 * @return
 @verbatim
 *RETCODE_SUCCESS* ::
@@ -5802,10 +5802,10 @@ The given argument parameter, pInfo, was invalid, which means it has a null
 pointer, or given values for some member variables are improper values.
 
 *RETCODE_QUERY_FAILURE* ::
-This means this query command was not successful. (WAVE5 only)
+This means this query command was not successful. (VP5 only)
 
 *RETCODE_REPORT_NOT_READY* ::
-This means that report is not ready for this query(GET_RESULT) command. (WAVE5 only) 
+This means that report is not ready for this query(GET_RESULT) command. (VP5 only) 
 
 @endverbatim
 */

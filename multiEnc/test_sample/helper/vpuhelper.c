@@ -737,11 +737,11 @@ int setWaveEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG
     Int32   bitrate;
     Int32   bitrateBL;
 
-    EncWaveParam *param = &pEncOP->EncStdParam.waveParam;
+    EncWaveParam *param = &pEncOP->EncStdParam.vpParam;
 
-    srcWidth  = (pEncConfig->picWidth > 0)  ? pEncConfig->picWidth  : pCfg->waveCfg.picX;
-    srcHeight = (pEncConfig->picHeight > 0) ? pEncConfig->picHeight : pCfg->waveCfg.picY;
-    if(pCfg->waveCfg.enStillPicture) {
+    srcWidth  = (pEncConfig->picWidth > 0)  ? pEncConfig->picWidth  : pCfg->vpCfg.picX;
+    srcHeight = (pEncConfig->picHeight > 0) ? pEncConfig->picHeight : pCfg->vpCfg.picY;
+    if(pCfg->vpCfg.enStillPicture) {
         outputNum   = 1;
     }
     else {
@@ -758,16 +758,16 @@ int setWaveEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG
     pEncConfig->outNum      = outputNum;
     pEncOP->picWidth        = srcWidth;
     pEncOP->picHeight       = srcHeight;
-    pEncOP->frameRateInfo   = pCfg->waveCfg.frameRate;
+    pEncOP->frameRateInfo   = pCfg->vpCfg.frameRate;
 
     param->level            = 0;
     param->tier             = 0;
     pEncOP->srcBitDepth     = pCfg->SrcBitDepth;
 
-    if (pCfg->waveCfg.internalBitDepth == 0)
+    if (pCfg->vpCfg.internalBitDepth == 0)
         param->internalBitDepth = pCfg->SrcBitDepth;
     else
-        param->internalBitDepth = pCfg->waveCfg.internalBitDepth;
+        param->internalBitDepth = pCfg->vpCfg.internalBitDepth;
 
     if ( param->internalBitDepth == 10 )
         pEncOP->outputFormat  = FORMAT_420_P10_16BIT_MSB;
@@ -779,170 +779,170 @@ int setWaveEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG
     else
         param->profile   = HEVC_PROFILE_MAIN;
 
-    if(pCfg->waveCfg.enStillPicture)
+    if(pCfg->vpCfg.enStillPicture)
         param->profile   = HEVC_PROFILE_STILLPICTURE;
 
-    param->losslessEnable   = pCfg->waveCfg.losslessEnable;
-    param->constIntraPredFlag = pCfg->waveCfg.constIntraPredFlag;
+    param->losslessEnable   = pCfg->vpCfg.losslessEnable;
+    param->constIntraPredFlag = pCfg->vpCfg.constIntraPredFlag;
 
-    if (pCfg->waveCfg.useAsLongtermPeriod > 0 || pCfg->waveCfg.refLongtermPeriod > 0)
+    if (pCfg->vpCfg.useAsLongtermPeriod > 0 || pCfg->vpCfg.refLongtermPeriod > 0)
         param->useLongTerm = 1;
     else
         param->useLongTerm = 0;
 
     /* for CMD_ENC_SEQ_GOP_PARAM */
-    param->gopPresetIdx     = pCfg->waveCfg.gopPresetIdx;
+    param->gopPresetIdx     = pCfg->vpCfg.gopPresetIdx;
 
     /* for CMD_ENC_SEQ_INTRA_PARAM */
-    param->decodingRefreshType = pCfg->waveCfg.decodingRefreshType;
-    param->intraPeriod      = pCfg->waveCfg.intraPeriod;
-    param->intraQP          = pCfg->waveCfg.intraQP;
+    param->decodingRefreshType = pCfg->vpCfg.decodingRefreshType;
+    param->intraPeriod      = pCfg->vpCfg.intraPeriod;
+    param->intraQP          = pCfg->vpCfg.intraQP;
 
     /* for CMD_ENC_SEQ_CONF_WIN_TOP_BOT/LEFT_RIGHT */
-    param->confWinTop    = pCfg->waveCfg.confWinTop;
-    param->confWinBot    = pCfg->waveCfg.confWinBot;
-    param->confWinLeft   = pCfg->waveCfg.confWinLeft;
-    param->confWinRight  = pCfg->waveCfg.confWinRight;
+    param->confWinTop    = pCfg->vpCfg.confWinTop;
+    param->confWinBot    = pCfg->vpCfg.confWinBot;
+    param->confWinLeft   = pCfg->vpCfg.confWinLeft;
+    param->confWinRight  = pCfg->vpCfg.confWinRight;
 
     /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
-    param->independSliceMode     = pCfg->waveCfg.independSliceMode;
-    param->independSliceModeArg  = pCfg->waveCfg.independSliceModeArg;
+    param->independSliceMode     = pCfg->vpCfg.independSliceMode;
+    param->independSliceModeArg  = pCfg->vpCfg.independSliceModeArg;
 
     /* for CMD_ENC_SEQ_DEPENDENT_SLICE */
-    param->dependSliceMode     = pCfg->waveCfg.dependSliceMode;
-    param->dependSliceModeArg  = pCfg->waveCfg.dependSliceModeArg;
+    param->dependSliceMode     = pCfg->vpCfg.dependSliceMode;
+    param->dependSliceModeArg  = pCfg->vpCfg.dependSliceModeArg;
 
     /* for CMD_ENC_SEQ_INTRA_REFRESH_PARAM */
-    param->intraRefreshMode     = pCfg->waveCfg.intraRefreshMode;
-    param->intraRefreshArg      = pCfg->waveCfg.intraRefreshArg;
-    param->useRecommendEncParam = pCfg->waveCfg.useRecommendEncParam;
+    param->intraRefreshMode     = pCfg->vpCfg.intraRefreshMode;
+    param->intraRefreshArg      = pCfg->vpCfg.intraRefreshArg;
+    param->useRecommendEncParam = pCfg->vpCfg.useRecommendEncParam;
 
     /* for CMD_ENC_PARAM */
-    param->scalingListEnable        = pCfg->waveCfg.scalingListEnable;
+    param->scalingListEnable        = pCfg->vpCfg.scalingListEnable;
     param->cuSizeMode               = 0x7; // always set cu8x8/16x16/32x32 enable to 1.
-    param->tmvpEnable               = pCfg->waveCfg.tmvpEnable;
-    param->wppEnable                = pCfg->waveCfg.wppenable;
-    param->maxNumMerge              = pCfg->waveCfg.maxNumMerge;
+    param->tmvpEnable               = pCfg->vpCfg.tmvpEnable;
+    param->wppEnable                = pCfg->vpCfg.wppenable;
+    param->maxNumMerge              = pCfg->vpCfg.maxNumMerge;
 
-    param->disableDeblk             = pCfg->waveCfg.disableDeblk;
+    param->disableDeblk             = pCfg->vpCfg.disableDeblk;
 
-    param->lfCrossSliceBoundaryEnable   = pCfg->waveCfg.lfCrossSliceBoundaryEnable;
-    param->betaOffsetDiv2           = pCfg->waveCfg.betaOffsetDiv2;
-    param->tcOffsetDiv2             = pCfg->waveCfg.tcOffsetDiv2;
-    param->skipIntraTrans           = pCfg->waveCfg.skipIntraTrans;
-    param->saoEnable                = pCfg->waveCfg.saoEnable;
-    param->intraNxNEnable           = pCfg->waveCfg.intraNxNEnable;
+    param->lfCrossSliceBoundaryEnable   = pCfg->vpCfg.lfCrossSliceBoundaryEnable;
+    param->betaOffsetDiv2           = pCfg->vpCfg.betaOffsetDiv2;
+    param->tcOffsetDiv2             = pCfg->vpCfg.tcOffsetDiv2;
+    param->skipIntraTrans           = pCfg->vpCfg.skipIntraTrans;
+    param->saoEnable                = pCfg->vpCfg.saoEnable;
+    param->intraNxNEnable           = pCfg->vpCfg.intraNxNEnable;
 
     /* for CMD_ENC_RC_PARAM */
     pEncOP->rcEnable             = pCfg->RcEnable;
     pEncOP->vbvBufferSize        = pCfg->VbvBufferSize;
-    param->cuLevelRCEnable       = pCfg->waveCfg.cuLevelRCEnable;
-    param->hvsQPEnable           = pCfg->waveCfg.hvsQPEnable;
-    param->hvsQpScale            = pCfg->waveCfg.hvsQpScale;
+    param->cuLevelRCEnable       = pCfg->vpCfg.cuLevelRCEnable;
+    param->hvsQPEnable           = pCfg->vpCfg.hvsQPEnable;
+    param->hvsQpScale            = pCfg->vpCfg.hvsQpScale;
 
-    param->bitAllocMode          = pCfg->waveCfg.bitAllocMode;
+    param->bitAllocMode          = pCfg->vpCfg.bitAllocMode;
     for (i = 0; i < MAX_GOP_NUM; i++) {
-        param->fixedBitRatio[i] = pCfg->waveCfg.fixedBitRatio[i];
+        param->fixedBitRatio[i] = pCfg->vpCfg.fixedBitRatio[i];
     }
 
-    // for WAVE520
-    param->minQpI           = pCfg->waveCfg.minQp;
-    param->minQpP           = pCfg->waveCfg.minQp;
-    param->minQpB           = pCfg->waveCfg.minQp;
-    param->maxQpI           = pCfg->waveCfg.maxQp;
-    param->maxQpP           = pCfg->waveCfg.maxQp;
-    param->maxQpB           = pCfg->waveCfg.maxQp;
+    // for VP520
+    param->minQpI           = pCfg->vpCfg.minQp;
+    param->minQpP           = pCfg->vpCfg.minQp;
+    param->minQpB           = pCfg->vpCfg.minQp;
+    param->maxQpI           = pCfg->vpCfg.maxQp;
+    param->maxQpP           = pCfg->vpCfg.maxQp;
+    param->maxQpB           = pCfg->vpCfg.maxQp;
 
-    param->maxDeltaQp        = pCfg->waveCfg.maxDeltaQp;
+    param->maxDeltaQp        = pCfg->vpCfg.maxDeltaQp;
     pEncOP->bitRate          = bitrate;
     pEncOP->bitRateBL        = bitrateBL;
 
     /* for CMD_ENC_CUSTOM_GOP_PARAM */
-    param->gopParam.customGopSize     = pCfg->waveCfg.gopParam.customGopSize;
+    param->gopParam.customGopSize     = pCfg->vpCfg.gopParam.customGopSize;
 
     for (i= 0; i<param->gopParam.customGopSize; i++) {
-        param->gopParam.picParam[i].picType      = pCfg->waveCfg.gopParam.picParam[i].picType;
-        param->gopParam.picParam[i].pocOffset    = pCfg->waveCfg.gopParam.picParam[i].pocOffset;
-        param->gopParam.picParam[i].picQp        = pCfg->waveCfg.gopParam.picParam[i].picQp;
-        param->gopParam.picParam[i].refPocL0     = pCfg->waveCfg.gopParam.picParam[i].refPocL0;
-        param->gopParam.picParam[i].refPocL1     = pCfg->waveCfg.gopParam.picParam[i].refPocL1;
-        param->gopParam.picParam[i].temporalId   = pCfg->waveCfg.gopParam.picParam[i].temporalId;
-        param->gopParam.picParam[i].numRefPicL0  = pCfg->waveCfg.gopParam.picParam[i].numRefPicL0;
+        param->gopParam.picParam[i].picType      = pCfg->vpCfg.gopParam.picParam[i].picType;
+        param->gopParam.picParam[i].pocOffset    = pCfg->vpCfg.gopParam.picParam[i].pocOffset;
+        param->gopParam.picParam[i].picQp        = pCfg->vpCfg.gopParam.picParam[i].picQp;
+        param->gopParam.picParam[i].refPocL0     = pCfg->vpCfg.gopParam.picParam[i].refPocL0;
+        param->gopParam.picParam[i].refPocL1     = pCfg->vpCfg.gopParam.picParam[i].refPocL1;
+        param->gopParam.picParam[i].temporalId   = pCfg->vpCfg.gopParam.picParam[i].temporalId;
+        param->gopParam.picParam[i].numRefPicL0  = pCfg->vpCfg.gopParam.picParam[i].numRefPicL0;
     }
 
-    param->roiEnable = pCfg->waveCfg.roiEnable;
+    param->roiEnable = pCfg->vpCfg.roiEnable;
     // VPS & VUI
 
-    param->numUnitsInTick       = pCfg->waveCfg.numUnitsInTick;
-    param->timeScale            = pCfg->waveCfg.timeScale;
-    param->numTicksPocDiffOne   = pCfg->waveCfg.numTicksPocDiffOne;
+    param->numUnitsInTick       = pCfg->vpCfg.numUnitsInTick;
+    param->timeScale            = pCfg->vpCfg.timeScale;
+    param->numTicksPocDiffOne   = pCfg->vpCfg.numTicksPocDiffOne;
 
-    param->chromaCbQpOffset = pCfg->waveCfg.chromaCbQpOffset;
-    param->chromaCrQpOffset = pCfg->waveCfg.chromaCrQpOffset;
-    param->initialRcQp      = pCfg->waveCfg.initialRcQp;
+    param->chromaCbQpOffset = pCfg->vpCfg.chromaCbQpOffset;
+    param->chromaCrQpOffset = pCfg->vpCfg.chromaCrQpOffset;
+    param->initialRcQp      = pCfg->vpCfg.initialRcQp;
 
-    param->nrYEnable        = pCfg->waveCfg.nrYEnable;
-    param->nrCbEnable       = pCfg->waveCfg.nrCbEnable;
-    param->nrCrEnable       = pCfg->waveCfg.nrCrEnable;
-    param->nrNoiseEstEnable = pCfg->waveCfg.nrNoiseEstEnable;
-    param->nrNoiseSigmaY    = pCfg->waveCfg.nrNoiseSigmaY;
-    param->nrNoiseSigmaCb   = pCfg->waveCfg.nrNoiseSigmaCb;
-    param->nrNoiseSigmaCr   = pCfg->waveCfg.nrNoiseSigmaCr;
-    param->nrIntraWeightY   = pCfg->waveCfg.nrIntraWeightY;
-    param->nrIntraWeightCb  = pCfg->waveCfg.nrIntraWeightCb;
-    param->nrIntraWeightCr  = pCfg->waveCfg.nrIntraWeightCr;
-    param->nrInterWeightY   = pCfg->waveCfg.nrInterWeightY;
-    param->nrInterWeightCb  = pCfg->waveCfg.nrInterWeightCb;
-    param->nrInterWeightCr  = pCfg->waveCfg.nrInterWeightCr;
+    param->nrYEnable        = pCfg->vpCfg.nrYEnable;
+    param->nrCbEnable       = pCfg->vpCfg.nrCbEnable;
+    param->nrCrEnable       = pCfg->vpCfg.nrCrEnable;
+    param->nrNoiseEstEnable = pCfg->vpCfg.nrNoiseEstEnable;
+    param->nrNoiseSigmaY    = pCfg->vpCfg.nrNoiseSigmaY;
+    param->nrNoiseSigmaCb   = pCfg->vpCfg.nrNoiseSigmaCb;
+    param->nrNoiseSigmaCr   = pCfg->vpCfg.nrNoiseSigmaCr;
+    param->nrIntraWeightY   = pCfg->vpCfg.nrIntraWeightY;
+    param->nrIntraWeightCb  = pCfg->vpCfg.nrIntraWeightCb;
+    param->nrIntraWeightCr  = pCfg->vpCfg.nrIntraWeightCr;
+    param->nrInterWeightY   = pCfg->vpCfg.nrInterWeightY;
+    param->nrInterWeightCb  = pCfg->vpCfg.nrInterWeightCb;
+    param->nrInterWeightCr  = pCfg->vpCfg.nrInterWeightCr;
 
-    param->monochromeEnable            = pCfg->waveCfg.monochromeEnable;
-    param->strongIntraSmoothEnable     = pCfg->waveCfg.strongIntraSmoothEnable;
-    param->weightPredEnable            = pCfg->waveCfg.weightPredEnable;
-    param->bgDetectEnable              = pCfg->waveCfg.bgDetectEnable;
-    param->bgThrDiff                   = pCfg->waveCfg.bgThrDiff;
-    param->bgThrMeanDiff               = pCfg->waveCfg.bgThrMeanDiff;
-    param->bgLambdaQp                  = pCfg->waveCfg.bgLambdaQp;
-    param->bgDeltaQp                   = pCfg->waveCfg.bgDeltaQp;
-    param->customLambdaEnable          = pCfg->waveCfg.customLambdaEnable;
-    param->customMDEnable              = pCfg->waveCfg.customMDEnable;
-    param->pu04DeltaRate               = pCfg->waveCfg.pu04DeltaRate;
-    param->pu08DeltaRate               = pCfg->waveCfg.pu08DeltaRate;
-    param->pu16DeltaRate               = pCfg->waveCfg.pu16DeltaRate;
-    param->pu32DeltaRate               = pCfg->waveCfg.pu32DeltaRate;
-    param->pu04IntraPlanarDeltaRate    = pCfg->waveCfg.pu04IntraPlanarDeltaRate;
-    param->pu04IntraDcDeltaRate        = pCfg->waveCfg.pu04IntraDcDeltaRate;
-    param->pu04IntraAngleDeltaRate     = pCfg->waveCfg.pu04IntraAngleDeltaRate;
-    param->pu08IntraPlanarDeltaRate    = pCfg->waveCfg.pu08IntraPlanarDeltaRate;
-    param->pu08IntraDcDeltaRate        = pCfg->waveCfg.pu08IntraDcDeltaRate;
-    param->pu08IntraAngleDeltaRate     = pCfg->waveCfg.pu08IntraAngleDeltaRate;
-    param->pu16IntraPlanarDeltaRate    = pCfg->waveCfg.pu16IntraPlanarDeltaRate;
-    param->pu16IntraDcDeltaRate        = pCfg->waveCfg.pu16IntraDcDeltaRate;
-    param->pu16IntraAngleDeltaRate     = pCfg->waveCfg.pu16IntraAngleDeltaRate;
-    param->pu32IntraPlanarDeltaRate    = pCfg->waveCfg.pu32IntraPlanarDeltaRate;
-    param->pu32IntraDcDeltaRate        = pCfg->waveCfg.pu32IntraDcDeltaRate;
-    param->pu32IntraAngleDeltaRate     = pCfg->waveCfg.pu32IntraAngleDeltaRate;
-    param->cu08IntraDeltaRate          = pCfg->waveCfg.cu08IntraDeltaRate;
-    param->cu08InterDeltaRate          = pCfg->waveCfg.cu08InterDeltaRate;
-    param->cu08MergeDeltaRate          = pCfg->waveCfg.cu08MergeDeltaRate;
-    param->cu16IntraDeltaRate          = pCfg->waveCfg.cu16IntraDeltaRate;
-    param->cu16InterDeltaRate          = pCfg->waveCfg.cu16InterDeltaRate;
-    param->cu16MergeDeltaRate          = pCfg->waveCfg.cu16MergeDeltaRate;
-    param->cu32IntraDeltaRate          = pCfg->waveCfg.cu32IntraDeltaRate;
-    param->cu32InterDeltaRate          = pCfg->waveCfg.cu32InterDeltaRate;
-    param->cu32MergeDeltaRate          = pCfg->waveCfg.cu32MergeDeltaRate;
-    param->coefClearDisable            = pCfg->waveCfg.coefClearDisable;
+    param->monochromeEnable            = pCfg->vpCfg.monochromeEnable;
+    param->strongIntraSmoothEnable     = pCfg->vpCfg.strongIntraSmoothEnable;
+    param->weightPredEnable            = pCfg->vpCfg.weightPredEnable;
+    param->bgDetectEnable              = pCfg->vpCfg.bgDetectEnable;
+    param->bgThrDiff                   = pCfg->vpCfg.bgThrDiff;
+    param->bgThrMeanDiff               = pCfg->vpCfg.bgThrMeanDiff;
+    param->bgLambdaQp                  = pCfg->vpCfg.bgLambdaQp;
+    param->bgDeltaQp                   = pCfg->vpCfg.bgDeltaQp;
+    param->customLambdaEnable          = pCfg->vpCfg.customLambdaEnable;
+    param->customMDEnable              = pCfg->vpCfg.customMDEnable;
+    param->pu04DeltaRate               = pCfg->vpCfg.pu04DeltaRate;
+    param->pu08DeltaRate               = pCfg->vpCfg.pu08DeltaRate;
+    param->pu16DeltaRate               = pCfg->vpCfg.pu16DeltaRate;
+    param->pu32DeltaRate               = pCfg->vpCfg.pu32DeltaRate;
+    param->pu04IntraPlanarDeltaRate    = pCfg->vpCfg.pu04IntraPlanarDeltaRate;
+    param->pu04IntraDcDeltaRate        = pCfg->vpCfg.pu04IntraDcDeltaRate;
+    param->pu04IntraAngleDeltaRate     = pCfg->vpCfg.pu04IntraAngleDeltaRate;
+    param->pu08IntraPlanarDeltaRate    = pCfg->vpCfg.pu08IntraPlanarDeltaRate;
+    param->pu08IntraDcDeltaRate        = pCfg->vpCfg.pu08IntraDcDeltaRate;
+    param->pu08IntraAngleDeltaRate     = pCfg->vpCfg.pu08IntraAngleDeltaRate;
+    param->pu16IntraPlanarDeltaRate    = pCfg->vpCfg.pu16IntraPlanarDeltaRate;
+    param->pu16IntraDcDeltaRate        = pCfg->vpCfg.pu16IntraDcDeltaRate;
+    param->pu16IntraAngleDeltaRate     = pCfg->vpCfg.pu16IntraAngleDeltaRate;
+    param->pu32IntraPlanarDeltaRate    = pCfg->vpCfg.pu32IntraPlanarDeltaRate;
+    param->pu32IntraDcDeltaRate        = pCfg->vpCfg.pu32IntraDcDeltaRate;
+    param->pu32IntraAngleDeltaRate     = pCfg->vpCfg.pu32IntraAngleDeltaRate;
+    param->cu08IntraDeltaRate          = pCfg->vpCfg.cu08IntraDeltaRate;
+    param->cu08InterDeltaRate          = pCfg->vpCfg.cu08InterDeltaRate;
+    param->cu08MergeDeltaRate          = pCfg->vpCfg.cu08MergeDeltaRate;
+    param->cu16IntraDeltaRate          = pCfg->vpCfg.cu16IntraDeltaRate;
+    param->cu16InterDeltaRate          = pCfg->vpCfg.cu16InterDeltaRate;
+    param->cu16MergeDeltaRate          = pCfg->vpCfg.cu16MergeDeltaRate;
+    param->cu32IntraDeltaRate          = pCfg->vpCfg.cu32IntraDeltaRate;
+    param->cu32InterDeltaRate          = pCfg->vpCfg.cu32InterDeltaRate;
+    param->cu32MergeDeltaRate          = pCfg->vpCfg.cu32MergeDeltaRate;
+    param->coefClearDisable            = pCfg->vpCfg.coefClearDisable;
 
-    param->s2fmeDisable                = pCfg->waveCfg.s2fmeDisable;
-    // for H.264 on WAVE
-    param->rdoSkip              = pCfg->waveCfg.rdoSkip;
-    param->lambdaScalingEnable  = pCfg->waveCfg.lambdaScalingEnable;
-    param->transform8x8Enable   = pCfg->waveCfg.transform8x8;
-    param->avcSliceMode         = pCfg->waveCfg.avcSliceMode;
-    param->avcSliceArg          = pCfg->waveCfg.avcSliceArg;
-    param->intraMbRefreshMode   = pCfg->waveCfg.intraMbRefreshMode;
-    param->intraMbRefreshArg    = pCfg->waveCfg.intraMbRefreshArg;
-    param->mbLevelRcEnable      = pCfg->waveCfg.mbLevelRc;
-    param->entropyCodingMode    = pCfg->waveCfg.entropyCodingMode;;
+    param->s2fmeDisable                = pCfg->vpCfg.s2fmeDisable;
+    // for H.264 on VP
+    param->rdoSkip              = pCfg->vpCfg.rdoSkip;
+    param->lambdaScalingEnable  = pCfg->vpCfg.lambdaScalingEnable;
+    param->transform8x8Enable   = pCfg->vpCfg.transform8x8;
+    param->avcSliceMode         = pCfg->vpCfg.avcSliceMode;
+    param->avcSliceArg          = pCfg->vpCfg.avcSliceArg;
+    param->intraMbRefreshMode   = pCfg->vpCfg.intraMbRefreshMode;
+    param->intraMbRefreshArg    = pCfg->vpCfg.intraMbRefreshArg;
+    param->mbLevelRcEnable      = pCfg->vpCfg.mbLevelRc;
+    param->entropyCodingMode    = pCfg->vpCfg.entropyCodingMode;;
 
     return 1;
 }
@@ -1177,7 +1177,7 @@ Int32 GetEncOpenParamDefault(EncOpenParam *pEncOP, TestEncConfig *pEncConfig)
         }
     }
     else if( bitFormat == STD_HEVC || (bitFormat == STD_AVC && productId == PRODUCT_ID_521)) {
-        EncWaveParam *param = &pEncOP->EncStdParam.waveParam;
+        EncWaveParam *param = &pEncOP->EncStdParam.vpParam;
         Int32   rcBitrate   = pEncConfig->kbps * 1000;
         Int32   i=0;
 
@@ -1379,7 +1379,7 @@ Int32 GetEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
 
 
     if ( PRODUCT_ID_W_SERIES(productId) == TRUE ) {
-        // for WAVE
+        // for VP
         switch(bitFormat) 
         {
         case STD_HEVC:
@@ -1396,53 +1396,53 @@ Int32 GetEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
             if ( pEncConfig->bitstreamFileName[0] == 0 )
                 sprintf(pEncConfig->bitstreamFileName, "%s", "output_stream.265");
 
-            if (pCfg->waveCfg.roiEnable) {
-                strcpy(pEncConfig->roi_file_name, pCfg->waveCfg.roiFileName);
-                if (!strcmp(pCfg->waveCfg.roiQpMapFile, "0") || pCfg->waveCfg.roiQpMapFile[0] == 0) {
+            if (pCfg->vpCfg.roiEnable) {
+                strcpy(pEncConfig->roi_file_name, pCfg->vpCfg.roiFileName);
+                if (!strcmp(pCfg->vpCfg.roiQpMapFile, "0") || pCfg->vpCfg.roiQpMapFile[0] == 0) {
                     //invalid value exist or not exist
                 } 
                 else {
                     //valid value exist
-                    strcpy(pEncConfig->roi_file_name, pCfg->waveCfg.roiQpMapFile);
+                    strcpy(pEncConfig->roi_file_name, pCfg->vpCfg.roiQpMapFile);
                 }
             }
 
-            pEncConfig->roi_enable  = pCfg->waveCfg.roiEnable;
+            pEncConfig->roi_enable  = pCfg->vpCfg.roiEnable;
 
 
 
 
-            pEncConfig->encAUD  = pCfg->waveCfg.encAUD;
-            pEncConfig->encEOS  = pCfg->waveCfg.encEOS;
-            pEncConfig->encEOB  = pCfg->waveCfg.encEOB;
-            pEncConfig->useAsLongtermPeriod = pCfg->waveCfg.useAsLongtermPeriod;
-            pEncConfig->refLongtermPeriod   = pCfg->waveCfg.refLongtermPeriod;
+            pEncConfig->encAUD  = pCfg->vpCfg.encAUD;
+            pEncConfig->encEOS  = pCfg->vpCfg.encEOS;
+            pEncConfig->encEOB  = pCfg->vpCfg.encEOB;
+            pEncConfig->useAsLongtermPeriod = pCfg->vpCfg.useAsLongtermPeriod;
+            pEncConfig->refLongtermPeriod   = pCfg->vpCfg.refLongtermPeriod;
 
-            pEncConfig->roi_avg_qp          = pCfg->waveCfg.roiAvgQp;
-            pEncConfig->lambda_map_enable   = pCfg->waveCfg.customLambdaMapEnable;
-            pEncConfig->mode_map_flag       = pCfg->waveCfg.customModeMapFlag;
-            pEncConfig->wp_param_flag       = pCfg->waveCfg.weightPredEnable;
+            pEncConfig->roi_avg_qp          = pCfg->vpCfg.roiAvgQp;
+            pEncConfig->lambda_map_enable   = pCfg->vpCfg.customLambdaMapEnable;
+            pEncConfig->mode_map_flag       = pCfg->vpCfg.customModeMapFlag;
+            pEncConfig->wp_param_flag       = pCfg->vpCfg.weightPredEnable;
 
-            if (pCfg->waveCfg.scalingListEnable)
-                strcpy(pEncConfig->scaling_list_fileName, pCfg->waveCfg.scalingListFileName);
+            if (pCfg->vpCfg.scalingListEnable)
+                strcpy(pEncConfig->scaling_list_fileName, pCfg->vpCfg.scalingListFileName);
 
-            if (pCfg->waveCfg.customLambdaEnable)
-                strcpy(pEncConfig->custom_lambda_fileName, pCfg->waveCfg.customLambdaFileName);
+            if (pCfg->vpCfg.customLambdaEnable)
+                strcpy(pEncConfig->custom_lambda_fileName, pCfg->vpCfg.customLambdaFileName);
 
             // custom map
-            if (pCfg->waveCfg.customLambdaMapEnable)
-                strcpy(pEncConfig->lambda_map_fileName, pCfg->waveCfg.customLambdaMapFileName);
+            if (pCfg->vpCfg.customLambdaMapEnable)
+                strcpy(pEncConfig->lambda_map_fileName, pCfg->vpCfg.customLambdaMapFileName);
 
-            if (pCfg->waveCfg.customModeMapFlag)
-                strcpy(pEncConfig->mode_map_fileName, pCfg->waveCfg.customModeMapFileName);
+            if (pCfg->vpCfg.customModeMapFlag)
+                strcpy(pEncConfig->mode_map_fileName, pCfg->vpCfg.customModeMapFileName);
 
-            if (pCfg->waveCfg.weightPredEnable&1)
-                strcpy(pEncConfig->wp_param_fileName, pCfg->waveCfg.WpParamFileName);
+            if (pCfg->vpCfg.weightPredEnable&1)
+                strcpy(pEncConfig->wp_param_fileName, pCfg->vpCfg.WpParamFileName);
 
-            pEncConfig->force_picskip_start =   pCfg->waveCfg.forcePicSkipStart;
-            pEncConfig->force_picskip_end   =   pCfg->waveCfg.forcePicSkipEnd;
-            pEncConfig->force_coefdrop_start=   pCfg->waveCfg.forceCoefDropStart;
-            pEncConfig->force_coefdrop_end  =   pCfg->waveCfg.forceCoefDropEnd;
+            pEncConfig->force_picskip_start =   pCfg->vpCfg.forcePicSkipStart;
+            pEncConfig->force_picskip_end   =   pCfg->vpCfg.forcePicSkipEnd;
+            pEncConfig->force_coefdrop_start=   pCfg->vpCfg.forceCoefDropStart;
+            pEncConfig->force_coefdrop_end  =   pCfg->vpCfg.forceCoefDropEnd;
 
             break;
         default :

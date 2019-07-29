@@ -13,8 +13,7 @@
 //
 //--=========================================================================--
 #include "product.h"
-//#include "coda9/coda9.h"
-#include "wave/wave5.h"
+#include "enc_driver.h"
 #include "vdi_osal.h"
 
 VpuAttr g_VpuCoreAttributes[MAX_NUM_VPU_CORE];
@@ -41,10 +40,6 @@ Uint32 ProductVpuScan(Uint32 coreIdx)
         return 1;
 
     for (i=0; i<MAX_NUM_VPU_CORE; i++) {
-#if 0
-        productId = Coda9VpuGetProductId(i);
-        if (productId == PRODUCT_ID_NONE) 
-#endif
             productId = WaveVpuGetProductId(i);
         if (productId != PRODUCT_ID_NONE) {
             s_ProductIds[i] = productId;
@@ -71,19 +66,13 @@ RetCode ProductVpuGetVersion(
     RetCode ret = RETCODE_SUCCESS;
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuGetVersion(coreIdx, versionInfo, revision);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_520:
     case PRODUCT_ID_515:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuGetVersion(coreIdx, versionInfo, revision);
+        ret = Vp5VpuGetVersion(coreIdx, versionInfo, revision);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -101,19 +90,13 @@ RetCode ProductVpuGetProductInfo(
     RetCode ret = RETCODE_SUCCESS;
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuGetProductInfo(coreIdx, productInfo);
+        ret = Vp5VpuGetProductInfo(coreIdx, productInfo);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -130,19 +113,13 @@ RetCode ProductVpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
     productId  = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuInit(coreIdx, firmware, size);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuInit(coreIdx, firmware, size);
+        ret = Vp5VpuInit(coreIdx, firmware, size);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -159,19 +136,13 @@ RetCode ProductVpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
     productId  = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuReInit(coreIdx, firmware, size);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuReInit(coreIdx, firmware, size);
+        ret = Vp5VpuReInit(coreIdx, firmware, size);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -193,19 +164,13 @@ Uint32 ProductVpuIsInit(Uint32 coreIdx)
     }
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        pc = Coda9VpuIsInit(coreIdx);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        pc = Wave5VpuIsInit(coreIdx);
+        pc = Vp5VpuIsInit(coreIdx);
         break;
     }
 
@@ -220,19 +185,13 @@ Int32 ProductVpuIsBusy(Uint32 coreIdx)
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        busy = Coda9VpuIsBusy(coreIdx);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        busy = Wave5VpuIsBusy(coreIdx);
+        busy = Vp5VpuIsBusy(coreIdx);
         break;
     default:
         busy = 0;
@@ -250,19 +209,13 @@ Int32 ProductVpuWaitInterrupt(CodecInst *instance, Int32 timeout)
     productId = s_ProductIds[instance->coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        flag = Coda9VpuWaitInterrupt(instance, timeout);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        flag = Wave5VpuWaitInterrupt(instance, timeout, FALSE);
+        flag = Vp5VpuWaitInterrupt(instance, timeout, FALSE);
         break;
     default:
         flag = -1;
@@ -280,19 +233,13 @@ RetCode ProductVpuReset(Uint32 coreIdx, SWResetMode resetMode)
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuReset(coreIdx, resetMode);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuReset(coreIdx, resetMode);
+        ret = Vp5VpuReset(coreIdx, resetMode);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -310,19 +257,13 @@ RetCode ProductVpuSleepWake(Uint32 coreIdx, int iSleepWake, const Uint16* code, 
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-   case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuSleepWake(coreIdx, iSleepWake, (void*)code, size);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuSleepWake(coreIdx, iSleepWake, (void*)code, size, FALSE);
+        ret = Vp5VpuSleepWake(coreIdx, iSleepWake, (void*)code, size, FALSE);
         break;
     }
 
@@ -336,88 +277,18 @@ RetCode ProductVpuClearInterrupt(Uint32 coreIdx, Uint32 flags)
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuClearInterrupt(coreIdx);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Wave5VpuClearInterrupt(coreIdx, flags);
+        ret = Vp5VpuClearInterrupt(coreIdx, flags);
         break;
     }
 
     return ret;
 }
-
-#if 0
-RetCode ProductVpuDecBuildUpOpenParam(CodecInst* pCodec, DecOpenParam* param)
-{
-    Int32   productId;
-    Uint32  coreIdx;
-    RetCode ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    coreIdx   = pCodec->coreIdx;
-    productId = s_ProductIds[coreIdx];
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuBuildUpDecParam(pCodec, param);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuBuildUpDecParam(pCodec, param);
-        break;
-    }
-
-    return ret;
-}
-
-PhysicalAddress ProductVpuDecGetRdPtr(CodecInst* instance)
-{
-    Int32   productId;
-    Uint32  coreIdx;
-    PhysicalAddress retRdPtr; 
-    DecInfo*    pDecInfo;
-    RetCode ret = RETCODE_SUCCESS;
-
-    pDecInfo = VPU_HANDLE_TO_DECINFO(instance);
-
-    coreIdx   = instance->coreIdx;
-    productId = s_ProductIds[coreIdx];
-
-    switch (productId) {
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecGetRdPtr(instance, &retRdPtr);
-        if (ret != RETCODE_SUCCESS)
-            retRdPtr = pDecInfo->streamRdPtr;
-        else {
-            pDecInfo->streamRdPtr = retRdPtr;
-		}
-        break;
-    default:
-        retRdPtr = VpuReadReg(coreIdx, pDecInfo->streamRdPtrRegAddr);
-        break;
-    }
-
-    return retRdPtr;
-
-}
-
-#endif
 
 RetCode ProductVpuEncUpdateBitstreamBuffer(CodecInst* instance)
 {
@@ -432,7 +303,7 @@ RetCode ProductVpuEncUpdateBitstreamBuffer(CodecInst* instance)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncUpdateBS(instance);
+        ret = Vp5VpuEncUpdateBS(instance);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -455,7 +326,7 @@ RetCode ProductVpuEncGetRdWrPtr(CodecInst* instance, PhysicalAddress* rdPtr, Phy
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncGetRdWrPtr(instance, rdPtr, wrPtr);
+        ret = Vp5VpuEncGetRdWrPtr(instance, rdPtr, wrPtr);
         if (ret != RETCODE_SUCCESS) {
             *rdPtr = pEncInfo->streamRdPtr;
             *wrPtr = pEncInfo->streamWrPtr;
@@ -485,16 +356,10 @@ RetCode ProductVpuEncBuildUpOpenParam(CodecInst* pCodec, EncOpenParam* param)
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuBuildUpEncParam(pCodec, param);
-        break;
-#endif
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuBuildUpEncParam(pCodec, param);
+        ret = Vp5VpuBuildUpEncParam(pCodec, param);
         break;
     default:
         ret = RETCODE_NOT_SUPPORTED_FEATURE;
@@ -503,319 +368,6 @@ RetCode ProductVpuEncBuildUpOpenParam(CodecInst* pCodec, EncOpenParam* param)
     return ret;
 }
 
-#if 0
-RetCode ProductCheckDecOpenParam(DecOpenParam* param)
-{
-    Int32       productId; 
-    Uint32      coreIdx;
-    VpuAttr*    pAttr;
-
-    if (param == 0) 
-        return RETCODE_INVALID_PARAM;
-
-    if (param->coreIdx > MAX_NUM_VPU_CORE) 
-        return RETCODE_INVALID_PARAM;
-
-    coreIdx   = param->coreIdx;
-    productId = s_ProductIds[coreIdx];
-    pAttr     = &g_VpuCoreAttributes[coreIdx];
-
-    if (param->bitstreamBuffer % 8) 
-        return RETCODE_INVALID_PARAM;
-
-    if (param->bitstreamMode == BS_MODE_INTERRUPT) {
-        if (param->bitstreamBufferSize % 1024 || param->bitstreamBufferSize < 1024) 
-            return RETCODE_INVALID_PARAM;
-    }
-
-    if (PRODUCT_ID_W_SERIES(productId)) {
-        if (param->virtAxiID > 16) {
-            // Maximum number of AXI channels is 15
-            return RETCODE_INVALID_PARAM;
-        }
-    }
-
-    // Check bitstream mode
-    if ((pAttr->supportBitstreamMode&(1<<param->bitstreamMode)) == 0)
-        return RETCODE_INVALID_PARAM;
-
-    if ((pAttr->supportDecoders&(1<<param->bitstreamFormat)) == 0) 
-        return RETCODE_INVALID_PARAM;
-
-    /* check framebuffer endian */
-    if ((pAttr->supportEndianMask&(1<<param->frameEndian)) == 0) {
-        APIDPRINT("%s:%d Invalid frame endian(%d)\n", __FUNCTION__, __LINE__, (Int32)param->frameEndian);
-        return RETCODE_INVALID_PARAM;
-    }
-
-    /* check streambuffer endian */
-    if ((pAttr->supportEndianMask&(1<<param->streamEndian)) == 0) {
-        APIDPRINT("%s:%d Invalid stream endian(%d)\n", __FUNCTION__, __LINE__, (Int32)param->streamEndian);
-        return RETCODE_INVALID_PARAM;
-    }
-
-    /* check WTL */
-    if (param->wtlEnable) {
-        if (pAttr->supportWTL == 0) 
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-        switch (productId) {
-        case PRODUCT_ID_960:
-        case PRODUCT_ID_980:
-            if (param->wtlMode != FF_FRAME && param->wtlMode != FF_FIELD ) 
-                return RETCODE_INVALID_PARAM;
-            break;
-        default:
-            break;
-        }
-    }
-
-    /* Tiled2Linear */
-    if (param->tiled2LinearEnable) {
-        if (pAttr->supportTiled2Linear == 0) 
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-
-        if (productId == PRODUCT_ID_960 || productId == PRODUCT_ID_980) {
-            if (param->tiled2LinearMode != FF_FRAME && param->tiled2LinearMode != FF_FIELD ) {
-                APIDPRINT("%s:%d Invalid Tiled2LinearMode(%d)\n", __FUNCTION__, __LINE__, (Int32)param->tiled2LinearMode);
-                return RETCODE_INVALID_PARAM;
-            }
-        }
-    }
-    if (productId == PRODUCT_ID_960 || productId == PRODUCT_ID_980) {
-        if( param->mp4DeblkEnable == 1 && !(param->bitstreamFormat == STD_MPEG4 || param->bitstreamFormat == STD_H263 || param->bitstreamFormat == STD_MPEG2 || param->bitstreamFormat == STD_DIV3)) 
-            return RETCODE_INVALID_PARAM;
-        if (param->wtlEnable && param->tiled2LinearEnable) 
-            return RETCODE_INVALID_PARAM;
-    } 
-    else {
-        if (param->mp4DeblkEnable || param->mp4Class)
-            return RETCODE_INVALID_PARAM;
-        if (param->avcExtension)
-            return RETCODE_INVALID_PARAM;
-        if (param->tiled2LinearMode != FF_NONE)
-            return RETCODE_INVALID_PARAM;
-    }
-
-    return RETCODE_SUCCESS;
-}
-
-RetCode ProductVpuDecInitSeq(CodecInst* instance)
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    productId   = instance->productId;
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuDecInitSeq(instance);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecInitSeq(instance);
-        break;
-    }
-
-    return ret;
-}
-
-RetCode ProductVpuDecFiniSeq(CodecInst* instance)
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    productId   = instance->productId;
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuFiniSeq(instance);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecFiniSeq(instance);
-        break;
-    }
-
-    return ret;
-}
-
-RetCode ProductVpuDecGetSeqInfo(CodecInst* instance, DecInitialInfo* info)
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    productId   = instance->productId;
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuDecGetSeqInfo(instance, info);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecGetSeqInfo(instance, info);
-        break;
-    }
-
-    return ret;
-}
-
-RetCode ProductVpuDecCheckCapability(CodecInst* instance)
-{
-    DecInfo* pDecInfo;
-    VpuAttr* pAttr     = &g_VpuCoreAttributes[instance->coreIdx];
-
-    pDecInfo = &instance->CodecInfo->decInfo;
-
-    if ((pAttr->supportDecoders&(1<<pDecInfo->openParam.bitstreamFormat)) == 0)
-        return RETCODE_NOT_SUPPORTED_FEATURE;
-
-    switch (instance->productId) {
-    case PRODUCT_ID_960:
-        if (pDecInfo->mapType >= TILED_FRAME_NO_BANK_MAP) 
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-        if (pDecInfo->tiled2LinearMode == FF_FIELD) 
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-        break;
-    case PRODUCT_ID_980:
-        if (pDecInfo->mapType >= COMPRESSED_FRAME_MAP) 
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        if (pDecInfo->mapType != LINEAR_FRAME_MAP && pDecInfo->mapType != COMPRESSED_FRAME_MAP)
-            return RETCODE_NOT_SUPPORTED_FEATURE;
-        break;
-    }
-
-    return RETCODE_SUCCESS;
-}
-
-RetCode ProductVpuDecode(CodecInst* instance, DecParam* option)
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    productId = instance->productId;
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuDecode(instance, option);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecode(instance, option);
-        break;
-    }
-
-    return ret;
-}
-
-RetCode ProductVpuDecGetResult(CodecInst*  instance, DecOutputInfo* result)
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-
-    productId = instance->productId;
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuDecGetResult(instance, result);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecGetResult(instance, result);
-        break;
-    }
-
-    return ret;
-}
-
-RetCode ProductVpuDecFlush(CodecInst* instance, FramebufferIndex* retIndexes, Uint32 size)
-{
-    RetCode ret = RETCODE_SUCCESS;
-
-    switch (instance->productId) {
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        ret = Wave5VpuDecFlush(instance, retIndexes, size);
-        break;
-    default:
-        ret = Coda9VpuDecFlush(instance, retIndexes, size);
-        break;
-    }
-
-    return ret;
-}
-
-#endif
-/************************************************************************/
-/* Decoder & Encoder                                                    */
-/************************************************************************/
-#if 0
-RetCode ProductVpuDecSetBitstreamFlag(
-    CodecInst*  instance,
-    BOOL        running,
-    Int32       size
-    )
-{
-    int         productId;
-    RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
-    BOOL        eos; 
-    BOOL        checkEos;
-    BOOL        explicitEnd;
-    DecInfo*    pDecInfo = &instance->CodecInfo->decInfo;
-
-    productId = instance->productId;
-
-    eos      = (BOOL)(size == 0);
-    checkEos = (BOOL)(size > 0);
-    explicitEnd = (BOOL)(size == -2);
-
-    switch (productId) {
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        if (checkEos) eos = (BOOL)((pDecInfo->streamEndflag&0x04) == 0x04);
-        ret = Coda9VpuDecSetBitstreamFlag(instance, running, eos);
-        break;
-    case PRODUCT_ID_512:
-    case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
-    case PRODUCT_ID_521:
-    case PRODUCT_ID_511:
-        if (checkEos) eos = (BOOL)pDecInfo->streamEndflag;
-        ret = Wave5VpuDecSetBitstreamFlag(instance, running, eos, explicitEnd);
-        break;
-    }
-
-    return ret;
-}
-#endif
 /**
  * \param   stride          stride of framebuffer in pixel.
  */
@@ -827,9 +379,6 @@ RetCode ProductVpuAllocateFramebuffer(
     FramebufferAllocType fbType)
 {
     Int32           i;
-#if 0
-    Uint32          coreIdx;
-#endif
     vpu_buffer_t    vbFrame;
     FrameBufInfo    fbInfo;
     DecInfo*        pDecInfo = &inst->CodecInfo->decInfo;
@@ -843,24 +392,9 @@ RetCode ProductVpuAllocateFramebuffer(
     osal_memset((void*)&vbFrame, 0x00, sizeof(vpu_buffer_t));
     osal_memset((void*)&fbInfo,  0x00, sizeof(FrameBufInfo));
 
-#if 0
-    coreIdx = inst->coreIdx;
-#endif
-
-    if (inst->codecMode == W_VP9_DEC) {
-        Uint32 framebufHeight = VPU_ALIGN64(height);
-        sizeLuma   = CalcLumaSize(inst->productId, stride, framebufHeight, format, cbcrInterleave, mapType, NULL);
-        sizeChroma = CalcChromaSize(inst->productId, stride, framebufHeight, format, cbcrInterleave, mapType, NULL);
-    } 
-    else {
-        DRAMConfig* bufferConfig = NULL;
-        if (productId == PRODUCT_ID_960) {
-            bufferConfig = &pDecInfo->dramCfg;
-            bufferConfig = (inst->isDecoder == TRUE) ? &pDecInfo->dramCfg : &pEncInfo->dramCfg;
-        }
-        sizeLuma   = CalcLumaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
-        sizeChroma = CalcChromaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
-    }
+    DRAMConfig* bufferConfig = NULL;
+    sizeLuma   = CalcLumaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
+    sizeChroma = CalcChromaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
 
     // Framebuffer common informations
     for (i=0; i<num; i++) {
@@ -879,62 +413,11 @@ RetCode ProductVpuAllocateFramebuffer(
             fbArr[i].sourceLBurstEn = FALSE;
             if(inst->codecMode == W_HEVC_ENC || inst->codecMode == W_SVAC_ENC || inst->codecMode == W_AVC_ENC) {
                 fbArr[i].endian         = (mapType == COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
-                fbArr[i].lumaBitDepth   = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
-                fbArr[i].chromaBitDepth = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
+                fbArr[i].lumaBitDepth   = pEncInfo->openParam.EncStdParam.vpParam.internalBitDepth;
+                fbArr[i].chromaBitDepth = pEncInfo->openParam.EncStdParam.vpParam.internalBitDepth;
             }
         }
     }
-
-#if 0
-    //********* START : framebuffers for SVAC spatial SVC **********/
-    // Decoder
-    if (inst->codecMode == W_SVAC_DEC && pDecInfo->initialInfo.spatialSvcEnable == TRUE && mapType == COMPRESSED_FRAME_MAP) {
-        stride = (pDecInfo->initialInfo.lumaBitdepth > 8) ? VPU_ALIGN32(VPU_ALIGN32(VPU_ALIGN128(pDecInfo->initialInfo.picWidth>>1)*5)/4) : VPU_ALIGN128(pDecInfo->initialInfo.picWidth>>1);
-        for (i=num; i<num*2; i++) {
-            if (fbArr[i].updateFbInfo == TRUE ) {
-                fbArr[i].updateFbInfo = FALSE;
-                fbArr[i].myIndex        = i+gdiIndex;
-                fbArr[i].stride         = stride;
-                fbArr[i].height         = VPU_ALIGN128(pDecInfo->initialInfo.picHeight>>1);
-                fbArr[i].mapType        = COMPRESSED_FRAME_MAP_SVAC_SVC_BL;
-                fbArr[i].format         = format;
-                fbArr[i].cbcrInterleave = (mapType == COMPRESSED_FRAME_MAP ? TRUE : cbcrInterleave);
-                fbArr[i].nv21           = nv21;
-                fbArr[i].endian         = endian;
-                fbArr[i].lumaBitDepth   = pDecInfo->initialInfo.lumaBitdepth;
-                fbArr[i].chromaBitDepth = pDecInfo->initialInfo.chromaBitdepth;
-                fbArr[i].sourceLBurstEn = FALSE;
-            }
-        }
-    }
-
-    // Encoder
-    if (inst->codecMode == W_SVAC_ENC && pEncInfo->openParam.EncStdParam.waveParam.svcEnable == TRUE && mapType == COMPRESSED_FRAME_MAP) { // only set when allocating recon buffer. (do not set when allocating source buffer)
-        stride = (pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth > 8) ? VPU_ALIGN32(VPU_ALIGN32(VPU_ALIGN16(pEncInfo->openParam.picWidthBL)*5)/4) : VPU_ALIGN32(pEncInfo->openParam.picWidthBL);
-        for (i=num; i<num*2; i++) {
-            if (fbArr[i].updateFbInfo == TRUE ) {
-                fbArr[i].updateFbInfo = FALSE;
-                fbArr[i].myIndex        = i+gdiIndex;
-                fbArr[i].stride         = stride;
-                fbArr[i].height         = pEncInfo->openParam.picHeightBL;
-                fbArr[i].mapType        = COMPRESSED_FRAME_MAP_SVAC_SVC_BL;
-                fbArr[i].format         = format;
-                fbArr[i].cbcrInterleave = (mapType == COMPRESSED_FRAME_MAP ? TRUE : cbcrInterleave);
-                fbArr[i].nv21           = nv21;
-                fbArr[i].endian         = endian;
-                fbArr[i].lumaBitDepth   = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
-                fbArr[i].chromaBitDepth = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
-                fbArr[i].sourceLBurstEn = FALSE;
-                if(inst->codecMode == W_SVAC_ENC) {
-                    fbArr[i].endian         = (mapType == COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
-                    fbArr[i].lumaBitDepth   = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
-                    fbArr[i].chromaBitDepth = pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth;
-                }
-            }
-        }
-    }
-    //********* END : framebuffers for SVAC spatial SVC **********/
-#endif
 
     switch (mapType) {
     case LINEAR_FRAME_MAP:
@@ -943,52 +426,11 @@ RetCode ProductVpuAllocateFramebuffer(
         ret = UpdateFrameBufferAddr(mapType, fbArr, num, sizeLuma, sizeChroma);
         if (ret != RETCODE_SUCCESS)
             break;
-
-#if 0
-        if (inst->codecMode == W_SVAC_DEC && pDecInfo->initialInfo.spatialSvcEnable == TRUE && mapType == COMPRESSED_FRAME_MAP) {
-            stride = (pDecInfo->initialInfo.lumaBitdepth > 8) ? VPU_ALIGN32(VPU_ALIGN32(VPU_ALIGN128(pDecInfo->initialInfo.picWidth>>1)*5)/4) : VPU_ALIGN128(pDecInfo->initialInfo.picWidth>>1);
-            // Update FrameBufferAddr for SVC BL
-            sizeLuma   = CalcLumaSize(inst->productId, stride, VPU_ALIGN128(pDecInfo->initialInfo.picHeight>>1), format, cbcrInterleave, mapType, NULL);
-            sizeChroma = CalcChromaSize(inst->productId, stride, VPU_ALIGN128(pDecInfo->initialInfo.picHeight>>1), format, cbcrInterleave, mapType, NULL);
-            ret = UpdateFrameBufferAddr(COMPRESSED_FRAME_MAP_SVAC_SVC_BL, fbArr+num, num, sizeLuma, sizeChroma);
-        }
-        if (inst->codecMode == W_SVAC_ENC && pEncInfo->openParam.EncStdParam.waveParam.svcEnable == TRUE  && mapType == COMPRESSED_FRAME_MAP) { // only set when allocating recon buffer. (do not set when allocating source buffer)
-            stride = (pEncInfo->openParam.EncStdParam.waveParam.internalBitDepth > 8) ? VPU_ALIGN32(VPU_ALIGN32(VPU_ALIGN16(pEncInfo->openParam.picWidthBL)*5)/4) : VPU_ALIGN32(pEncInfo->openParam.picWidthBL);
-            sizeLuma   = CalcLumaSize(inst->productId, stride, pEncInfo->openParam.picHeightBL, format, cbcrInterleave, mapType, NULL);
-            sizeChroma = CalcChromaSize(inst->productId, stride, pEncInfo->openParam.picHeightBL, format, cbcrInterleave, mapType, NULL);
-            ret = UpdateFrameBufferAddr(COMPRESSED_FRAME_MAP_SVAC_SVC_BL, fbArr+num, num, sizeLuma, sizeChroma);
-        }
-#endif
         break;
 
     default:
         /* Tiled map */
         VLOG(ERR, "shall not reach Tile map vb %p fbType %d \n",vb, fbType);
-
-#if 0
-        if (productId == PRODUCT_ID_960) {
-            DRAMConfig*     pDramCfg;
-            PhysicalAddress tiledBaseAddr = 0;
-            TiledMapConfig* pMapCfg;
-
-            pDramCfg = (inst->isDecoder == TRUE) ? &pDecInfo->dramCfg : &pEncInfo->dramCfg;
-            pMapCfg  = (inst->isDecoder == TRUE) ? &pDecInfo->mapCfg  : &pEncInfo->mapCfg;
-            vbFrame.phys_addr = GetTiledFrameBase(coreIdx, fbArr, num);
-            if (fbType == FB_TYPE_PPU) {
-                tiledBaseAddr = pMapCfg->tiledBaseAddr;
-            }
-            else {
-                pMapCfg->tiledBaseAddr = vbFrame.phys_addr;
-                tiledBaseAddr = vbFrame.phys_addr;
-            }
-            *vb = vbFrame;
-            ret = AllocateTiledFrameBufferGdiV1(mapType, tiledBaseAddr, fbArr, num, sizeLuma, sizeChroma, pDramCfg);
-        }
-        else {
-            // PRODUCT_ID_980
-            ret = AllocateTiledFrameBufferGdiV2(mapType, fbArr, num, sizeLuma, sizeChroma);
-        }
-#endif
         break;
     }
     for (i=0; i<num; i++) {
@@ -1005,60 +447,11 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
 {
     RetCode         ret = RETCODE_FAILURE;
     FrameBuffer*    fb;
-#if 0
-    DecInfo*        pDecInfo = &instance->CodecInfo->decInfo;
-#endif
     Int32           gdiIndex = 0;
     EncInfo*        pEncInfo = &instance->CodecInfo->encInfo;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        if (IS_CODA_DECODER_HANDLE(instance))
-            ret = Coda9VpuDecRegisterFramebuffer(instance);
-        else 
-            ret = Coda9VpuEncRegisterFramebuffer(instance);
-        break;
-#endif
     default:
-#if 0
-        /************************************************************************/
-        /*        for WAVE5 series (512/515/520/525/511/521...)                 */
-        /************************************************************************/
-        if (IS_WAVE_DECODER_HANDLE(instance)) {
-            if (pDecInfo->mapType != COMPRESSED_FRAME_MAP)
-                return RETCODE_NOT_SUPPORTED_FEATURE;
-
-            fb = pDecInfo->frameBufPool;
-
-            gdiIndex = 0;
-            if (pDecInfo->wtlEnable == TRUE) {
-                if (fb[0].mapType == COMPRESSED_FRAME_MAP) 
-                    gdiIndex = pDecInfo->numFbsForDecoding;
-
-                if (instance->codecMode == W_SVAC_DEC && pDecInfo->initialInfo.spatialSvcEnable == TRUE)
-                    gdiIndex = pDecInfo->numFbsForDecoding*2;
-
-                ret = Wave5VpuDecRegisterFramebuffer(instance, &fb[gdiIndex], LINEAR_FRAME_MAP, pDecInfo->numFbsForWTL);
-                if (ret != RETCODE_SUCCESS)
-                    return ret;
-                gdiIndex = gdiIndex == 0 ? pDecInfo->numFbsForDecoding: 0;
-            }
-
-            ret = Wave5VpuDecRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP, pDecInfo->numFbsForDecoding);
-            if (ret != RETCODE_SUCCESS)
-                return ret;
-
-            if (instance->codecMode == W_SVAC_DEC && pDecInfo->initialInfo.spatialSvcEnable == TRUE) { // BL for SVC
-                gdiIndex = pDecInfo->numFbsForDecoding;
-                ret = Wave5VpuDecRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP_SVAC_SVC_BL, pDecInfo->numFbsForDecoding);
-                if (ret != RETCODE_SUCCESS)
-                    return ret;
-            }
-        }
-        else
-#endif
         {
             // ENCODER
             if (pEncInfo->mapType != COMPRESSED_FRAME_MAP)
@@ -1066,12 +459,12 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
 
             fb = pEncInfo->frameBufPool;
 
-            if (instance->codecMode == W_SVAC_ENC && pEncInfo->openParam.EncStdParam.waveParam.svcEnable == TRUE) {  // for BL
+            if (instance->codecMode == W_SVAC_ENC && pEncInfo->openParam.EncStdParam.vpParam.svcEnable == TRUE) {  // for BL
                 gdiIndex = pEncInfo->numFrameBuffers;
-                ret = Wave5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP_SVAC_SVC_BL, pEncInfo->numFrameBuffers);
+                ret = Vp5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP_SVAC_SVC_BL, pEncInfo->numFrameBuffers);
             }
             gdiIndex = 0;   // for EL
-            ret = Wave5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP, pEncInfo->numFrameBuffers);
+            ret = Vp5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP, pEncInfo->numFrameBuffers);
 
             if (ret != RETCODE_SUCCESS)
                 return ret;
@@ -1080,22 +473,6 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
     }
     return ret;
 }
-
-#if 0
-RetCode ProductVpuDecUpdateFrameBuffer(CodecInst* instance, FrameBuffer* fbcFb, FrameBuffer* linearFb, Uint32 mvColIndex, Uint32 picWidth, Uint32 picHeight)
-{
-    RetCode ret = RETCODE_NOT_SUPPORTED_FEATURE;
-
-    if (PRODUCT_ID_W_SERIES(instance->productId)) {
-        EnterLock(instance->coreIdx);
-        ret = Wave5VpuDecUpdateFramebuffer(instance, fbcFb, linearFb, mvColIndex, picWidth, picHeight);
-        LeaveLock(instance->coreIdx);
-    }
-
-    return ret;
-}
-#endif
-
 Int32 ProductCalculateFrameBufSize(Int32 productId, Int32 stride, Int32 height, TiledMapType mapType, FrameBufferFormat format, BOOL interleave, DRAMConfig* pDramCfg)
 {
     Int32 size_dpb_lum, size_dpb_chr, size_dpb_all;
@@ -1121,44 +498,29 @@ Int32 ProductCalculateAuxBufferSize(AUX_BUF_TYPE type, CodStd codStd, Int32 widt
             size = ((size+7)/8)*8;
         } 
         else if (codStd == STD_HEVC) {
-            size = WAVE5_DEC_HEVC_MVCOL_BUF_SIZE(width, height);
+            size = VP5_DEC_HEVC_MVCOL_BUF_SIZE(width, height);
         }
         else if (codStd == STD_VP9) {
-            size = WAVE5_DEC_VP9_MVCOL_BUF_SIZE(width, height);
+            size = VP5_DEC_VP9_MVCOL_BUF_SIZE(width, height);
         }
         else if (codStd == STD_AVS2) {
-            size = WAVE5_DEC_AVS2_MVCOL_BUF_SIZE(width, height);
+            size = VP5_DEC_AVS2_MVCOL_BUF_SIZE(width, height);
         }
         else {
             size = 0;
         }
         break;
     case AUX_BUF_TYPE_FBC_Y_OFFSET:
-        size  = WAVE5_FBC_LUMA_TABLE_SIZE(width, height);
+        size  = VP5_FBC_LUMA_TABLE_SIZE(width, height);
         break;
     case AUX_BUF_TYPE_FBC_C_OFFSET:
-        size  = WAVE5_FBC_CHROMA_TABLE_SIZE(width, height);
+        size  = VP5_FBC_CHROMA_TABLE_SIZE(width, height);
         break;
     }
 
     return size;
 }
 
-#if 0
-RetCode ProductClrDispFlag(CodecInst* instance, Uint32 index)
-{
-    RetCode ret = RETCODE_SUCCESS;
-    ret = Wave5DecClrDispFlag(instance, index);
-    return ret;
-}
-
-RetCode ProductSetDispFlag(CodecInst* instance, Uint32 index)
-{
-    RetCode ret = RETCODE_SUCCESS;
-    ret = Wave5DecSetDispFlag(instance, index);
-    return ret;
-}
-#endif
 RetCode ProductVpuGetBandwidth(CodecInst* instance, VPUBWData* data)
 {
     if (data == 0) {
@@ -1168,7 +530,7 @@ RetCode ProductVpuGetBandwidth(CodecInst* instance, VPUBWData* data)
     if (instance->productId < PRODUCT_ID_520)
         return RETCODE_INVALID_COMMAND;
 
-    return Wave5VpuGetBwReport(instance, data);
+    return Vp5VpuGetBwReport(instance, data);
 }
 
 
@@ -1355,7 +717,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             return RETCODE_INVALID_PARAM;
     }
     else if (pop->bitstreamFormat == STD_HEVC || pop->bitstreamFormat == STD_SVAC || (pop->bitstreamFormat == STD_AVC && productId == PRODUCT_ID_521)) {
-        EncWaveParam* param     = &pop->EncStdParam.waveParam;
+        EncWaveParam* param     = &pop->EncStdParam.vpParam;
 
         if (param->svcEnable == TRUE && pop->bitstreamFormat != STD_SVAC)
             return RETCODE_INVALID_PARAM;
@@ -1628,12 +990,7 @@ RetCode ProductVpuEncFiniSeq(CodecInst* instance)
     RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuFiniSeq(instance);
-        break;
-#endif
+
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_511:
@@ -1642,7 +999,7 @@ RetCode ProductVpuEncFiniSeq(CodecInst* instance)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncFiniSeq(instance);
+        ret = Vp5VpuEncFiniSeq(instance);
         break;
     }
     return ret;
@@ -1653,12 +1010,6 @@ RetCode ProductVpuEncSetup(CodecInst* instance)
     RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuEncSetup(instance);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_520:
@@ -1677,12 +1028,7 @@ RetCode ProductVpuEncode(CodecInst* instance, EncParam* param)
     RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuEncode(instance, param);
-        break;
-#endif
+
    case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_511:
@@ -1691,7 +1037,7 @@ RetCode ProductVpuEncode(CodecInst* instance, EncParam* param)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncode(instance, param);
+        ret = Vp5VpuEncode(instance, param);
         break;
     default:
         break;
@@ -1705,12 +1051,6 @@ RetCode ProductVpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     RetCode     ret = RETCODE_NOT_FOUND_VPU_DEVICE;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuEncGetResult(instance, result);
-        break;
-#endif
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
     case PRODUCT_ID_511:
@@ -1719,7 +1059,7 @@ RetCode ProductVpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncGetResult(instance, result);
+        ret = Vp5VpuEncGetResult(instance, result);
         break;
     }
 
@@ -1731,14 +1071,8 @@ RetCode ProductVpuEncGiveCommand(CodecInst* instance, CodecCommand cmd, void* pa
     RetCode     ret = RETCODE_NOT_SUPPORTED_FEATURE;
 
     switch (instance->productId) {
-#if 0
-    case PRODUCT_ID_960:
-    case PRODUCT_ID_980:
-        ret = Coda9VpuEncGiveCommand(instance, cmd, param);
-        break;
-#endif
     default:
-        ret = Wave5VpuEncGiveCommand(instance, cmd, param);
+        ret = Vp5VpuEncGiveCommand(instance, cmd, param);
         break;
     }
     
@@ -1756,7 +1090,7 @@ RetCode ProductVpuEncInitSeq(CodecInst* instance)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncInitSeq(instance);
+        ret = Vp5VpuEncInitSeq(instance);
         break;
     default:
         break;
@@ -1776,7 +1110,7 @@ RetCode ProductVpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
     case PRODUCT_ID_520:
     case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Wave5VpuEncGetSeqInfo(instance, info);
+        ret = Vp5VpuEncGetSeqInfo(instance, info);
         break;
     default:
         break;

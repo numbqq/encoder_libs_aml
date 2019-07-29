@@ -1,3 +1,36 @@
+/*
+* Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+*
+* This source code is subject to the terms and conditions defined in below
+* which is part of this source code package.
+*
+* Description:
+*/
+
+// Copyright (C) 2019 Amlogic, Inc. All rights reserved.
+//
+// All information contained herein is Amlogic confidential.
+//
+// This software is provided to you pursuant to Software License
+// Agreement (SLA) with Amlogic Inc ("Amlogic"). This software may be
+// used only in accordance with the terms of this agreement.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification is strictly prohibited without prior written permission
+// from Amlogic.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -26,9 +59,6 @@ int main(int argc, const char* argv[])
 
     unsigned char* vaddr = NULL;
     vl_codec_handle_t handle_enc = 0;
-
-    vl_param_runtime_t param_runtime;
-    //amvenc_frame_stat_t* frame_info = NULL;
     vl_encode_info_t encode_info;
     vl_buffer_info_t ret_buf;
     vl_codec_id_t codec_id;
@@ -48,21 +78,19 @@ int main(int argc, const char* argv[])
             " usage: output "
             "[srcfile][outfile][width][height][gop][framerate][bitrate][num][fmt]["
             "buf type][num_planes][codec_id]\n");
-        printf("  options  :\n");
-        printf("  srcfile  : yuv data url in your root fs\n");
-        printf("  outfile  : stream url in your root fs\n");
-        printf("  width    : width\n");
-        printf("  height   : height\n");
-        printf("  gop      : I frame refresh interval\n");
-        printf("  framerate: framerate \n ");
-        printf("  bitrate  : bit rate \n ");
-        printf("  num      : encode frame count \n ");
-        printf("  fmt      : encode input fmt 1 : nv12, 2 : nv21, 3 : yuv420p(yv12/yu12)\n ");
-        printf("  buf_type : 0:vmalloc, 3:dma buffer\n ");
-        printf(
-            "  num_planes : used for dma buffer case. 1: nv12/nv21/yv12. "
-            "2:nv12/nv21. 3:yv12\n ");
-        printf("  codec_id : 4 : h.264, 5 : h.265\n ");
+        printf("  options  \t:\n");
+        printf("  srcfile  \t: yuv data url in your root fs\n");
+        printf("  outfile  \t: stream url in your root fs\n");
+        printf("  width    \t: width\n");
+        printf("  height   \t: height\n");
+        printf("  gop      \t: I frame refresh interval\n");
+        printf("  framerate\t: framerate \n");
+        printf("  bitrate  \t: bit rate \n");
+        printf("  num      \t: encode frame count \n");
+        printf("  fmt      \t: encode input fmt 1 : nv12, 2 : nv21, 3 : yuv420p(yv12/yu12)\n");
+        printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
+        printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
+        printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
 
         return -1;
     } else {
@@ -158,14 +186,6 @@ int main(int argc, const char* argv[])
     memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
     inbuf_info.buf_type = (vl_buffer_type_t)buf_type;
 
-#if 0
-    fd = open("/dev/amvenc_multi", O_RDWR);
-    if (fd < 0) {
-        printf("unable to open the encoder path /dev/amvenc_multi\n");
-        goto exit;
-    }
-#endif
-
     qp_tbl.qp_min = 0;
     qp_tbl.qp_max = 51;
     qp_tbl.qp_I_base = 30;
@@ -181,9 +201,6 @@ int main(int argc, const char* argv[])
     encode_info.frame_rate = framerate;
     encode_info.gop = gop;
     encode_info.img_format = fmt;
-
-    //  encode_info.dev_fd = fd;
-    //  encode_info.qp_mode = qp_mode;
 
   if (inbuf_info.buf_type == DMA_TYPE)
   {
@@ -301,22 +318,16 @@ int main(int argc, const char* argv[])
         inbuf_info.buf_info.in_ptr[2] = (ulong)(inputBuffer + width * height * 5 / 4);
     }
 
-    memset(&param_runtime, 0, sizeof(param_runtime));
-    param_runtime.idr = &tmp_idr;
-    param_runtime.bitrate = bitrate;
-    param_runtime.frame_rate = framerate;
-
     fp = fopen((argv[1]), "rb");
     if (fp == NULL) {
         printf("open src file error!\n");
         goto exit;
     }
 
-    outfd = open((argv[2]),
-               O_CREAT | O_RDWR | O_TRUNC, 0644);
+    outfd = open((argv[2]), O_CREAT | O_RDWR | O_TRUNC, 0644);
     if (outfd < 0) {
-    printf("open dest file error!\n");
-    goto exit;
+        printf("open dest file error!\n");
+        goto exit;
     }
 
     handle_enc = vl_multi_encoder_init(codec_id, encode_info, &qp_tbl);
@@ -393,7 +404,6 @@ exit:
     if (outbuffer != NULL)
         free(outbuffer);
 
-#if 1
     if (inbuf_info.buf_type == DMA_TYPE)
     {
         if (dma_info->shared_fd[0] >= 0)
@@ -406,19 +416,13 @@ exit:
           close(dma_info->shared_fd[2]);
 
         destroy_ctx(&ctx);
-    } else
-#endif
-
-    {
+    } else {
         if (inputBuffer)
           free(inputBuffer);
     }
 
-    if (fd >= 0)
-    close(fd);
+    printf("Encode End!\n");
 
-    printf("end test!\n");
-
-  return 0;
+    return 0;
 
 }

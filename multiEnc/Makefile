@@ -1,4 +1,4 @@
-.PHONY: ALL BIN_LIB clean ECHO
+.PHONY: ALL BIN_LIB clean BINLIBCOPY
 
 BIN = bin
 LIB = lib

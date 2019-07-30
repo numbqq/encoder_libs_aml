@@ -23,7 +23,7 @@ TARGET = libvpcodec.so
 LDLIBS += -lm -lrt 
 # pthread 
 LDLIBS += -lpthread 
-LIB=libamvenc_api.so
+LIB= -L../vpuapi -lamvenc_api
 
 
 LDFLAGS += -shared
@@ -43,7 +43,7 @@ OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
 
 
 all: CREATE_DIR $(OBJECTPATHS)
-	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
+	$(CC) -o $(TARGET) $(LDFLAGS) $(LIB) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
 
 -include $(OBJECTPATHS:.o=.dep)
 

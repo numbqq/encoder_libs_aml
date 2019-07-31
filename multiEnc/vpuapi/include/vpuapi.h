@@ -229,7 +229,7 @@ typedef enum {
     RETCODE_VLC_BUF_FULL,               /**< This means that VLC buffer is full in encoder. (VP5 only) */
     RETCODE_INVALID_SFS_INSTANCE,       /**< This means that current instance can't run sub-framesync. (already an instance was running with sub-frame sync (VP5 only) */
 #ifdef AUTO_FRM_SKIP_DROP
-    RETCODE_FRAME_DROP,                 /**< This means that frame is dropped. HOST application don't have to wait INT_BIT_PIC_RUN.  (CODA9 only) */
+    RETCODE_FRAME_DROP,                 /**< This means that frame is dropped. HOST application don't have to wait INT_BIT_PIC_RUN.  (non VP only) */
 #endif
 } RetCode;
 
@@ -354,7 +354,7 @@ angle is invalid.
     SET_ROTATION_ANGLE, 
 /**
 @verbatim
-This command sets rotator output buffer address. (CODA decoder only) The `parameter` is interpreted as
+This command sets rotator output buffer address. (Non VP only) The `parameter` is interpreted as
 the pointer of a structure representing physical addresses of YCbCr components
 of output frame. For storing the rotated output for display, at least one more
 frame buffer should be allocated. When multiple display buffers are required,
@@ -373,7 +373,7 @@ buffer pointer is invalid.
     SET_ROTATOR_OUTPUT, 
 /**
 @verbatim
-This command sets the stride size of the frame buffer containing rotated output. (CODA decoder only)
+This command sets the stride size of the frame buffer containing rotated output. ( non VP decoder only)
 The `parameter` is interpreted as the value of stride of the rotated output.
 
 This command has one of the following return codes.::
@@ -451,8 +451,8 @@ pointer, or given values for some member variables are improper values.
 @endverbatim
 */	
     DEC_SET_SEQ_CHANGE_MASK, 
-    ENABLE_DERING, /**< This command enables deringing filter of the post-rotator. (CODA decoder only) In this case, `parameter` is ignored. This command returns RETCODE_SUCCESS. */
-    DISABLE_DERING, /**< This command disables deringing filter of the post-rotator. (CODA decoder only) In this case, `parameter` is ignored. This command returns RETCODE_SUCCESS. */
+    ENABLE_DERING, /**< This command enables deringing filter of the post-rotator. (Non VP decoder only) In this case, `parameter` is ignored. This command returns RETCODE_SUCCESS. */
+    DISABLE_DERING, /**< This command disables deringing filter of the post-rotator. (Non VP decoder only) In this case, `parameter` is ignored. This command returns RETCODE_SUCCESS. */
 /**
 @verbatim
 This command sets the secondary channel of AXI for saving memory bandwidth to
@@ -471,8 +471,8 @@ invalid.
 @endverbatim
 */
 	SET_SEC_AXI, 
-    SET_DRAM_CONFIG, /**< This command sets the DRAM attributes to use tiled map. The argument `parameter` is interpreted as a pointer to <<vpuapi_h_DRAMConfig>>. It returns RETCODE_INVALID_PARAM when any value is not given to the argument parameter, `parameter`. (CODA960 only) */   //coda960 only 
-    GET_DRAM_CONFIG, /**< This command gets the DRAM attributes to use tiled map. The argument `parameter` is interpreted as a pointer to <<vpuapi_h_DRAMConfig>>. It returns RETCODE_INVALID_PARAM when any value is not given to the argument parameter, `parameter`. (CODA960 only) */   //coda960 only 
+    SET_DRAM_CONFIG, /**< This command sets the DRAM attributes to use tiled map. The argument `parameter` is interpreted as a pointer to <<vpuapi_h_DRAMConfig>>. It returns RETCODE_INVALID_PARAM when any value is not given to the argument parameter, `parameter`. (Non VP only) */
+    GET_DRAM_CONFIG, /**< This command gets the DRAM attributes to use tiled map. The argument `parameter` is interpreted as a pointer to <<vpuapi_h_DRAMConfig>>. It returns RETCODE_INVALID_PARAM when any value is not given to the argument parameter, `parameter`. (Non VP only) */
 /**
 @verbatim
 This command enables user data report. This command ignores `parameter`.
@@ -568,7 +568,7 @@ Size of 0 padding is (8 - (User Data Size % 8))%8.
 	SET_SIZE_REP_USERDATA,
 /**
 @verbatim
-This command sets the interrupt flag of user data buffer overflow. (CODA9 only)
+This command sets the interrupt flag of user data buffer overflow. (Non VP9 only)
 
 @* 0 : interrupt mode
 @* 1 : interrupt disable mode
@@ -578,7 +578,7 @@ This command sets the interrupt flag of user data buffer overflow. (CODA9 only)
     SET_USERDATA_REPORT_MODE, 
 /**
 @verbatim
-This command sets the configuration of cache. The `parameter` is interpreted as a pointer to MaverickCacheConfig. (CODA9 only)
+This command sets the configuration of cache. The `parameter` is interpreted as a pointer to MaverickCacheConfig. (Non VP9 only)
 
 This command has one of the following return codes.::
 
@@ -592,7 +592,7 @@ The given argument parameter, `parameter`, was invalid. The value of address mus
     SET_CACHE_CONFIG, 
 /**
 @verbatim
-This command gets tiled map configuration according to `TiledMapConfig` structure. (CODA9 only)
+This command gets tiled map configuration according to `TiledMapConfig` structure. (Non VP9 only)
 
 This command has one of the following return codes.::
 
@@ -607,7 +607,7 @@ The given argument parameter, `parameter`, was invalid, which means it has a nul
     GET_TILEDMAP_CONFIG, 
 /**
 @verbatim
-This command sets the low delay decoding options which enable low delay decoding and indicate the number of MB row. (CODA9 decoder only)
+This command sets the low delay decoding options which enable low delay decoding and indicate the number of MB row. (Non VP9 decoder only)
 The argument `parameter` is interpreted as a pointer to LowDelayInfo which represents an enable flag and the number of MB row.
 If low delay decoding is enabled, VPU sends an interrupt and indexFrameDisplay to HOST when the number of MB row decoding is done.
 If the interrupt is issued, HOST should clear the interrupt and read indexFrameDisplay from the RET_DEC_PIC_FRAME_IDX register in order to display.
@@ -617,7 +617,7 @@ If the interrupt is issued, HOST should clear the interrupt and read indexFrameD
     SET_LOW_DELAY_CONFIG, 
 /**
 @verbatim
-This command gets the low delay decoding options which enable low delay decoding and indicate the number of MB row. (CODA decoder only)
+This command gets the low delay decoding options which enable low delay decoding and indicate the number of MB row. (Non VP decoder only)
 The argument `parameter` is interpreted as a pointer to LowDelayInfo which represents an enable flag and the number of MB row.
 If low delay decoding is enabled, VPU sends an interrupt and indexFrameDisplay to HOST when the number of MB row decoding is done.
 If the interrupt is issued, HOST should clear the interrupt and read indexFrameDisplay from the RET_DEC_PIC_FRAME_IDX register in order to display.
@@ -628,10 +628,10 @@ If the interrupt is issued, HOST should clear the interrupt and read indexFrameD
 
 /**
 @verbatim 
-HOST can set the frameBufDelay value of <<vpuapi_h_DecInitialInfo>>. (CODA9 H.264/AVC decoder only)  
-This command is useful when HOST is sure of display reorder delay of stream and wants to display soonner than 
-frameBufDelay value of <<vpuapi_h_DecInitialInfo>> which is calculated based on video specification by VPU. 
-However, if HOST set an invalid frameBufDelay value, it might lead to failure of display.  
+HOST can set the frameBufDelay value of <<vpuapi_h_DecInitialInfo>>. (Non VP9 H.264/AVC decoder only)
+This command is useful when HOST is sure of display reorder delay of stream and wants to display soonner than
+frameBufDelay value of <<vpuapi_h_DecInitialInfo>> which is calculated based on video specification by VPU.
+However, if HOST set an invalid frameBufDelay value, it might lead to failure of display.
 
 @endverbatim
 */
@@ -655,7 +655,7 @@ VPU_DecGiveCommand(handle, DEC_GET_DISPLAY_OUTPUT_INFO, & decOutputInfo);
     DEC_GET_DISPLAY_OUTPUT_INFO,
 /**
 @verbatim 
-HOST can enable display buffer reordering when decoding H.264 streams. (CODA9 H.264 decoder and VPU decoder only)
+HOST can enable display buffer reordering when decoding H.264 streams. (Non VP9 H.264 decoder and VPU decoder only)
 In H.264 case, output decoded picture may be re-ordered if pic_order_cnt_type is 0 or 1. In that case, decoder
 must delay output display for re-ordering but some applications (ex. video telephony) do not
 want such display delay. 
@@ -688,7 +688,7 @@ VPU does not perform error concealment if the error comes from wrong frame_num s
     DEC_SET_AVC_ERROR_CONCEAL_MODE, 
 /**
 @verbatim 
-HOST can free all the frame buffers allocated by VPUAPI. (CODA9 only)
+HOST can free all the frame buffers allocated by VPUAPI. (Non VP9 only)
 This command is useful when VPU detects sequence change. 
 For example, if HOST knows resolution change while decoding through `sequenceChanged` variable of <<vpuapi_h_DecOutputInfo>> structure, 
 HOST should change the size of frame buffer accordingly.
@@ -740,7 +740,7 @@ during encoding. It is valid for all types of encoders. The argument `parameter`
 * buf is a physical address pointing the generated stream location
 * size is the size of generated stream in bytes
 * headerType is a type of header that HOST application wants to generate and have values as
-<<vpuapi_h_Mp4HeaderType>>, <<vpuapi_h_AvcHeaderType>>, <<vpuapi_h_WaveEncHeaderType>>.
+<<vpuapi_h_Mp4HeaderType>>, <<vpuapi_h_AvcHeaderType>>, <<vpuapi_h_VpEncHeaderType>>.
 
 This command has one of the following return codes.::
 +
@@ -764,7 +764,7 @@ Operation has not recieved any response from VPU and has timed out.
     ENC_PUT_VIDEO_HEADER, 
 /**
 @verbatim 
-This command changes intra MB refresh number of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes intra MB refresh number of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to integer which
 represents an intra refresh number. It should be between 0 and
 macroblock number of encoded picture. 
@@ -817,7 +817,7 @@ Operation has not received any response from VPU and has timed out.
     ENC_DISABLE_HEC, 
 /**
 @verbatim 
-This command changes slice inforamtion of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes slice inforamtion of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to <<vpuapi_h_EncSliceMode>>
 structure holding
 
@@ -843,7 +843,7 @@ Operation has not received any response from VPU and has timed out.
     ENC_SET_SLICE_INFO, 
 /**
 @verbatim 	
-This command changes GOP number of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes GOP number of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to the integer which
 represents a GOP number.
 
@@ -863,7 +863,7 @@ Operation has not received any response from VPU and has timed out.
     ENC_SET_GOP_NUMBER, 
 /**
 @verbatim 
-This command changes intra QP value of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes intra QP value of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to the integer which
 represents a Constant I frame QP. The Constant I frame QP should be between 1 and 31
 for MPEG4 and between 0 and 51 for H.264/AVC.
@@ -888,7 +888,7 @@ Operation has not received any response from VPU and has timed out.
     ENC_SET_INTRA_QP,   
 /**
 @verbatim 
-This command changes bitrate inforamtion of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes bitrate inforamtion of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to the integer which
 represents a bitrate. It should be between 0 and 32767.
 
@@ -912,7 +912,7 @@ Operation has not received any response from VPU and has timed out.
     ENC_SET_BITRATE,   
 /**
 @verbatim    
-This command changes frame rate of header syntax during encoding. (ChangeParam command for CODA9 encoder only)
+This command changes frame rate of header syntax during encoding. (ChangeParam command for Non VP9 encoder only)
 The argument `parameter` is interpreted as a pointer to the integer which
 represents a frame rate value. The fraem rate should be greater than 0.
 
@@ -1088,7 +1088,7 @@ typedef enum {
 } PackedFormatNum;
 
 /**
-* @brief    This is an enumeration type for representing interrupt bit positions for CODA series.
+* @brief    This is an enumeration type for representing interrupt bit positions for Non VP series.
 */
 typedef enum {
     INT_BIT_INIT            = 0,
@@ -1105,10 +1105,6 @@ typedef enum {
     INT_BIT_BIT_BUF_EMPTY   = 14,
     INT_BIT_BIT_BUF_FULL    = 15
 } InterruptBit;
-
-/* For backward compatibility */
-typedef InterruptBit Coda9InterruptBit;
-
 
 /**
 * @brief    This is an enumeration type for representing interrupt bit positions.
@@ -1199,7 +1195,7 @@ typedef enum {
 typedef enum {
     PRODUCT_ID_980,
     PRODUCT_ID_960  = 1,
-    PRODUCT_ID_950  = 1,    // same with CODA960 
+    PRODUCT_ID_950  = 1,    // same with 960
     PRODUCT_ID_512,
     PRODUCT_ID_520,
     PRODUCT_ID_515,
@@ -1209,42 +1205,42 @@ typedef enum {
     PRODUCT_ID_NONE,
 }ProductId;
 
-#define PRODUCT_ID_W_SERIES(x)      (x == PRODUCT_ID_512 || x == PRODUCT_ID_520 || x == PRODUCT_ID_515 || x == PRODUCT_ID_525 || x == PRODUCT_ID_521 || x == PRODUCT_ID_511)
-#define PRODUCT_ID_NOT_W_SERIES(x)  !PRODUCT_ID_W_SERIES(x)
+#define PRODUCT_ID_VP_SERIES(x)      (x == PRODUCT_ID_512 || x == PRODUCT_ID_520 || x == PRODUCT_ID_515 || x == PRODUCT_ID_525 || x == PRODUCT_ID_521 || x == PRODUCT_ID_511)
+#define PRODUCT_ID_NOT_VP_SERIES(x)  !PRODUCT_ID_VP_SERIES(x)
 
 /**
 * @brief This is an enumeration type for representing map types for frame buffer. 
 
-NOTE: Tiled maps are only for CODA9. Please find them in the CODA9 datasheet for detailed information.
+NOTE: Tiled maps are no used for VP
 */
 typedef enum {
 /**
 @verbatim
 Linear frame map type
 
-NOTE: Products earlier than CODA9 can only set this linear map type. 
+NOTE: Products earlier can only set this linear map type.
 @endverbatim
 */
     LINEAR_FRAME_MAP                            = 0,  /**< Linear frame map type */       
-    TILED_FRAME_V_MAP                           = 1,  /**< Tiled frame vertical map type (CODA9 only) */
-    TILED_FRAME_H_MAP                           = 2,  /**< Tiled frame horizontal map type (CODA9 only) */
-    TILED_FIELD_V_MAP                           = 3,  /**< Tiled field vertical map type (CODA9 only) */
-    TILED_MIXED_V_MAP                           = 4,  /**< Tiled mixed vertical map type (CODA9 only) */
-    TILED_FRAME_MB_RASTER_MAP                   = 5,  /**< Tiled frame MB raster map type (CODA9 only) */
-    TILED_FIELD_MB_RASTER_MAP                   = 6,  /**< Tiled field MB raster map type (CODA9 only) */
-    TILED_FRAME_NO_BANK_MAP                     = 7,  /**< Tiled frame no bank map. (CODA9 only) */ // coda980 only 
-    TILED_FIELD_NO_BANK_MAP                     = 8,  /**< Tiled field no bank map. (CODA9 only) */ // coda980 only  
-    LINEAR_FIELD_MAP                            = 9,  /**< Linear field map type. (CODA9 only) */ // coda980 only 
-    CODA_TILED_MAP_TYPE_MAX                     = 10,  
-    COMPRESSED_FRAME_MAP                        = 10, /**< Compressed frame map type (VPU only) */ // VPU4 only
+    TILED_FRAME_V_MAP                           = 1,  /**< Tiled frame vertical map type (no used) */
+    TILED_FRAME_H_MAP                           = 2,  /**< Tiled frame horizontal map type (no used) */
+    TILED_FIELD_V_MAP                           = 3,  /**< Tiled field vertical map type (no used) */
+    TILED_MIXED_V_MAP                           = 4,  /**< Tiled mixed vertical map type (no used) */
+    TILED_FRAME_MB_RASTER_MAP                   = 5,  /**< Tiled frame MB raster map type (no used) */
+    TILED_FIELD_MB_RASTER_MAP                   = 6,  /**< Tiled field MB raster map type (no used) */
+    TILED_FRAME_NO_BANK_MAP                     = 7,  /**< Tiled frame no bank map. (no used) */
+    TILED_FIELD_NO_BANK_MAP                     = 8,  /**< Tiled field no bank map. (no used) */
+    LINEAR_FIELD_MAP                            = 9,  /**< Linear field map type. (no used) */
+    OLD_TILED_MAP_TYPE_MAX                      = 10,
+    COMPRESSED_FRAME_MAP                        = 10, /**< Compressed frame map type (VPU only) */
     ARM_COMPRESSED_FRAME_MAP                    = 11, /**< AFBC(ARM Frame Buffer Compression) compressed frame map type */ // AFBC enabled VPU decoder
-    COMPRESSED_FRAME_MAP_V50_LOSSLESS_8BIT      = 12, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
-    COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT     = 13, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
-    COMPRESSED_FRAME_MAP_V50_LOSSY              = 14, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSLESS_8BIT      = 12, /**< CFRAME50(VP5 Frame Buffer Compression) compressed framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT     = 13, /**< CFRAME50(VP5 Frame Buffer Compression) compressed framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSY              = 14, /**< CFRAME50(VP5 Frame Buffer Compression) compressed framebuffer type */
     COMPRESSED_FRAME_MAP_SVAC_SVC_BL            = 15, /**< Linear frame map type for base layer in SVAC encoder */
-    COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_8BIT  = 16, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed 4:2:2 framebuffer type */
-    COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_10BIT = 17, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed 4:2:2 framebuffer type */
-    COMPRESSED_FRAME_MAP_V50_LOSSY_422          = 18, /**< CFRAME50(Chips&Media Frame Buffer Compression) compressed 4:2:2 framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_8BIT  = 16, /**< CFRAME50(VP5 Frame Buffer Compression) compressed 4:2:2 framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSLESS_422_10BIT = 17, /**< CFRAME50(VP5 Frame Buffer Compression) compressed 4:2:2 framebuffer type */
+    COMPRESSED_FRAME_MAP_V50_LOSSY_422          = 18, /**< CFRAME50(VP5 Frame Buffer Compression) compressed 4:2:2 framebuffer type */
     TILED_MAP_TYPE_MAX
 } TiledMapType;
 
@@ -1307,7 +1303,7 @@ typedef struct {
 } TiledMapConfig;
 
 /**
-* @brief    This is a data structure of DRAM information(CODA960 and BODA950 only) and CFRAME50 configuration(VP5 only)
+* @brief    This is a data structure of DRAM information(960 and 950 only) and CFRAME50 configuration(VP5 only)
 VPUAPI sets default values for this structure. 
 However, HOST application can configure if the default values are not associated with their DRAM
     or desirable to change. 
@@ -1317,8 +1313,8 @@ typedef struct {
     int casBit;     /**< This value is used for width of CAS bit. (9 on the CNM FPGA platform) */
     int bankBit;    /**< This value is used for width of BANK bit. (2 on the CNM FPGA platform) */
     int busBit;     /**< This value is used for width of system BUS bit. (3 on CNM FPGA platform) */  
-    int tx16y;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (VP5 only) */
-    int tx16c;      /**< This value is used for CFRAME50(Chips&Media Frame Buffer Compression) (VP5 only) */
+    int tx16y;      /**< This value is used for CFRAME50(Frame Buffer Compression) (VP5 only) */
+    int tx16c;      /**< This value is used for CFRAME50(Frame Buffer Compression) (VP5 only) */
 } DRAMConfig;
 
 /**
@@ -1338,12 +1334,12 @@ bufYBot, bufCbBot and bufCrBot should be set separately.
 @endverbatim
 */
 typedef struct {
-    PhysicalAddress bufY;       /**< It indicates the base address for Y component in the physical address space when linear map is used. It is the RAS base address for Y component when tiled map is used (CODA9). It is also compressed Y buffer or ARM compressed framebuffer (VPU). */
-    PhysicalAddress bufCb;      /**< It indicates the base address for Cb component in the physical address space when linear map is used. It is the RAS base address for Cb component when tiled map is used (CODA9). It is also compressed CbCr buffer (VPU) */
-    PhysicalAddress bufCr;      /**< It indicates the base address for Cr component in the physical address space when linear map is used. It is the RAS base address for Cr component when tiled map is used (CODA9). */
-    PhysicalAddress bufYBot;    /**< It indicates the base address for Y bottom field component in the physical address space when linear map is used. It is the RAS base address for Y bottom field component when tiled map is used (CODA980 only). */ // coda980 only
-    PhysicalAddress bufCbBot;   /**< It indicates the base address for Cb bottom field component in the physical address space when linear map is used. It is the RAS base address for Cb bottom field component when tiled map is used (CODA980 only). */ // coda980 only
-    PhysicalAddress bufCrBot;   /**< It indicates the base address for Cr bottom field component in the physical address space when linear map is used. It is the RAS base address for Cr bottom field component when tiled map is used (CODA980 only). */ // coda980 only 
+    PhysicalAddress bufY;       /**< It indicates the base address for Y component in the physical address space when linear map is used. It is the RAS base address for Y component when tiled map is used (Non VP9). It is also compressed Y buffer or ARM compressed framebuffer (VPU). */
+    PhysicalAddress bufCb;      /**< It indicates the base address for Cb component in the physical address space when linear map is used. It is the RAS base address for Cb component when tiled map is used (Non VP9). It is also compressed CbCr buffer (VPU) */
+    PhysicalAddress bufCr;      /**< It indicates the base address for Cr component in the physical address space when linear map is used. It is the RAS base address for Cr component when tiled map is used (Non VP9). */
+    PhysicalAddress bufYBot;    /**< It indicates the base address for Y bottom field component in the physical address space when linear map is used. It is the RAS base address for Y bottom field component when tiled map is used (Non VP only). */
+    PhysicalAddress bufCbBot;   /**< It indicates the base address for Cb bottom field component in the physical address space when linear map is used. It is the RAS base address for Cb bottom field component when tiled map is used (Non VP only). */
+    PhysicalAddress bufCrBot;   /**< It indicates the base address for Cr bottom field component in the physical address space when linear map is used. It is the RAS base address for Cr bottom field component when tiled map is used (Non VP only). */
 /** 
 @verbatim
 It specifies a chroma interleave mode of frame buffer.
@@ -1387,7 +1383,7 @@ NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU 
     FrameBufferFormat   format;     /**< A YUV format of frame buffer */
 /**
 @verbatim
-It enables source frame data with long burst length to be loaded for reducing DMA latency (CODA9 encoder only).
+It enables source frame data with long burst length to be loaded for reducing DMA latency (Non VP9 encoder only).
 
 @* 0 : disable the long-burst mode.
 @* 1 : enable the long-burst mode.
@@ -1498,7 +1494,7 @@ ________________________________________________________________________________
 typedef struct {
 /**
 @verbatim
-This enables low delay decoding. (CODA980 H.264/AVC decoder only)
+This enables low delay decoding. (Non VP980 H.264/AVC decoder only)
 
 If this flag is 1, VPU sends an interrupt to HOST application when numRows decoding is done.
 
@@ -1532,7 +1528,7 @@ typedef struct {
             int useDbkCEnable;  /**<  This enables AXI secondary channel for temporal chrominance data of the de-blocking filter.  */ 
             int useOvlEnable;   /**<   This enables AXI secondary channel for temporal data of the the overlap filter (VC1 only). */
             int useBtpEnable;   /**<  This enables AXI secondary channel for bit-plane data of the BIT-processor (VC1 only).  */
-        } coda9;
+        } cod;
         struct {
             // for Decoder
             int useBitEnable;   /**<  This enables AXI secondary channel for prediction data of the BIT-processor. */
@@ -1549,7 +1545,7 @@ typedef struct {
 
 // For MaverickCache1
 /**
-* @brief    This is a data structure for representing cache rectangle area for each component of MC reference frame. (CODA9 only)
+* @brief    This is a data structure for representing cache rectangle area for each component of MC reference frame. (Non VP9 only)
 */
 typedef struct {
     unsigned BufferSize     : 8; /**< This is the cache buffer size for each component and can be set with 0 to 255. The unit of this value is fixed with 256byte. */
@@ -1561,7 +1557,7 @@ typedef struct {
 } CacheSizeCfg;
 
 /**
-* @brief    This is a data structure for cache configuration. (CODA9 only)
+* @brief    This is a data structure for cache configuration. (Non VP9 only)
 */
 typedef struct {
     struct {
@@ -1833,7 +1829,7 @@ NOTE: This variable is only valid when decoding MPEG4 stream.
     int             tiled2LinearEnable; /**< It enables a tiled to linear map conversion feature for display. */
 /**
 @verbatim    
-It specifies which picture type is converted to. (CODA980 only)
+It specifies which picture type is converted to. (980 only)
 
 @* 1 : conversion to linear frame map (when FrameFlag enum is FF_FRAME)
 @* 2 : conversion to linear field map (when FrameFlag enum is FF_FIELD)
@@ -1852,7 +1848,7 @@ Therefore, HOST application should allocate one more frame buffer for saving bot
     int             wtlEnable;  
 /**
 @verbatim     
-It specifies whether VPU writes in frame linear map or in field linear map when WTL is enabled. (CODA980 only)
+It specifies whether VPU writes in frame linear map or in field linear map when WTL is enabled. (Non VP980 only)
 
 @* 1 : write decoded frames in frame linear map (when FrameFlag enum is FF_FRAME)
 @* 2 : write decoded frames in field linear map (when FrameFlag enum is FF_FIELD)
@@ -1889,7 +1885,7 @@ CbCr order in planar mode (YV12 format)
     int             cbcrOrder; 
 /**
 @verbatim    
-It writes output with 8 burst in linear map mode. (CODA9 only)
+It writes output with 8 burst in linear map mode. (Non VP9 only)
 
 @* 0 : burst write back is disabled
 @* 1 : burst write back is enabled.
@@ -2224,7 +2220,7 @@ Note that when decoder meets EOS (End Of Sequence) code during I-Search, decoder
 returns -1 (0xFFFF). And if this option is enabled,
 skipframeMode options are ignored.
 
-NOTE: CODA9 only supports it.
+NOTE: Non VP9 only supports it.
 @endverbatim
 */
     Int32 iframeSearchEnable;           
@@ -2232,7 +2228,7 @@ NOTE: CODA9 only supports it.
 @verbatim
 Skip frame function enable and operation mode
 
-In case of CODA9,
+In case of Non VP9,
 
 @* 0 : skip frame disable
 @* 1 : skip frames except I (IDR) frames
@@ -2702,12 +2698,12 @@ For H.265/HEVC decoder, each bit has a different meaning as follows.
 @endverbatim
 */
     int sequenceChanged;     
-    // CODA9: [0]   1 - sequence changed
+    // Non VP9: [0]   1 - sequence changed
     // VPUX: [5]   1 - H.265 profile changed
     //        [16]  1 - resolution changed
     //        [19]  1 - number of DPB changed
 
-    int streamEndFlag;  /**< This variable reports the status of `end of stream` flag. This information can be used for low delay decoding (CODA980 only). */
+    int streamEndFlag;  /**< This variable reports the status of `end of stream` flag. This information can be used for low delay decoding (980 only). */
     int frameCycle;     /**< This variable reports the cycle number of decoding one frame. */
     int errorReason;    /**< This variable reports the error reason that occurs while decoding. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. */
     Uint32 errorReasonExt; /**< This variable reports the specific reason of error. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. (VPU only) */
@@ -2807,7 +2803,7 @@ NOTE: This type is vaild for encoder only.
 typedef EncInst * EncHandle;
 
 /**
-* @brief    This is a data structure for configuring MPEG4-specific parameters in encoder applications. (CODA9 encoder only)
+* @brief    This is a data structure for configuring MPEG4-specific parameters in encoder applications. (Non VP9 encoder only)
 */
 typedef struct {
     int mp4DataPartitionEnable;  /**< It encodes with MPEG4 data_partitioned coding tool.   */
@@ -2818,7 +2814,7 @@ typedef struct {
 } EncMp4Param; 
 
 /**
-* @brief    This is a data structure for configuring H.263-specific parameters in encoder applications. (CODA9 encoder only)
+* @brief    This is a data structure for configuring H.263-specific parameters in encoder applications. (Non VP9 encoder only)
 */
 typedef struct {
     int h263AnnexIEnable;  /**< It encodes with H.263 Annex I - Advanced INTRA Coding mode. */
@@ -2868,7 +2864,7 @@ image::../figure/vp520_ctumap.svg["Format of custom Map", width=300]
 @endverbatim
 */
     PhysicalAddress addrCustomMap; 
-} WaveCustomMapOpt;
+} VpCustomMapOpt;
 
 /**
 * @brief    This is a data structure for H.265/HEVC encoder parameters.
@@ -3005,7 +3001,7 @@ It enables CU(Coding Unit) size to be used in encoding process. Host application
 */
     int cuSizeMode;                   
     int tmvpEnable;                     /**< It enables temporal motion vector prediction. */
-    int wppEnable;                      /**< It enables WPP (Wave-front Parallel Processing). WPP is unsupported in ring buffer mode of bitstream buffer. */
+    int wppEnable;                      /**< It enables WPP (Vp-front Parallel Processing). WPP is unsupported in ring buffer mode of bitstream buffer. */
     int maxNumMerge;                    /**< It specifies the number of merge candidates in RDO (1 or 2). 2 of maxNumMerge (default) offers better quality of encoded picture, while 1 of maxNumMerge improves encoding performance.  */
     int disableDeblk;                   /**< It disables in-loop deblocking filtering. */
     int lfCrossSliceBoundaryEnable;     /**< It enables filtering across slice boundaries for in-loop deblocking. */
@@ -3189,7 +3185,7 @@ It selects the entropy coding mode used in encoding process.
 
     int s2fmeDisable;               /**< It disables s2me_fme (only for AVC encoder). */
 
-}EncWaveParam;
+}EncVpParam;
 
 /**
 * @brief This is an enumeration of SVC layer types. (VP525 encoder only)
@@ -3469,7 +3465,7 @@ If this is 1, VPU generates frame_cropping_flag syntax in the SPS header.
 } EncAvcParam;
 
 /**
-* @brief    This structure is used for declaring an encoder slice mode and its options. It is newly added for more flexible usage of slice mode control in encoder. (CODA9 only)
+* @brief    This structure is used for declaring an encoder slice mode and its options. It is newly added for more flexible usage of slice mode control in encoder. (Non VP9 only)
 */
 typedef struct{
 /**
@@ -3528,7 +3524,7 @@ frame-based streaming with line buffer (buffer-flush mode).
     int             picHeight;          /**< The height of a picture to be encoded in unit of sample. */
 /**
 @verbatim
-It is a linear-to-tiled enable mode.  (CODA9 only)
+It is a linear-to-tiled enable mode.  (Non VP9 only)
 The source frame can be converted from linear format to tiled format in PrP (Pre-Processing) block.
 
 @* 0 : disable linear-to-tiled-map conversion
@@ -3538,7 +3534,7 @@ The source frame can be converted from linear format to tiled format in PrP (Pre
     int             linear2TiledEnable;
 /**
 @verbatim
-It can specify the map type of source frame buffer when linear2TiledEnable is enabled. (CODA980 only)
+It can specify the map type of source frame buffer when linear2TiledEnable is enabled. (980 only)
         
 @* 1 : source frame buffer is in linear frame map.
 @* 2 : source frame buffer is in linear field map.
@@ -3562,7 +3558,7 @@ value 0x3e87530 represents 29.97 frames/sec.
     int             frameRateInfo;
 /**
 @verbatim
-The horizontal search range for Motion Estimation (CODA980 only)
+The horizontal search range for Motion Estimation (980 only)
 
 @* 0 : horizontal search range (-64 ~ 63)
 @* 1 : horizontal search range (-48 ~ 47)
@@ -3573,7 +3569,7 @@ The horizontal search range for Motion Estimation (CODA980 only)
     int             MESearchRangeX;
 /**
 @verbatim
-The vertical search range for Motion Estimation (CODA980 only)
+The vertical search range for Motion Estimation (980 only)
 
 @* 0 : vertical search range (-48 ~ 47)
 @* 1 : vertical search range(-32 ~ 31)
@@ -3583,7 +3579,7 @@ The vertical search range for Motion Estimation (CODA980 only)
     int             MESearchRangeY;
 /**
 @verbatim
-An enable flag for initial QP offset for I picture in GOP. (CODA980 only)
+An enable flag for initial QP offset for I picture in GOP. (980 only)
 
 @* 0 : disable (default)
 @* 1 : enable
@@ -3594,7 +3590,7 @@ This value is valid for H.264/AVC encoder and ignored when RcEnable is 0.
     int             rcGopIQpOffsetEn;
 /**
 @verbatim
-An initial QP offset for I picture in GOP (CODA980 only)
+An initial QP offset for I picture in GOP (980 only)
 
 rcGopIQpOffset (-4 to 4) is added to an I picture QP value. 
 This value is valid for H.264/AVC encoder and ignored when RcEnable is 0 or RcGopIQpOffsetEn is 0.
@@ -3603,7 +3599,7 @@ This value is valid for H.264/AVC encoder and ignored when RcEnable is 0 or RcGo
     int             rcGopIQpOffset;
 /**
 @verbatim
-The search range for Motion Estimation (CODA960 only)
+The search range for Motion Estimation (960 only)
 
 @* 0 : horizontal(-128 ~ 127) and vertical(-64 ~ 63)
 @* 1 : horizontal(-64 ~ 63) and vertical(-32 ~ 31)
@@ -3624,7 +3620,7 @@ The value 0 means that encoder does not check reference decoder buffer size cons
 /**
 @verbatim
 Frame skip indicates that encoder can skip frame encoding automatically when 
-bitstream has been generated much so far considering the given target bitrate. (CODA9 only) 
+bitstream has been generated much so far considering the given target bitrate. (Non VP9 only) 
 This parameter is ignored if rate control is disabled.
 
 @* 0 : enable frame skip function. 
@@ -3635,7 +3631,7 @@ This parameter is ignored if rate control is disabled.
 
 /**
 @verbatim
-This variable defines the interval of I picture. (CODA9 only)
+This variable defines the interval of I picture. (Non VP9 only)
 
 @* 0 : only first I picture
 @* 1 : all I pictures
@@ -3648,7 +3644,7 @@ chosen by HOST application for error resilience.
 */
     int             gopSize;
 /**
-An interval of adding an IDR picture (CODA9 only)
+An interval of adding an IDR picture (Non VP9 only)
 */
     int idrInterval;
 /**
@@ -3667,7 +3663,7 @@ HOST can use some combination (bitwise or-ing) of each value under below.
     EncSliceMode    sliceMode;      /**< <<vpuapi_h_EncSliceMode>> */
 /**
 @verbatim
-The number of intra MB to be inserted in picture (CODA9 only)
+The number of intra MB to be inserted in picture (Non VP9 only)
 
 @* 0 : intra MB refresh is not used.
 @* Other value : intraRefreshNum of MBs are encoded as intra MBs in every P frame.
@@ -3677,7 +3673,7 @@ The number of intra MB to be inserted in picture (CODA9 only)
     int             intraRefreshNum;
 /**
 @verbatim
-Consecutive intra MB refresh mode (CODA9 only)
+Consecutive intra MB refresh mode (Non VP9 only)
 
 This option is valid only when IntraMbRefresh-Num[15:0] is not 0.
 
@@ -3706,7 +3702,7 @@ In H.264 mode, allowed maximum value is 51.
 
 /**
 @verbatim
-The PMV option for Motion Estimation. (CODA9 only)
+The PMV option for Motion Estimation. (Non VP9 only)
 If this field is 1, encoding quality can be worse than when it is 0.
 
 @* 0 : Motion Estimation engine uses PMV that was derived from neighbor MV.
@@ -3716,7 +3712,7 @@ If this field is 1, encoding quality can be worse than when it is 0.
     int             MEUseZeroPmv;       
 /**
 @verbatim
-Additional weight of intra cost for mode decision to reduce intra MB density (CODA9 only)
+Additional weight of intra cost for mode decision to reduce intra MB density (Non VP9 only)
 
 By default, it could be zero.
 If this variable have some value W,
@@ -3732,7 +3728,7 @@ the Final Intra Cost have additional weight. Then the mode decision logic is lik
     int             intraCostWeight;    
 /**
 @verbatim
-The quantization parameter for I frame (CODA9 only)
+The quantization parameter for I frame (Non VP9 only)
 
 When this value is -1, the quantization
 parameter for I frame is automatically determined by VPU. 
@@ -3743,7 +3739,7 @@ parameter for I frame is automatically determined by VPU.
 /**
 @verbatim
 A gamma is a smoothing factor in motion estimation. A value for gamma is
-factor * 32768, the factor value is selected from the range 0 &le; factor &le; 1. (CODA9 only)
+factor * 32768, the factor value is selected from the range 0 &le; factor &le; 1. (Non VP9 only)
 
 @* If the factor value is close to 0, QP changes slowly.
 @* If the factor value is close to 1, QP changes quickly.
@@ -3754,7 +3750,7 @@ The default gamma value is 0.75 * 32768
     int             userGamma;
 /**
 @verbatim
-Encoder rate control mode setting (CODA9 only)
+Encoder rate control mode setting (Non VP9 only)
 
 @* 0 : normal mode rate control - QP changes for every MB
 @* 1 : FRAME_LEVEL rate control - QP changes for every frame
@@ -3765,7 +3761,7 @@ Encoder rate control mode setting (CODA9 only)
     int             rcIntervalMode;     
 /**
 @verbatim
-The user defined MB interval value (CODA9 only)
+The user defined MB interval value (Non VP9 only)
 
 This value is used only when rcIntervalMode is 3.
 @endverbatim
@@ -3773,7 +3769,7 @@ This value is used only when rcIntervalMode is 3.
     int             mbInterval;         
 /**
 @verbatim
-Target bit rate in kbps (CODA9 only)
+Target bit rate in kbps (Non VP9 only)
 
 If it is 0, there is no rate control. 
 @endverbatim
@@ -3782,7 +3778,7 @@ If it is 0, there is no rate control.
     int             bitRateBL;
 /**
 @verbatim
-Time delay in mili-seconds (CODA9 only)
+Time delay in mili-seconds (Non VP9 only)
 
 It is the amount of time in ms taken for bitstream to reach initial occupancy of the vbv buffer from zero level. 
 
@@ -3798,7 +3794,7 @@ decoder buffer delay constraints.
 @** 0 : rate control is off.
 @** 1 : rate control is on. 
 
-@* CODA9
+@* Non VP9
 @** 0 : constant QP (VBR, rate control off)
 @** 1 : constant bitrate (CBR)
 @** 2 : average bitrate (ABR)
@@ -3811,13 +3807,13 @@ decoder buffer delay constraints.
         EncMp4Param     mp4Param;       /**< <<vpuapi_h_EncMp4Param>>  */
         EncH263Param    h263Param;      /**< <<vpuapi_h_EncH263Param>> */
         EncAvcParam     avcParam;       /**< <<vpuapi_h_EncAvcParam>> */
-        EncWaveParam    vpParam;      /**< <<vpuapi_h_EncVpParam>> */
+        EncVpParam    vpParam;      /**< <<vpuapi_h_EncVpParam>> */
     } EncStdParam;
 
     // Maverick-II Cache Configuration
 /**
 @verbatim
-Cache MC bypass (CODA9 only)
+Cache MC bypass (Non VP9 only)
 
 @* 0 : MC uses a cache.
 @* 1 : MC does not use a cache.
@@ -3884,7 +3880,7 @@ NOTE: For setting specific values of 128 bit endiness, please refer to the 'VPU 
     int             sourceEndian;
 /**
 @verbatim    
-It writes output with 8 burst in linear map mode. (CODA9 only)
+It writes output with 8 burst in linear map mode. (Non VP9 only)
 
 @* 0 : burst write back is disabled
 @* 1 : burst write back is enabled.
@@ -4027,7 +4023,7 @@ initial state. In MPEG4 and H.263 case, I-picture is sufficient for decoder
 refresh. In H.264/AVC case, the picture is encoded as an IDR (Instantaneous
 Decoding Refresh) picture.
 
-This value is ignored if skipPicture is 1. (CODA9 only)
+This value is ignored if skipPicture is 1. (Non VP9 only)
 @endverbatim
 */
     int             forceIPicture;
@@ -4042,7 +4038,7 @@ the GOP size.
 @endverbatim
 */
     int             skipPicture;
-    int             quantParam;         /**< This value is used for all quantization parameters in case of VBR - no rate control. (CODA9 only) */
+    int             quantParam;         /**< This value is used for all quantization parameters in case of VBR - no rate control. (Non VP9 only) */
 /**
 @verbatim
 The start address of picture stream buffer under line-buffer mode. 
@@ -4073,7 +4069,7 @@ packet-based streaming with ring-buffer, this variable is ignored.
 @* 0 : progressive (frame) encoding 
 @* 1 : interlaced (field) encoding  
 
-This is only for CODA9.
+This is only for Non VP9.
 @endverbatim
 */
     int             fieldRun;              
@@ -4094,15 +4090,15 @@ This is only for CODA9.
     Uint32  useLongtermRef;         /**< A flag to use a longterm reference picture in DPB when encoding the current picture (VPU only) */
     Uint32  pts;                    /**< The presentation Timestamp (PTS) of input source */
 
-    Uint32 coda9RoiEnable;          /**< A flag to use ROI (CODA9 only) */
-    Uint32 coda9RoiPicAvgQp;        /**< A average value of ROI QP for a picture (CODA9 only) */
-    PhysicalAddress roiQpMapAddr;   /**< The start address of ROI QP map (CODA9 only) */
+    Uint32 codRoiEnable;          /**< A flag to use ROI (Non VP9 only) */
+    Uint32 codRoiPicAvgQp;        /**< A average value of ROI QP for a picture (Non VP9 only) */
+    PhysicalAddress roiQpMapAddr;   /**< The start address of ROI QP map (Non VP9 only) */
     Uint32 nonRoiQp;                /**< A non-ROI QP for a picture */
 #ifdef ROI_MB_RC
-    EncSetROI setROI;               /**< This value sets ROI. If coda9RoiEnable is "0", ROI will not work and other member value of setROI will be ignored. (CODA9 Only)*/
+    EncSetROI setROI;               /**< This value sets ROI. If codRoiEnable is "0", ROI will not work and other member value of setROI will be ignored. (Non VP9 Only)*/
 #endif
     // belows are newly added for VP5 encoder
-    WaveCustomMapOpt customMapOpt;  /**< <<vpuapi_h_WaveCustomMapOpt>> */
+    VpCustomMapOpt customMapOpt;  /**< <<vpuapi_h_VpCustomMapOpt>> */
     Uint32 wpPixSigmaY;  /**< Pixel variance of Y component for weighted prediction  */
     Uint32 wpPixSigmaCb; /**< Pixel variance of Cb component for weighted prediction  */
     Uint32 wpPixSigmaCr; /**< Pixel variance of Cr component for weighted prediction */
@@ -4232,8 +4228,8 @@ is a returned value from VPU after completing requested operation.
  typedef struct {
     PhysicalAddress buf;        /**< A physical address pointing the generated stream location  */
     size_t  size;               /**< The size of the generated stream in bytes */
-    Int32   headerType;         /**< This is a type of header that HOST wants to generate such as <<vpuapi_h_Mp4HeaderType>>, <<vpuapi_h_AvcHeaderType>> or <<vpuapi_h_WaveEncHeaderType>>.   */
-    BOOL    zeroPaddingEnable;  /**< It enables header to be padded at the end with zero for byte alignment. (CODA9 only) */
+    Int32   headerType;         /**< This is a type of header that HOST wants to generate such as <<vpuapi_h_Mp4HeaderType>>, <<vpuapi_h_AvcHeaderType>> or <<vpuapi_h_VpEncHeaderType>>.   */
+    BOOL    zeroPaddingEnable;  /**< It enables header to be padded at the end with zero for byte alignment. (Non VP9 only) */
 } EncHeaderParam;            
 
 /**
@@ -4265,7 +4261,7 @@ typedef enum {
     CODEOPT_ENC_VPS             = (1 << 2), /**< A flag to encode VPS nal unit explicitly */
     CODEOPT_ENC_SPS             = (1 << 3), /**< A flag to encode SPS nal unit explicitly */
     CODEOPT_ENC_PPS             = (1 << 4), /**< A flag to encode PPS nal unit explicitly */
-} WaveEncHeaderType;
+} VpEncHeaderType;
 
 /**
  * @brief   This is a special enumeration type for NAL unit coding options
@@ -4373,7 +4369,7 @@ RetCode VPU_DeInit(
 * @brief 
 @verbatim
 This function waits for interrupts to be issued from VPU during the given timeout period. VPU sends an interrupt when 
-it completes a command or meets an exceptional case. (CODA9 only)   
+it completes a command or meets an exceptional case. (Non VP9 only)   
 
 The behavior of this function depends on VDI layer\'s implementation.
 Timeout may not work according to implementation of VDI layer. 
@@ -4599,7 +4595,7 @@ int VPU_GetFrameBufSize(
     int         mapType,    /**< [Input] The map type of framebuffer */
     int         format,     /**< [Input] The color format of framebuffer */
     int         interleave, /**< [Input] Whether to use CBCR interleave mode or not */
-    DRAMConfig* pDramCfg    /**< [Input] Attributes of DRAM. It is only valid for CODA960. Set NULL for this variable in case of other products. */
+    DRAMConfig* pDramCfg    /**< [Input] Attributes of DRAM. It is only valid for 960. Set NULL for this variable in case of other products. */
     );
 	
 
@@ -5315,7 +5311,7 @@ It can be used to do random access (like skip picture) or to continue seamless d
 after change of sequence. 
 
 NOTE: In VPU, this function returns all of the decoded framebuffer contexts that remain. 
-     pRetNum always has 0 in CODA9.
+     pRetNum always has 0 in Non VP9.
 @endverbatim
 *
 * @return
@@ -5452,7 +5448,7 @@ RetCode VPU_EncClose(
 /**
 * @brief    This function sets sequence information including source width and height 
  and many other parameters such as coding tools, GOP preset, rate control, etc. 
-It also returns the required parameters such as minFrameBufferCount. (CODA9 only)
+It also returns the required parameters such as minFrameBufferCount. (Non VP9 only)
 * @return
 @verbatim
 *RETCODE_SUCCESS* ::
@@ -5717,7 +5713,7 @@ frame was initiated.
 Every call of this function should be matched with VPU_EncGetOutputInfo()
 with the same handle. In other words, HOST application should call VPU_EncGetOutputInfo() once to get the result of VPU_EncStartOneFrame() call.
 
-For CODA9, without "sequential" calling a pair of VPU_EncStartOneFrame() and VPU_EncGetOutputInfo(), 
+For Non VP9, without "sequential" calling a pair of VPU_EncStartOneFrame() and VPU_EncGetOutputInfo(), 
 HOST application cannot call any other API functions except VPU_EncGetBitstreamBuffer(), and VPU_EncUpdateBitstreamBuffer(). 
 @endverbatim
 * @return
@@ -5945,16 +5941,7 @@ RetCode VPU_EncSetWrPtr(
     EncHandle handle,       /**< [Input] An encoder handle obtained from VPU_EncOpen()  */
     PhysicalAddress addr,   /**< [Input] Updated write pointer */
     int updateRdPtr         /**< [Input] A flag whether to move the read pointer to where the write pointer is located */
-    );    
-
-/** 
-Not used
-*/  
-void VPU_EncSetHostParaAddr(
-    PhysicalAddress baseAddr,
-    PhysicalAddress paraAddr
     );
-
 
 
 #ifdef __cplusplus

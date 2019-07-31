@@ -52,11 +52,6 @@
 #include "debug.h"
 #include "vpuapifunc.h"
 
-#ifdef MAKEANDROID
-#define LOGAPI ALOGE
-#else
-#define LOGAPI  // printf
-#endif
 #define SUPPORT_SCALE 0
 
 static bool INIT_GE2D = false;
@@ -76,6 +71,7 @@ static bool INIT_GE2D = false;
 #define vp_align64(a)     ((((a)+63)>>6)<<6)
 #define vp_align128(a)    ((((a)+127)>>7)<<7)
 #define vp_align256(a)    ((((a)+255)>>8)<<8)
+
 typedef struct
 {
     Uint8 s4[SL_NUM_MATRIX][16]; // [INTRA_Y/U/V,INTER_Y/U/V][NUM_COEFF]
@@ -269,12 +265,10 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
   if (!aligned) {
     for (i = 0; i < height; i++) {
       vdi_write_memory(coreIdx, dst, (Uint8 *)src, width, endian);
-//      memcpy((void *)dst, (void *)src, width);
       dst += stride;
       src += width;
     }
   } else {
-//    memcpy(dst, (void *)src, stride * height);
      vdi_write_memory(coreIdx, dst, (Uint8 *)src, stride * height, endian);
   }
 }
@@ -282,7 +276,7 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
 BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 {
     int i;
-  EncWaveParam *param = &pEncOP->EncStdParam.vpParam;
+  EncVpParam *param = &pEncOP->EncStdParam.vpParam;
   /*basic settings */
   if (InitParam->stream_type == AMV_AVC)
     pEncOP->bitstreamFormat = STD_AVC;
@@ -1110,17 +1104,9 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
             }
         }
   }
-  if (ctx->fmt == AMVENC_NV12) {
-    //uv_swap = 0;
-  }
+
   VLOG(INFO, "fmt %d , is dma %d \n", ctx->fmt, is_DMA_buffer);
-#if 0
-  if (ctx->bitrate != input->bitrate) { // change bitrate
-    ctx->bitrate = input->bitrate;
-    VLOG(INFO, "Change set bitrate to %d", Handle->bitrate);
-    Wave4VpuEncSeqInit(Handle, 0);
-  }
-#endif
+
   if (is_DMA_buffer) {
     src_stride = vp_align16(ctx->enc_width);
   } else {
@@ -1218,16 +1204,14 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
       y_dst = (char *) ctx->pFbSrcMem[idx].virt_addr;
 
-  //for (idx_1 = 0; idx_1 < size_src_luma; idx_1++)  *(y_dst + idx_1) = 0;
-  //for (idx_1 = 0; idx_1 < size_src_chroma; idx_1++)  *(y_dst + size_src_luma + idx_1) = 0x80;
-//memset(y_dst, 0x0, size_src_luma);
-//memset(y_dst + size_src_luma, 0x80, size_src_chroma);
+    //for (idx_1 = 0; idx_1 < size_src_luma; idx_1++)  *(y_dst + idx_1) = 0;
+    //for (idx_1 = 0; idx_1 < size_src_chroma; idx_1++)  *(y_dst + size_src_luma + idx_1) = 0x80;
+    //memset(y_dst, 0x0, size_src_luma);
+    //memset(y_dst + size_src_luma, 0x80, size_src_chroma);
 
       src = (char *) input->YCbCr[0];
       VLOG(INFO, "idx %d luma %d src %p dst %p  width %d, height %d \n", idx, size_src_luma, src, y_dst, ctx->enc_width, ctx->enc_height);
 
-//  vdi_write_memory(ctx->encOpenParam.coreIdx, ctx->pFbSrcMem[idx].phys_addr, src, ctx->enc_width*ctx->enc_height, 0);
-// VLOG(ERR, "aeeeeeeaaaa, idx %d u_dst %d src %p src %p \n", idx, size_src_luma, input->YCbCr[1], input->YCbCr[2]);
       yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufY, src,
                               ctx->enc_width, ctx->enc_height, luma_stride, width32alinged, endian);
 

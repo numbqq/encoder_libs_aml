@@ -234,8 +234,6 @@ int main(int argc, char **argv)
 
 #if LOAD_FW
     switch (testConfig.productId) {
-    case PRODUCT_ID_520:    fwPath = CORE_4_BIT_CODE_FILE_PATH; break;
-    case PRODUCT_ID_525:    fwPath = CORE_4_BIT_CODE_FILE_PATH; break;
     case PRODUCT_ID_521:    fwPath = CORE_6_BIT_CODE_FILE_PATH; break;
     default:
         VLOG(ERR, "Unknown product id: %d\n", testConfig.productId);

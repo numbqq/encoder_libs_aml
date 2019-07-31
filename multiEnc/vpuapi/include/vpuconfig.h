@@ -20,11 +20,6 @@
 #define ENC_STREAM_BUF_SIZE  0xF00000
 #define ENC_STREAM_BUF_COUNT 4
 
-
-#define BODA950_CODE                    0x9500
-#define CODA960_CODE                    0x9600
-#define CODA980_CODE                    0x9800
-
 #define VP512_CODE                    0x5120
 #define VP520_CODE                    0x5200
 #define VP515_CODE                    0x5150
@@ -34,8 +29,7 @@
 #define VP521_CODE                    0x5210
 #define VP521C_CODE                   0x521c
 
-#define PRODUCT_CODE_W_SERIES(x) (x == VP512_CODE || x == VP520_CODE || x == VP515_CODE || x == VP525_CODE || x == VP511_CODE || x == VP521_CODE || x == VP521C_CODE)
-#define PRODUCT_CODE_NOT_W_SERIES(x) (x == BODA950_CODE || x == CODA960_CODE || x == CODA980_CODE)
+#define PRODUCT_CODE_VP(x) (x == VP512_CODE || x == VP520_CODE || x == VP515_CODE || x == VP525_CODE || x == VP511_CODE || x == VP521_CODE || x == VP521C_CODE)
 
 #define VP5_MAX_CODE_BUF_SIZE             (1024*1024)
 #define VP520ENC_WORKBUF_SIZE             (128*1024)
@@ -62,13 +56,10 @@
 #define MIN_ENC_PIC_HEIGHT              16
 
 // for VPU420
-#define W4_MIN_ENC_PIC_WIDTH            256
-#define W4_MIN_ENC_PIC_HEIGHT           128
-#define W4_MAX_ENC_PIC_WIDTH            8192
-#define W4_MAX_ENC_PIC_HEIGHT           8192
-
-#define MAX_DEC_PIC_WIDTH               4096
-#define MAX_DEC_PIC_HEIGHT              2304
+#define VP_MIN_ENC_PIC_WIDTH            256
+#define VP_MIN_ENC_PIC_HEIGHT           128
+#define VP_MAX_ENC_PIC_WIDTH            8192
+#define VP_MAX_ENC_PIC_HEIGHT           8192
 
 #define MAX_CTU_NUM                     0x4000      // CTU num for max resolution = 8192x8192/(64x64)
 #define MAX_SUB_CTU_NUM	                (MAX_CTU_NUM*4)

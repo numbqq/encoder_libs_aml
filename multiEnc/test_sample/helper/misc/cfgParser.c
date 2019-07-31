@@ -12,11 +12,11 @@
 
 #include <string.h>
 
-const WaveCfgInfo vpCfgInfo[MAX_CFG] = {
+const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     //name                          min            max              default
     {"InputFile",                   0,              0,                      0}, //0
-    {"SourceWidth",                 0,              W4_MAX_ENC_PIC_WIDTH,   0},
-    {"SourceHeight",                0,              W4_MAX_ENC_PIC_WIDTH,   0},
+    {"SourceWidth",                 0,              VP_MAX_ENC_PIC_WIDTH,   0},
+    {"SourceHeight",                0,              VP_MAX_ENC_PIC_WIDTH,   0},
     {"InputBitDepth",               8,              10,                     8},
     {"FrameRate",                   0,              240,                    0},
     {"FrameSkip",                   0,              INT_MAX,                0},
@@ -44,7 +44,7 @@ const WaveCfgInfo vpCfgInfo[MAX_CFG] = {
     {"LFCrossSliceBoundaryFlag",    0,              1,                      1},
     {"BetaOffsetDiv2",             -6,              6,                      0},
     {"TcOffsetDiv2",               -6,              6,                      0},
-    {"WaveFrontSynchro",            0,              1,                      0}, // 30
+    {"VpFrontSynchro",            0,              1,                      0}, // 30
     {"LosslessCoding",              0,              1,                      0},
     {"UsePresetEncTools",           0,              3,                      0},
     {"GopPreset",                   0,             16,                      0}, 
@@ -53,10 +53,10 @@ const WaveCfgInfo vpCfgInfo[MAX_CFG] = {
     {"InitialDelay",                10,             3000,                   0},
     {"EnHvsQp",                     0,              1,                      1},
     {"CULevelRateControl",          0,              1,                      1},
-    {"ConfWindSizeTop",             0,              W4_MAX_ENC_PIC_HEIGHT,  0},
-    {"ConfWindSizeBot",             0,              W4_MAX_ENC_PIC_HEIGHT,  0}, //40
-    {"ConfWindSizeRight",           0,              W4_MAX_ENC_PIC_WIDTH,   0},
-    {"ConfWindSizeLeft",            0,              W4_MAX_ENC_PIC_WIDTH,   0},
+    {"ConfWindSizeTop",             0,              VP_MAX_ENC_PIC_HEIGHT,  0},
+    {"ConfWindSizeBot",             0,              VP_MAX_ENC_PIC_HEIGHT,  0}, //40
+    {"ConfWindSizeRight",           0,              VP_MAX_ENC_PIC_WIDTH,   0},
+    {"ConfWindSizeLeft",            0,              VP_MAX_ENC_PIC_WIDTH,   0},
     {"HvsQpScaleDiv2",              0,              4,                      2},
     {"MinQp",                       0,              63,                     8},
     {"MaxQp",                       0,              63,                    51},
@@ -94,10 +94,10 @@ const WaveCfgInfo vpCfgInfo[MAX_CFG] = {
     {"InterNoiseWeightCr",          0,              31,                     4},
     {"UseAsLongTermRefPeriod",      0,              INT_MAX,                0},
     {"RefLongTermPeriod",           0,              INT_MAX,                0},
-    {"CropXPos",                    0,              W4_MAX_ENC_PIC_WIDTH,   0}, //80
-    {"CropYPos",                    0,              W4_MAX_ENC_PIC_HEIGHT,  0},
-    {"CropXSize",                   0,              W4_MAX_ENC_PIC_WIDTH,   0},
-    {"CropYSize",                   0,              W4_MAX_ENC_PIC_HEIGHT,  0},
+    {"CropXPos",                    0,              VP_MAX_ENC_PIC_WIDTH,   0}, //80
+    {"CropYPos",                    0,              VP_MAX_ENC_PIC_HEIGHT,  0},
+    {"CropXSize",                   0,              VP_MAX_ENC_PIC_WIDTH,   0},
+    {"CropYSize",                   0,              VP_MAX_ENC_PIC_HEIGHT,  0},
     {"BitstreamFile",               0,              0,                      0},
     {"EnCustomVpsHeader",           0,              1,                      0},
     {"EnCustomSpsHeader",           0,              1,                      0},
@@ -682,7 +682,7 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
         pEncCfg->Gamma = 0;
     else
         pEncCfg->Gamma = atoi(sValue);
-    /* CODA960 features */
+    /* 960 features */
     if (GetValue(fp, "RC_INTERVAL_MODE", sValue) == 0)
         pEncCfg->rcIntervalMode = 0;
     else
@@ -1002,7 +1002,7 @@ int parseRoiCtuModeParam(
     return 1;
 }
 
-int parseWaveEncCfgFile(
+int parseVpEncCfgFile(
     ENC_CFG *pEncCfg, 
     char *FileName,
     int bitFormat
@@ -1190,7 +1190,7 @@ int parseWaveEncCfgFile(
     else
         pEncCfg->vpCfg.tmvpEnable = iValue;
 
-    if (VP_GetValue(fp, "WaveFrontSynchro", &iValue) == 0)
+    if (VP_GetValue(fp, "VpFrontSynchro", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->vpCfg.wppenable = iValue;
@@ -1827,7 +1827,7 @@ __end_parse:
     return ret;
 }
 
-int parseWaveChangeParamCfgFile(
+int parseVpChangeParamCfgFile(
     ENC_CFG *pEncCfg, 
     char *FileName
     )

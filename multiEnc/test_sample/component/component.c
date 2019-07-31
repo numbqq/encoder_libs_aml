@@ -44,7 +44,6 @@ typedef struct ClockData {
 
 /* 
  * component_list.h is generated in the makefiles.
- * See Wave5xxDecV2.mak or Wave5xxEncV2.mak.
  */
 #include "component_list.h"
 

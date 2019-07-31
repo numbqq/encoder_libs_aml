@@ -53,15 +53,7 @@ typedef pthread_mutex_t	MUTEX_HANDLE;
 #define VDI_128BIT_BUS_SYSTEM_ENDIAN        VDI_128BIT_LITTLE_ENDIAN
 
 #define VPU_BIT_REG_SIZE                    (0x4000*MAX_NUM_VPU_CORE)
-#define VDI_CODA9_SRAM_SIZE                 0x34600     // FHD MAX size, 0x17D00  4K MAX size 0x34600
-#define VDI_VP511_SRAM_SIZE               0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
-                                                         *  8bit profile : 8Kx8K -> 114688, 4Kx2K -> 57344
-                                                         */
-#define VDI_VP520_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
-#define VDI_VP525_SRAM_SIZE               0x25000     // 8Kx8X MAIN10 MAX size
-#define VDI_VP521_SRAM_SIZE               0x20400     /* 10bit profile : 8Kx8K -> 132096, 4Kx2K -> 66560
-                                                         *  8bit profile : 8Kx8K ->  99328, 4Kx2K -> 51176
-                                                         */
+
 #define VDI_VP521C_SRAM_SIZE              0x23000     /* 10bit profile : 8Kx8K -> 143360, 4Kx2K -> 71680
                                                          *  8bit profile : 8Kx8K -> 114688, 4Kx2K -> 57344
                                                          * NOTE: Decoder > Encoder
@@ -1088,18 +1080,6 @@ int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb)
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
 
     switch (vdi->product_code) {
-    case BODA950_CODE:
-    case CODA960_CODE:
-    case CODA980_CODE:
-        sram_size = VDI_CODA9_SRAM_SIZE; break;
-    case VP511_CODE:
-        sram_size = VDI_VP511_SRAM_SIZE; break;
-    case VP520_CODE:
-        sram_size = VDI_VP520_SRAM_SIZE; break;
-    case VP525_CODE:
-        sram_size = VDI_VP525_SRAM_SIZE; break;
-    case VP521_CODE:
-        sram_size = VDI_VP521_SRAM_SIZE; break;
     case VP521C_CODE:
         sram_size = VDI_VP521C_SRAM_SIZE; break;
     default:
@@ -1261,14 +1241,8 @@ int vdi_wait_bus_busy(u32 core_idx, int timeout, unsigned int gdi_busy_flag)
 
     while(1)
     {
-        if (vdi->product_code == VP520_CODE || vdi->product_code == VP525_CODE || vdi->product_code == VP521_CODE || vdi->product_code == VP521C_CODE || vdi->product_code == VP511_CODE ) {
+        if (vdi->product_code == VP521C_CODE) {
             if (vdi_fio_read_register(core_idx, gdi_busy_flag) == 0x3f) break;
-        }
-        else if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
-            if (vdi_fio_read_register(core_idx, gdi_busy_flag) == 0x738) break;
-        }
-        else if (PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-            if (vdi_read_register(core_idx, gdi_busy_flag) == 0x77) break;
         }
         else {
             VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
@@ -1298,15 +1272,10 @@ int vdi_wait_vpu_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy_flag
 
     elapse = osal_gettime();
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
         pc = VP5_VCPU_CUR_PC;
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
-#if 0
-    else if (PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        pc = BIT_CUR_PC;
-    }
-#endif
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
@@ -1347,15 +1316,10 @@ int vdi_wait_vcpu_bus_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy
 
     elapse = osal_gettime();
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
         pc = VP5_VCPU_CUR_PC;
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
-#if 0
-    else if (PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        pc = BIT_CUR_PC;
-    }
-#endif
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
@@ -1426,14 +1390,9 @@ int vdi_get_system_endian(u32 core_idx)
     if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
         return VDI_128BIT_BUS_SYSTEM_ENDIAN;
     }
-#if 0
-    else if(PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        return VDI_SYSTEM_ENDIAN;
-    }
-#endif
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
@@ -1452,7 +1411,7 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
     if(!vdi || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
         switch (endian) {
         case VDI_LITTLE_ENDIAN:       endian = 0x00; break;
         case VDI_BIG_ENDIAN:          endian = 0x0f; break;
@@ -1460,10 +1419,6 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
         case VDI_32BIT_BIG_ENDIAN:    endian = 0x03; break;
         }
     } 
-#if 0
-    else if(PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-    }
-#endif
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
@@ -1471,19 +1426,6 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
 
     return (endian&0x0f); 
 }
-
-static Uint32 convert_endian_coda9_to_vp4(Uint32 endian)
-{
-    Uint32 converted_endian = endian;
-    switch(endian) {
-    case VDI_LITTLE_ENDIAN:       converted_endian = 0; break;
-    case VDI_BIG_ENDIAN:          converted_endian = 7; break;
-    case VDI_32BIT_LITTLE_ENDIAN: converted_endian = 4; break;
-    case VDI_32BIT_BIG_ENDIAN:    converted_endian = 3; break;
-    }
-    return converted_endian;
-}
-
 
 void byte_swap(unsigned char* data, int len)
 {
@@ -1551,14 +1493,9 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
     if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
         sys_endian = VDI_128BIT_BUS_SYSTEM_ENDIAN;
     }
-#if 0
-    else if(PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        sys_endian = VDI_SYSTEM_ENDIAN;
-    }
-#endif
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
@@ -1569,11 +1506,7 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
     if (endian == sys_endian)
         return 0;
 
-    if (PRODUCT_CODE_W_SERIES(vdi->product_code)) {
-    }
-    else if (PRODUCT_CODE_NOT_W_SERIES(vdi->product_code)) {
-        endian     = convert_endian_coda9_to_vp4(endian);
-        sys_endian = convert_endian_coda9_to_vp4(sys_endian);
+    if (PRODUCT_CODE_VP(vdi->product_code)) {
     }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);

@@ -19,7 +19,7 @@ Int32 Vp5VpuIsBusy(Uint32 coreIdx)
     return VpuReadReg(coreIdx, VP5_VPU_BUSY_STATUS);
 }
 
-Int32 WaveVpuGetProductId(Uint32  coreIdx)
+Int32 VpVpuGetProductId(Uint32  coreIdx)
 {
     Uint32  productId = PRODUCT_ID_NONE;
     Uint32  val;
@@ -128,7 +128,7 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
         pAttr->productName[3] = str[0];
         pAttr->productName[4] = 0;
 
-        pAttr->productId       = WaveVpuGetProductId(coreIdx);
+        pAttr->productId       = VpVpuGetProductId(coreIdx);
 
         pAttr->hwConfigDef0    = VpuReadReg(coreIdx, VP5_RET_STD_DEF0);
         pAttr->hwConfigDef1    = VpuReadReg(coreIdx, VP5_RET_STD_DEF1);
@@ -945,7 +945,7 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
     Uint32          regVal = 0, rotMirMode;
     EncInfo*        pEncInfo;
     EncOpenParam*   pOpenParam;
-    EncWaveParam*   pParam;
+    EncVpParam*   pParam;
     coreIdx    = instance->coreIdx;
     pEncInfo = &instance->CodecInfo->encInfo;
 
@@ -1566,7 +1566,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
         return RETCODE_FAILURE;
     }
 
-    if (ConfigSecAXIWave(coreIdx, inst->codecMode,
+    if (ConfigSecAXIVp(coreIdx, inst->codecMode,
         &pEncInfo->secAxiInfo, pOpenParam->picWidth, pOpenParam->picHeight,
         pOpenParam->EncStdParam.vpParam.profile, pOpenParam->EncStdParam.vpParam.level) == 0) {
             return RETCODE_INSUFFICIENT_RESOURCE;
@@ -2196,7 +2196,7 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
 
 
 
-//static RetCode CalcEncCropInfo(EncWaveParam* param, int rotMode, int srcWidth, int srcHeight);
+//static RetCode CalcEncCropInfo(EncVpParam* param, int rotMode, int srcWidth, int srcHeight);
 
 static Uint32   presetGopSize[] = {
     1,  /* Custom GOP, Not used */
@@ -2217,7 +2217,7 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
     Int32   intra_period_gop_step_size;
     Int32   i;
 
-    EncWaveParam* param     = &pop->EncStdParam.vpParam;
+    EncVpParam* param     = &pop->EncStdParam.vpParam;
 
     // check low-delay gop structure
     if(param->gopPresetIdx == PRESET_IDX_CUSTOM_GOP)  // common gop
@@ -2338,7 +2338,7 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
         // multi-slice & wpp
         if(param->wppEnable == 1 && (param->independSliceMode != 0 || param->dependSliceMode != 0))
         {
-            VLOG(ERR,"CFG FAIL : If WaveFrontSynchro(WPP) '1', the option of multi-slice must be '0'\n");
+            VLOG(ERR,"CFG FAIL : If VpFrontSynchro(WPP) '1', the option of multi-slice must be '0'\n");
             VLOG(ERR,"RECOMMEND CONFIG PARAMETER : independSliceMode = 0, dependSliceMode = 0\n");
             ret = RETCODE_FAILURE;
         }
@@ -2476,7 +2476,7 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
 RetCode CheckEncRcParamValid(EncOpenParam* pop)
 {
     RetCode       ret = RETCODE_SUCCESS;
-    EncWaveParam* param     = &pop->EncStdParam.vpParam;
+    EncVpParam* param     = &pop->EncStdParam.vpParam;
 
     if(pop->rcEnable == 1)
     {

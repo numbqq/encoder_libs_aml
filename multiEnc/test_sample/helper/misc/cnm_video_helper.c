@@ -604,7 +604,7 @@ BOOL LoadTiledImageYuvBurst(
     Int32               dramBusWidth = 8;
 
     productId = VPU_GetProductId(coreIdx);
-    if (PRODUCT_ID_W_SERIES(productId)) {
+    if (PRODUCT_ID_VP_SERIES(productId)) {
         dramBusWidth = 16;
     }
 
@@ -818,7 +818,7 @@ Uint32 StoreYuvImageBurstLinear(
     Uint8           *pCr;
 
     productId = VPU_GetProductId(coreIdx);
-    if (PRODUCT_ID_W_SERIES(productId)) {
+    if (PRODUCT_ID_VP_SERIES(productId)) {
         dramBusWidth = 16;
     }
     switch (fbSrc->format) {
@@ -1226,7 +1226,7 @@ Uint32 StoreYuvImageBurstFormat(
         Uint32                  totSize = 0;
 
     productId = VPU_GetProductId(coreIdx);
-    if (PRODUCT_ID_W_SERIES(productId)) {
+    if (PRODUCT_ID_VP_SERIES(productId)) {
         dramBusWidth = 16;
     }
     switch (fbSrc->format) {

@@ -127,7 +127,7 @@ typedef enum {
 
 extern Uint32 __VPU_BUSY_TIMEOUT;
 /**
- * PRODUCT: CODA960/CODA980/VPU320
+ * PRODUCT: old
  */
 typedef struct {
     union {
@@ -144,7 +144,7 @@ typedef struct {
             PhysicalAddress bufDbkCUse;
             PhysicalAddress bufOvlUse;
             PhysicalAddress bufBtpUse;
-        } coda9;
+        } old;
         struct {
             int             useIpEnable;
             int             useLfRowEnable;
@@ -226,7 +226,7 @@ typedef struct {
     vpu_buffer_t    vbUserData;    
 
     Uint32          userDataEnable;                    /* User Data Enable Flag
-                                                          CODA9xx: TRUE or FALSE
+                                                          Non VP TRUE or FALSE
                                                           VPUxxx: Refer to H265_USERDATA_FLAG_xxx values in vpuapi.h */
     int             userDataBufSize;
     int             userDataReportMode;                // User Data report mode (0 : interrupt mode, 1 interrupt disable mode)
@@ -245,7 +245,7 @@ typedef struct {
     TiledMapConfig  mapCfg;
     int             reorderEnable;
     Uint32          avcErrorConcealMode;
-    DRAMConfig      dramCfg;            //coda960 only
+    DRAMConfig      dramCfg;            //960 only
     int             thumbnailMode;
     int             seqChangeMask;      // VPU410
     Uint32          prevFrameEndPos;      //!<< VPU410v2: end position of previous frame
@@ -274,7 +274,7 @@ typedef struct {
     PhysicalAddress     busyFlagAddr;
     int                 streamBufSize;
     int                 linear2TiledEnable;
-    int                 linear2TiledMode;    // coda980 only
+    int                 linear2TiledMode;    // Non VP only
     TiledMapType        mapType;
     int                 userMapEnable;
     FrameBuffer         frameBufPool[MAX_REG_FRAME];
@@ -282,8 +282,8 @@ typedef struct {
     vpu_buffer_t        vbPPU;    
     int                 frameAllocExt;
     int                 ppuAllocExt;    
-    vpu_buffer_t        vbSubSampFrame;         /*!<< CODA960 only */
-    vpu_buffer_t        vbMvcSubSampFrame;      /*!<< CODA960 only */
+    vpu_buffer_t        vbSubSampFrame;         /*!<< 960 only */
+    vpu_buffer_t        vbMvcSubSampFrame;      /*!<< 960 only */
     int                 numFrameBuffers;
     int                 stride;
     int                 frameBufferHeight;
@@ -298,9 +298,9 @@ typedef struct {
 
     int                 sliceIntEnable;       /*!<< VPU420 only */
 
-    int                 ActivePPSIdx;           /*!<< CODA980 */
-    int                 frameIdx;               /*!<< CODA980 */
-    int                 fieldDone;              /*!<< CODA980 */
+    int                 ActivePPSIdx;           /*!<< 980 */
+    int                 frameIdx;               /*!<< 980 */
+    int                 fieldDone;              /*!<< 980 */
     int                 lineBufIntEn;
     vpu_buffer_t        vbWork;
     vpu_buffer_t        vbScratch;
@@ -316,7 +316,7 @@ typedef struct {
     vpu_buffer_t        vbSubSamBufBL;          //!< Sub-sampled buffer for ME (VPU encoder)
 
     TiledMapConfig      mapCfg;    
-    DRAMConfig          dramCfg;                /*!<< CODA960 */
+    DRAMConfig          dramCfg;                /*!<< 960 */
 
 
     Int32   errorReasonCode;
@@ -616,26 +616,11 @@ RetCode InitCodecInstancePool(Uint32 coreIdx);
 RetCode GetCodecInstance(Uint32 coreIdx, CodecInst ** ppInst);
 void    FreeCodecInstance(CodecInst * pCodecInst);
 
-#if 0
-RetCode CheckDecOpenParam(DecOpenParam * pop);
-int     DecBitstreamBufEmpty(DecInfo * pDecInfo);
-RetCode SetParaSet(DecHandle handle, int paraSetType, DecParamSet * para);
-void    DecSetHostParaAddr(Uint32 coreIdx, PhysicalAddress baseAddr, PhysicalAddress paraAddr);
 RetCode CheckInstanceValidity(
     CodecInst * pCodecInst
     );
 
-Int32 ConfigSecAXICoda9(
-    Uint32      coreIdx, 
-    Int32       codecMode, 
-    SecAxiInfo* sa, 
-    Uint32      width, 
-    Uint32      height, 
-    Uint32      profile
-    );
-#endif
-
-Int32 ConfigSecAXIWave(
+Int32 ConfigSecAXIVp(
     Uint32      coreIdx, 
     Int32       codecMode,
     SecAxiInfo* sa, 
@@ -653,75 +638,18 @@ RetCode UpdateFrameBufferAddr(
     Uint32                  sizeChroma
     );
 
-#if 0
-RetCode AllocateTiledFrameBufferGdiV1(
-    TiledMapType            mapType,
-    PhysicalAddress         tiledBaseAddr,
-    FrameBuffer*            fbArr,
-    Uint32                  numOfFrameBuffers,
-    Uint32                  sizeLuma,
-    Uint32                  sizeChroma,
-    DRAMConfig*             pDramCfg
-    );
-
-RetCode AllocateTiledFrameBufferGdiV2(
-    TiledMapType            mapType,
-    FrameBuffer*            fbArr,
-    Uint32                  numOfFrameBuffers,
-    Uint32                  sizeLuma,
-    Uint32                  sizeChroma
-    );
-#endif
-
 RetCode CheckEncInstanceValidity(EncHandle handle);
 RetCode CheckEncOpenParam(EncOpenParam * pop);
 RetCode CheckEncParam(EncHandle handle, EncParam * param);
-
-#if 0
-RetCode GetEncHeader(EncHandle handle, EncHeaderParam * encHeaderParam);
-RetCode EncParaSet(EncHandle handle, int paraSetType);
-RetCode SetGopNumber(EncHandle handle, Uint32 *gopNumber);
-RetCode SetIntraQp(EncHandle handle, Uint32 *intraQp);
-RetCode SetBitrate(EncHandle handle, Uint32 *bitrate);
-RetCode SetFramerate(EncHandle handle, Uint32 *frameRate);
-RetCode SetIntraRefreshNum(EncHandle handle, Uint32 *pIntraRefreshNum);
-RetCode SetSliceMode(EncHandle handle, EncSliceMode *pSliceMode);
-RetCode SetHecMode(EncHandle handle, int mode);
-#endif
 
 RetCode EnterLock(Uint32 coreIdx);
 RetCode LeaveLock(Uint32 coreIdx);
 RetCode SetClockGate(Uint32 coreIdx, Uint32 on);
 
-#if 0
-RetCode EnterDispFlagLock(Uint32 coreIdx);
-RetCode LeaveDispFlagLock(Uint32 coreIdx);
-#endif
-
 void SetPendingInst(Uint32 coreIdx, CodecInst *inst);
 void ClearPendingInst(Uint32 coreIdx);
 CodecInst *GetPendingInst(Uint32 coreIdx);
 int GetPendingInstIdx(Uint32 coreIdx);
-
-#if 0
-Int32 MaverickCache2Config(
-    MaverickCacheConfig* pCache, 
-    BOOL                decoder , 
-    BOOL                interleave, 
-    Uint32              bypass, 
-    Uint32              burst, 
-    Uint32              merge, 
-    TiledMapType        mapType, 
-    Uint32              wayshape
-    );
-
-int SetTiledMapType(Uint32 coreIdx, TiledMapConfig *pMapCfg, int mapType, int stride, int interleave, DRAMConfig *dramCfg);
-int GetXY2AXIAddr(TiledMapConfig *pMapCfg, int ycbcr, int posY, int posX, int stride, FrameBuffer *fb);
-int GetLowDelayOutput(CodecInst *pCodecInst, DecOutputInfo *lowDelayOutput);
-//for GDI 1.0
-void SetTiledFrameBase(Uint32 coreIdx, PhysicalAddress baseAddr);
-PhysicalAddress GetTiledFrameBase(Uint32 coreIdx, FrameBuffer *frame, int num);
-#endif
 
 /**
  * \brief   It returns the stride of framebuffer in byte.
@@ -790,7 +718,7 @@ Uint64 GetTimestamp(
 
 RetCode CalcEncCropInfo(
     CodecInst* instance,
-    EncWaveParam* param,
+    EncVpParam* param,
     int rotMode, 
     int srcWidth, 
     int srcHeight

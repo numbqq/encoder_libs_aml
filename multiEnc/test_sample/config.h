@@ -2,7 +2,6 @@
 // File: config.h
 //
 // Copyright (c) 2006, Chips & Media.  All rights reserved.
-// This file should be modified by some developers of C&M according to product version.
 //------------------------------------------------------------------------------
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
@@ -45,11 +44,6 @@
 #endif
 
 // do not define BIT_CODE_FILE_PATH in case of multiple product support. 
-#define CORE_0_BIT_CODE_FILE_PATH   "coda960.out"
-#define CORE_1_BIT_CODE_FILE_PATH   "coda980.out"
-#define CORE_2_BIT_CODE_FILE_PATH   "picasso.bin"     
-#define CORE_4_BIT_CODE_FILE_PATH   "millet.bin"      
-#define CORE_5_BIT_CODE_FILE_PATH   "kepler.bin"     
 #define CORE_6_BIT_CODE_FILE_PATH   "chagall.bin" 
 
 //------------------------------------------------------------------------------

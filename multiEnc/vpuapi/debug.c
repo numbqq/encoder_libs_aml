@@ -33,7 +33,6 @@
 #include "enc_driver.h"
 #include "vpuapifunc.h"
 #include "vdi_osal.h"
-//#include "coda9/coda9_regdefine.h"
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_QNX)
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -103,7 +102,7 @@ RetCode PrintVpuProductInfo(
     VLOG(INFO, "Firmware : CustomerCode: %04x | version : rev.%d\n", productInfo->customerId, productInfo->fwVersion);
     VLOG(INFO, "Hardware : %04x\n", productInfo->productId);
     VLOG(INFO, "API      : %d.%d.%d\n\n", API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);	
-    if (PRODUCT_ID_W_SERIES(productInfo->productId))
+    if (PRODUCT_ID_VP_SERIES(productInfo->productId))
     {
         VLOG(INFO, "productId       : %08x\n", productInfo->productId);
         VLOG(INFO, "fwVersion       : %08x(r%d)\n", productInfo->fwVersion, productInfo->fwVersion);
@@ -694,149 +693,6 @@ void PrintMemoryAccessViolationReason(
 {
     VLOG(ERR, "PrintMemoryAccessViolationReaso coreIdx %d, outp %p\n",
         coreIdx, outp);
-/*
-#ifdef SUPPORT_MEM_PROTECT
-    Uint32 err_reason=0;
-    Uint32 err_addr=0;
-    Uint32 err_size = 0;
-
-    Uint32 err_size1=0;
-    Uint32 err_size2=0;
-    Uint32 err_size3=0;
-    Uint32 product_code=0;
-    DecOutputInfo *out = outp;
-
-
-    SetClockGate(coreIdx, 1);
-    product_code = VpuReadReg(coreIdx, VPU_PRODUCT_CODE_REGISTER);
-    if (PRODUCT_CODE_W_SERIES(product_code)) {
-        if (out) {
-            err_reason = out->wprotErrReason;
-            err_addr   = out->wprotErrAddress;
-#ifdef SUPPORT_FIO_ACCESS
-            err_size   = vdi_fio_read_register(coreIdx, W4_GDI_SIZE_ERR_FLAG);
-#endif
-        }
-        else {
-#ifdef SUPPORT_FIO_ACCESS
-            err_reason = vdi_fio_read_register(coreIdx, W4_GDI_WPROT_ERR_RSN);
-            err_addr   = vdi_fio_read_register(coreIdx, W4_GDI_WPROT_ERR_ADR);
-            err_size   = vdi_fio_read_register(coreIdx, W4_GDI_SIZE_ERR_FLAG);
-#endif
-        } 
-    }
-    else if (PRODUCT_CODE_NOT_W_SERIES(product_code)) {
-        if (out) {
-            err_reason = out->wprotErrReason;
-            err_addr   = out->wprotErrAddress;
-            err_size   = VpuReadReg(coreIdx, GDI_SIZE_ERR_FLAG);
-        }
-        else {
-            err_reason = VpuReadReg(coreIdx, GDI_WPROT_ERR_RSN);
-            err_addr   = VpuReadReg(coreIdx, GDI_WPROT_ERR_ADR);
-            err_size   = VpuReadReg(coreIdx, GDI_SIZE_ERR_FLAG);
-        }
-    }
-    else {
-        VLOG(ERR, "Unknown product id : %08x\n", product_code);
-    }
-
-    if (err_size) {
-        VLOG(ERR, "~~~~~~~ GDI rd/wr zero request size violation ~~~~~~~ \n");
-        if (PRODUCT_CODE_W_SERIES(product_code)) {
-            Int32 productId;
-
-            VLOG(ERR, "err_size = 0x%x\n",   err_size);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI0);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI1);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI2);
-            VLOG(ERR, "ADR_RQ_SIZE_ERR_PRI 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI0);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI1);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI2);
-            VLOG(ERR, "ADR_WQ_SIZE_ERR_PRI 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_SEC0);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_SEC1);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_SEC0);
-            VLOG(ERR, "ADR_RQ_SIZE_ERR_SEC 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_SEC0);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_SEC1);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_SEC2);
-            VLOG(ERR, "ADR_WQ_SIZE_ERR_SEC 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI0_2D);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI1_2D);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_RQ_SIZE_ERR_PRI2_2D);
-            VLOG(ERR, "ADR_RQ_SIZE_ERR_PRI_2D 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            err_size1 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI0_2D);
-            err_size2 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI1_2D);
-            err_size3 = VpuReadReg(coreIdx, W4_GDI_ADR_WQ_SIZE_ERR_PRI2_2D);
-            VLOG(ERR, "ADR_WQ_SIZE_ERR_PRI_2D 0x%x, 0x%x, 0x%x\n", err_size1, err_size2, err_size3);
-            productId = VPU_GetProductId(coreIdx);
-            PrintVpuStatus(coreIdx, productId);
-        }
-        else if (PRODUCT_CODE_NOT_W_SERIES(product_code)) {
-            VLOG(ERR, "err_size = 0x%x\n",   err_size);
-            err_size1 = VpuReadReg(coreIdx, GDI_ADR_RQ_SIZE_ERR_PRI0);
-            err_size2 = VpuReadReg(coreIdx, GDI_ADR_RQ_SIZE_ERR_PRI1);
-            err_size3 = VpuReadReg(coreIdx, GDI_ADR_RQ_SIZE_ERR_PRI2);
-
-            VLOG(ERR, "err_size1 = 0x%x || err_size2 = 0x%x || err_size3 = 0x%x \n", err_size1, err_size2, err_size3);
-            // 		wire            pri_rq_size_zero_err    ;78
-            // 		wire            pri_rq_dimension        ;77
-            // 		wire    [ 1:0]  pri_rq_field_mode       ;76
-            // 		wire    [ 1:0]  pri_rq_ycbcr            ;74
-            // 		wire    [ 6:0]  pri_rq_pad_option       ;72
-            // 		wire    [ 7:0]  pri_rq_frame_index      ;65
-            // 		wire    [15:0]  pri_rq_blk_xpos         ;57
-            // 		wire    [15:0]  pri_rq_blk_ypos         ;41
-            // 		wire    [ 7:0]  pri_rq_blk_width        ;25
-            // 		wire    [ 7:0]  pri_rq_blk_height       ;
-            // 		wire    [ 7:0]  pri_rq_id               ;
-            // 		wire            pri_rq_lock             
-        }
-        else {
-            VLOG(ERR, "Unknown product id : %08x\n", product_code);
-        }
-    }
-    else
-    {
-        VLOG(ERR, "~~~~~~~ Memory write access violation ~~~~~~~ \n");
-        VLOG(ERR, "pri/sec = %d\n",   (err_reason>>8) & 1);
-        VLOG(ERR, "awid    = %d\n",   (err_reason>>4) & 0xF);
-        VLOG(ERR, "awlen   = %d\n",   (err_reason>>0) & 0xF);
-        VLOG(ERR, "awaddr  = 0x%X\n", err_addr);
-        VLOG(ERR, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n");
-    }
-    PrintVpuStatus(coreIdx, product_code);
-
-    SetClockGate(coreIdx, 0);
-    //---------------------------------------------+
-    //| Primary AXI interface (A)WID               |
-    //+----+----------------------------+----------+
-    //| ID |                            | sec use  |
-    //+----+----------------------------+----------+
-    //| 00 |  BPU MIB primary           | NA       |
-    //| 01 |  Overlap filter primary    | NA       |
-    //| 02 |  Deblock write-back        | NA       |
-    //| 03 |  PPU                       | NA       |
-    //| 04 |  Deblock sub-sampling      | NA       |
-    //| 05 |  Reconstruction            | possible |
-    //| 06 |  BPU MIB secondary         | possible |
-    //| 07 |  BPU SPP primary           | NA       |
-    //| 08 |  Spatial prediction        | possible |
-    //| 09 |  Overlap filter secondary  | possible |
-    //| 10 |  Deblock Y secondary       | possible |
-    //| 11 |  Deblock C secondary       | possible |
-    //| 12 |  JPEG write-back or Stream | NA       |
-    //| 13 |  JPEG secondary            | possible |
-    //| 14 |  DMAC write                | NA       |
-    //| 15 |  BPU SPP secondary         | possible |
-    //+----+----------------------------+----------
-#else
-    UNREFERENCED_PARAMETER(coreIdx);
-    UNREFERENCED_PARAMETER(outp);
-#endif
-    */
 }
 
 void vdi_make_log(unsigned long coreIdx, const char *str, int step)
@@ -864,7 +720,7 @@ void vdi_log(unsigned long coreIdx, int cmd, int step)
 
     productId = VPU_GetProductId(coreIdx);
 
-    if (PRODUCT_ID_W_SERIES(productId))
+    if (PRODUCT_ID_VP_SERIES(productId))
     {
         switch(cmd)
         {
@@ -920,7 +776,7 @@ void vdi_log(unsigned long coreIdx, int cmd, int step)
             vdi_read_register(coreIdx, i+8), vdi_read_register(coreIdx, i+0xc));
     }
 
-    if (PRODUCT_ID_W_SERIES(productId)) 
+    if (PRODUCT_ID_VP_SERIES(productId))
     {
         if (cmd == VP5_INIT_VPU || cmd == VP5_RESET_VPU || cmd == VP5_CREATE_INSTANCE)
         {
@@ -967,7 +823,7 @@ void vdi_print_vpu_status(unsigned long coreIdx)
 
     productCode = vdi_read_register(coreIdx, VPU_PRODUCT_CODE_REGISTER);
 
-    if (PRODUCT_CODE_W_SERIES(productCode)) 
+    if (PRODUCT_CODE_VP(productCode))
     {
         Uint32 vcpu_reg[31]= {0,};
         Uint32 i;

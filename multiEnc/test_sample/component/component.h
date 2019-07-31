@@ -233,7 +233,6 @@ typedef struct {
 typedef struct {
     Uint8*          bitcode;
     Uint32          sizeOfBitcode;                              /*!<< size of bitcode in word(2byte) */
-    TestDecConfig   testDecConfig;
     TestEncConfig   testEncConfig;
     EncOpenParam    encOpenParam;
 } CNMComponentConfig;

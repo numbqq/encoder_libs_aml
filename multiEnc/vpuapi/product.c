@@ -40,7 +40,7 @@ Uint32 ProductVpuScan(Uint32 coreIdx)
         return 1;
 
     for (i=0; i<MAX_NUM_VPU_CORE; i++) {
-            productId = WaveVpuGetProductId(i);
+            productId = VpVpuGetProductId(i);
         if (productId != PRODUCT_ID_NONE) {
             s_ProductIds[i] = productId;
             foundProducts++;
@@ -717,15 +717,15 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             return RETCODE_INVALID_PARAM;
     }
     else if (pop->bitstreamFormat == STD_HEVC || pop->bitstreamFormat == STD_SVAC || (pop->bitstreamFormat == STD_AVC && productId == PRODUCT_ID_521)) {
-        EncWaveParam* param     = &pop->EncStdParam.vpParam;
+        EncVpParam* param     = &pop->EncStdParam.vpParam;
 
         if (param->svcEnable == TRUE && pop->bitstreamFormat != STD_SVAC)
             return RETCODE_INVALID_PARAM;
 
-        if (picWidth < W4_MIN_ENC_PIC_WIDTH || picWidth > W4_MAX_ENC_PIC_WIDTH)
+        if (picWidth < VP_MIN_ENC_PIC_WIDTH || picWidth > VP_MAX_ENC_PIC_WIDTH)
             return RETCODE_INVALID_PARAM;
 
-        if (picHeight < W4_MIN_ENC_PIC_HEIGHT || picHeight > W4_MAX_ENC_PIC_HEIGHT)
+        if (picHeight < VP_MIN_ENC_PIC_HEIGHT || picHeight > VP_MAX_ENC_PIC_HEIGHT)
             return RETCODE_INVALID_PARAM;
 
         if (param->profile != HEVC_PROFILE_MAIN && param->profile != HEVC_PROFILE_MAIN10 && param->profile != HEVC_PROFILE_STILLPICTURE)

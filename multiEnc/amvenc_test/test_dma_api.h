@@ -39,25 +39,25 @@
 #define AXI_WORD_ALIGN(size) ((size + WORD_SIZE - 1) & WORD_MASK)
 
 enum dma_data_direction {
-  DMA_BIDIRECTIONAL = 0,
-  DMA_TO_DEVICE = 1,
-  DMA_FROM_DEVICE = 2,
-  DMA_NONE = 3,
+	DMA_BIDIRECTIONAL = 0,
+	DMA_TO_DEVICE = 1,
+	DMA_FROM_DEVICE = 2,
+	DMA_NONE = 3,
 };
 
 typedef unsigned int uint32_t;
 
 /* for gdc dma buf define */
 struct dmabuf_req_s {
-  int index;
-  unsigned int len;
-  unsigned int dma_dir;
+	int index;
+	unsigned int len;
+	unsigned int dma_dir;
 };
 
 struct dmabuf_exp_s {
-  int index;
-  unsigned int flags;
-  int fd;
+	int index;
+	unsigned int flags;
+	int fd;
 };
 /* end of gdc dma buffer define */
 
@@ -70,23 +70,23 @@ struct dmabuf_exp_s {
 #define GDC_SYNC_CPU _IOW(GDC_IOC_MAGIC, 0x0a, int)
 
 enum {
-  INPUT_BUFF_TYPE = 0x1000,
-  OUTPUT_BUFF_TYPE,
-  CONFIG_BUFF_TYPE,
-  GDC_BUFF_TYPE_MAX
+	INPUT_BUFF_TYPE = 0x1000,
+	OUTPUT_BUFF_TYPE,
+	CONFIG_BUFF_TYPE,
+	GDC_BUFF_TYPE_MAX
 };
 
 struct usr_ctx_s {
-  // currently do not support multi-context
-  int gdc_client;
-  char* i_buff[3];
-  char* o_buff;
-  char* c_buff;
-  ulong i_len[3];
-  ulong o_len;
-  ulong c_len;
-  int fd[3];
-  int inbuf_num;
+	// currently do not support multi-context
+	int gdc_client;
+	char *i_buff[3];
+	char *o_buff;
+	char *c_buff;
+	ulong i_len[3];
+	ulong o_len;
+	ulong c_len;
+	int fd[3];
+	int inbuf_num;
 };
 
 /**
@@ -97,7 +97,7 @@ struct usr_ctx_s {
  *   @return 0 - success
  *           -1 - fail
  */
-int create_ctx(struct usr_ctx_s* ctx);
+int create_ctx(struct usr_ctx_s *ctx);
 
 /**
  *   This function points gdc to its input resolution and yuv address and
@@ -110,7 +110,7 @@ int create_ctx(struct usr_ctx_s* ctx);
  *   @return 0 - success
  *           -1 - no interrupt from GDC.
  */
-int destroy_ctx(struct usr_ctx_s* ctx);
+int destroy_ctx(struct usr_ctx_s *ctx);
 
 /**
  *   This function points gdc to its input resolution and yuv address and
@@ -123,7 +123,7 @@ int destroy_ctx(struct usr_ctx_s* ctx);
  *   @return 0 - success
  *           -1 - no interrupt from GDC.
  */
-int alloc_dma_buffer(struct usr_ctx_s* ctx, uint32_t type, size_t len);
+int alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len);
 
-int sync_cpu(struct usr_ctx_s* ctx);
+int sync_cpu(struct usr_ctx_s *ctx);
 #endif

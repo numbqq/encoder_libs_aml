@@ -1103,167 +1103,58 @@ RetCode VPU_EncGiveCommand(
                 else
                     return RETCODE_INVALID_PARAM;
             }
-#if 0
-            else {
-                return GetEncHeader(handle, encHeaderParam);
-            }
-#endif
         }        
     case ENC_SET_PARAM:
         {
             if (param == 0) {
                 return RETCODE_INVALID_PARAM;
             }
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            pEncInfo->openParam = *(EncOpenParam *)param;
- 
-            if (pCodecInst->codecMode != AVC_ENC)
-                return RETCODE_INVALID_COMMAND;
- 
-            ret = EncParaSet(handle, SPS_RBSP);
-            if (ret != RETCODE_SUCCESS)
-                return ret;
- 
-            ret = EncParaSet(handle, PPS_RBSP);
-			if (ret != RETCODE_SUCCESS)
-                return ret;
-            return ret;
-#endif
         }
     case ENC_SET_GOP_NUMBER:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            int *pGopNumber =(int *)param;
-            if (pCodecInst->codecMode != MP4_ENC && pCodecInst->codecMode != AVC_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            if (*pGopNumber < 0)
-                return RETCODE_INVALID_PARAM;
-            pEncInfo->openParam.gopSize = *pGopNumber;
-            SetGopNumber(handle, (Uint32 *)pGopNumber);        
-#endif
         }
         break;
     case ENC_SET_INTRA_QP:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            int *pIntraQp =(int *)param;
-            if (pCodecInst->codecMode != MP4_ENC && pCodecInst->codecMode != AVC_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            if (pCodecInst->codecMode == MP4_ENC)
-            {    
-                if(*pIntraQp<1 || *pIntraQp>31)
-                    return RETCODE_INVALID_PARAM;
-            }
-            if (pCodecInst->codecMode == AVC_ENC)
-            {    
-                if(*pIntraQp<0 || *pIntraQp>51)
-                    return RETCODE_INVALID_PARAM;
-            }
-            SetIntraQp(handle, (Uint32 *)pIntraQp);        
-#endif
         }
         break;
     case ENC_SET_BITRATE:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-           int *pBitrate = (int *)param;
-            if (pCodecInst->codecMode != MP4_ENC && pCodecInst->codecMode != AVC_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            {
-                if (*pBitrate < 0 || *pBitrate> 32767) {
-                    return RETCODE_INVALID_PARAM;
-                }
-            }
-            SetBitrate(handle, (Uint32 *)pBitrate);        
-#endif
         }
         break;
     case ENC_SET_FRAME_RATE:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            int *pFramerate = (int *)param;
-
-            if (pCodecInst->codecMode != MP4_ENC && pCodecInst->codecMode != AVC_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            if (*pFramerate <= 0) {
-                return RETCODE_INVALID_PARAM;
-            }
-            SetFramerate(handle, (Uint32 *)pFramerate);        
-#endif
         }
         break;
     case ENC_SET_INTRA_MB_REFRESH_NUMBER:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            int *pIntraRefreshNum =(int *)param;
-            SetIntraRefreshNum(handle, (Uint32 *)pIntraRefreshNum); 
-#endif
         }
         break;
 
     case ENC_SET_SLICE_INFO:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            EncSliceMode *pSliceMode = (EncSliceMode *)param;
-            if(pSliceMode->sliceMode<0 || pSliceMode->sliceMode>1)
-            {
-                return RETCODE_INVALID_PARAM;
-            }
-            if(pSliceMode->sliceSizeMode<0 || pSliceMode->sliceSizeMode>1)
-            {
-                return RETCODE_INVALID_PARAM;
-            }
-
-            SetSliceMode(handle, (EncSliceMode *)pSliceMode);
-#endif
         }
         break;
     case ENC_ENABLE_HEC:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            if (pCodecInst->codecMode != MP4_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            SetHecMode(handle, 1);
-#endif
         }
         break;
     case ENC_DISABLE_HEC:
         {
-#if 1
             return RETCODE_INVALID_COMMAND;
-#else
-            if (pCodecInst->codecMode != MP4_ENC) {
-                return RETCODE_INVALID_COMMAND;
-            }
-            SetHecMode(handle, 0);
-#endif
         }
         break;
     case SET_SEC_AXI:
         {
             SecAxiUse secAxiUse;
-
             if (param == 0) {
                 return RETCODE_INVALID_PARAM;
             }
@@ -1272,16 +1163,6 @@ RetCode VPU_EncGiveCommand(
                 pEncInfo->secAxiInfo.u.vp.useEncRdoEnable = secAxiUse.u.vp.useEncRdoEnable;
                 pEncInfo->secAxiInfo.u.vp.useEncLfEnable  = secAxiUse.u.vp.useEncLfEnable;
             }
-#if 0
-            else { // coda9 or coda7q or ... 
-                pEncInfo->secAxiInfo.u.coda9.useBitEnable  = secAxiUse.u.coda9.useBitEnable;
-                pEncInfo->secAxiInfo.u.coda9.useIpEnable   = secAxiUse.u.coda9.useIpEnable;
-                pEncInfo->secAxiInfo.u.coda9.useDbkYEnable = secAxiUse.u.coda9.useDbkYEnable;
-                pEncInfo->secAxiInfo.u.coda9.useDbkCEnable = secAxiUse.u.coda9.useDbkCEnable;
-                pEncInfo->secAxiInfo.u.coda9.useOvlEnable  = secAxiUse.u.coda9.useOvlEnable;
-                pEncInfo->secAxiInfo.u.coda9.useBtpEnable  = secAxiUse.u.coda9.useBtpEnable;            
-            }        
-#endif
         }
         break;        
     case GET_TILEDMAP_CONFIG:

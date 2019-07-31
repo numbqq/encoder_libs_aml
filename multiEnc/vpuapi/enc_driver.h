@@ -48,7 +48,7 @@ extern Int32 Vp5VpuIsBusy(
     Uint32 coreIdx
     );
 
-extern Int32 WaveVpuGetProductId(
+extern Int32 VpVpuGetProductId(
     Uint32      coreIdx
     );
 

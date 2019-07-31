@@ -379,7 +379,7 @@ typedef struct {
     int rcIntervalMode;
     int RcMBInterval;
     int skipPicNums[MAX_PIC_SKIP_NUM];
-    int SearchRange;	// for coda960
+    int SearchRange;	// 960
 
     int MeUseZeroPmv;	// will be removed. must be 264 = 0, mpeg4 = 1 263 = 0
     int MeBlkModeEnable; // only api option
@@ -1190,7 +1190,7 @@ typedef struct {
     int    min;
     int    max;
     int    def;
-} WaveCfgInfo;
+} VpCfgInfo;
 
 Int32 GetEncOpenParamChange(
     EncOpenParam*   pEncOP, 
@@ -1249,13 +1249,13 @@ int parseMp4CfgFile(
     char*       filename 
     );
 
-int parseWaveEncCfgFile(
+int parseVpEncCfgFile(
     ENC_CFG*    pEncCfg, 
     char*       FileName,
     int bitFormat
     );
 
-int parseWaveChangeParamCfgFile(
+int parseVpChangeParamCfgFile(
     ENC_CFG*    pEncCfg, 
     char*       FileName
     );
@@ -1275,76 +1275,10 @@ int parseRoiCtuModeParam(
 /************************************************************************/
 /* Structure                                                            */
 /************************************************************************/
-typedef struct TestDecConfig_struct {
-    char                outputPath[MAX_FILE_PATH];
-    char                inputPath[MAX_FILE_PATH];
-    Int32               forceOutNum;
-    CodStd              bitFormat;
-    Int32               reorder;
-    TiledMapType        mapType;
-    BitStreamMode       bitstreamMode;
-    BOOL                enableWTL;
-    FrameFlag           wtlMode;
-    FrameBufferFormat   wtlFormat;
-    Int32               coreIdx;
-    ProductId           productId;
-    BOOL                enableCrop;                 //!<< option for saving yuv 
-    BOOL                cbcrInterleave;             //!<< 0: None, 1: NV12, 2: NV21 
-    BOOL                nv21;                       //!<< FALSE: NV12, TRUE: NV21, 
-                                                    //!<< This variable is valid when cbcrInterleave is TRUE 
-    EndianMode          streamEndian;
-    EndianMode          frameEndian;
-    Uint32              secondaryAXI;
-    Int32               compareType;
-    char                md5Path[MAX_FILE_PATH];
-    char                fwPath[MAX_FILE_PATH];
-    char                refYuvPath[MAX_FILE_PATH];
-    RenderDeviceType    renderType;
-    BOOL                thumbnailMode;
-    Int32               skipMode;
-    size_t              bsSize;
-    BOOL                streamEndFlag;
-    BOOL                scenarioTest;
-    struct {
-        BOOL        enableMvc;                      //!<< H.264 MVC
-        BOOL        enableTiled2Linear;
-        FrameFlag   tiled2LinearMode;
-        BOOL        enableBWB;
-        Uint32      rotate;                         //!<< 0, 90, 180, 270
-        Uint32      mirror;
-        BOOL        enableDering;                   //!<< MPEG-2/4
-        BOOL        enableDeblock;                  //!<< MPEG-2/4
-        Uint32      mp4class;                       //!<< MPEG_4
-        Uint32      frameCacheBypass;
-        Uint32      frameCacheBurst;
-        Uint32      frameCacheMerge;
-        Uint32      frameCacheWayShape;
-        LowDelayInfo    lowDelay;                   //!<< H.264
-    } coda9;
-    struct {
-        Uint32      numVCores;                      //!<< This numVCores is valid on PRODUCT_ID_4102 multi-core version 
-        BOOL        bwOptimization;                 //!<< On/Off bandwidth optimization function
-        BOOL        craAsBla;
-    } vp;
-    Uint32          pfClock;                        //!<< performance clock in Hz
-    BOOL            performance;
-    BOOL            bandwidth;
-    Uint32          fps;
-    Uint32          enableUserData;
-    /* FEEDER */
-    FeedingMethod       feedingMode;
-    Uint32              feedingSize;
-    Uint32              loopCount;                  
-    BOOL                errorInject;
-} TestDecConfig;
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-void SetDefaultDecTestConfig(
-    TestDecConfig* testConfig
-    );
 
 struct option* ConvertOptions(
     struct OptionExt*   cnmOpt,
@@ -1356,48 +1290,8 @@ void ReleaseVideoMemory(
     vpu_buffer_t*   memoryArr,
     Uint32        count
     );
-#if 0
-BOOL AllocateDecFrameBuffer(
-    DecHandle       decHandle,
-    TestDecConfig*  config,
-    Uint32          tiledFbCount,
-    Uint32          linearFbCount,
-    FrameBuffer*    retFbArray,
-    vpu_buffer_t*   retFbAddrs,
-    Uint32*         retStride
-    );
-#endif
+
 #define OUTPUT_FP_NUMBER 4
-BOOL OpenDisplayBufferFile(
-    CodStd  codec,
-    char *outputPath, 
-    VpuRect rcDisplay, 
-    TiledMapType mapType,
-    FILE *fp[]
-    );
-
-void CloseDisplayBufferFile(
-    FILE *fp[]
-    );
-
-#if 0
-void SaveDisplayBufferToFile(
-    DecHandle handle, 
-    CodStd codStd, 
-    FrameBuffer dispFrame, 
-    VpuRect rcDisplay, 
-    FILE *fp[]
-    );
-#endif
-
-void GetUserData(
-    Int32 coreIdx,
-    Uint8* pBase,
-    vpu_buffer_t vbUserData,
-    DecOutputInfo outputInfo
-    );
-
-
 
 #ifdef __cplusplus
 }
@@ -1468,10 +1362,6 @@ typedef struct TestEncConfig_struct {
     int encAUD;
     int encEOS;
     int encEOB;
-    struct {
-        BOOL        enableLinear2Tiled;
-        FrameFlag   linear2TiledMode;
-    } coda9;
     int useAsLongtermPeriod;
     int refLongtermPeriod;
 

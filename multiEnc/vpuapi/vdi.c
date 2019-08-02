@@ -122,9 +122,9 @@ int vdi_init(u32 core_idx)
 
 
 
-    vdi->vpu_fd = open(VPU_DEVICE_NAME, O_RDWR);	// if this API supports VPU parallel processing using multi VPU. the driver should be made to open multiple times.
+    vdi->vpu_fd = open(VPU_DEVICE_NAME, O_RDWR);
     if (vdi->vpu_fd < 0) {
-        VLOG(ERR, "[VDI] Can't open vpu driver. [error=%s]. try to run vdi/linux/driver/load.sh script \n", strerror(errno));		
+        VLOG(ERR, "[VDI] Can't open vpu driver. [error=%s]\n", strerror(errno));
         return -1;
     }
 

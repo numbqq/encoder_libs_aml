@@ -48,6 +48,9 @@
 #define WIDTH 3840
 #define HEIGHT 2160
 #define FRAMERATE 60
+
+#define INIT_RETRY 100
+
 int main(int argc, const char *argv[])
 {
 	int width, height, gop, framerate, bitrate, num;
@@ -55,6 +58,7 @@ int main(int argc, const char *argv[])
 	int outfd = -1;
 	FILE *fp = NULL;
 	int datalen = 0;
+	int retry_cnt = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 
 	unsigned char *vaddr = NULL;
@@ -361,7 +365,20 @@ int main(int argc, const char *argv[])
 		goto exit;
 	}
 
+retry:
 	handle_enc = vl_multi_encoder_init(codec_id, encode_info, &qp_tbl);
+	if (handle_enc == 0) {
+		if ( retry_cnt >= INIT_RETRY) {
+			printf("Init encoder retry timeout\n");
+			goto exit;
+		} else
+		{
+			printf("Init encoder fail retrying \n");
+			retry_cnt ++;
+			usleep(100*1000);
+			goto retry;
+		}
+	}
 
 	while (num > 0)
 	{

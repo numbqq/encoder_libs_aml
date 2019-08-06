@@ -874,16 +874,18 @@ RetCode VPU_EncStartOneFrame(
 
     pEncInfo->ptsMap[param->srcIdx] = (pEncInfo->openParam.enablePTS == TRUE) ? GetTimestamp(handle) : param->pts;
 
-    /* record the used source frame */
-    pEncInfo->srcBufUseIndex[param->srcIdx] = 1;
-    pEncInfo->srcBufMap[param->srcIdx] = *pSrcFrame;
-
     if (GetPendingInst(pCodecInst->coreIdx)) {
         LeaveLock(pCodecInst->coreIdx);
         return RETCODE_FRAME_NOT_COMPLETE;
     }
 
     ret = ProductVpuEncode(pCodecInst, param);
+
+    if (ret == RETCODE_SUCCESS) {
+        /* record the used source frame */
+        pEncInfo->srcBufUseIndex[param->srcIdx] = 1;
+        pEncInfo->srcBufMap[param->srcIdx] = *pSrcFrame;
+    }
 
     if (pAttr->supportCommandQueue == TRUE) {
         SetPendingInst(pCodecInst->coreIdx, NULL);

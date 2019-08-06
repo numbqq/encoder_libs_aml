@@ -35,7 +35,13 @@
 #define LOGCAT
 #endif
 
-enum {NONE=0, INFO, DEBUG, WARN, ERR, TRACE, MAX_LOG_LEVEL};
+typedef enum
+{
+    NONE=0, INFO, DEBUG, WARN, ERR, TRACE, MAX_LOG_LEVEL
+} debug_log_level_t;
+
+extern debug_log_level_t g_log_level;
+
 enum
 {
     LOG_HAS_DAY_NAME   =    1, /**< Include day name [default: no] 	      */
@@ -73,7 +79,7 @@ enum {
 #else
 #define VLOG(level, fmt , var...) \
     do { \
-        if (level >= ERR) { \
+        if (level >= g_log_level) { \
             printf("[%s:%d] " fmt "\n", __FUNCTION__, __LINE__, ##var);\
         } \
     }while(0)
@@ -130,6 +136,8 @@ typedef void*   osal_mutex_t;
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+void vp5_set_log_level(debug_log_level_t level);
 
 int InitLog(void);
 void DeInitLog(void);

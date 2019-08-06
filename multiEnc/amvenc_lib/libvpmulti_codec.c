@@ -201,6 +201,9 @@ vl_codec_handle_t vl_multi_encoder_init(vl_codec_id_t codec_id,
   if (!check_qp_tbl(qp_tbl)) {
     goto exit;
   }
+
+  vp5_set_log_level(ERR);
+
   ret = initEncParams(mHandle, codec_id, encode_info, qp_tbl);
   if (ret < 0)
     goto exit;

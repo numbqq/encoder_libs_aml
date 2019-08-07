@@ -354,6 +354,14 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
   param->confWinLeft = 0; //pCfg->vpCfg.confWinLeft;
   param->confWinRight = 0; //pCfg->vpCfg.confWinRight;
 
+  if ((pEncOP->picHeight % 16) && param->confWinBot == 0
+        && pEncOP->bitstreamFormat == STD_AVC) {
+        /*  need set the drop flag */
+       if (InitParam->rotate_angle != 90 && InitParam->rotate_angle != 270)
+       { // except rotation
+                param->confWinBot = 16 - (pEncOP->picHeight % 16);
+       }
+  }
   /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
   param->independSliceMode = 0; //pCfg->vpCfg.independSliceMode;
   param->independSliceModeArg = 0; //pCfg->vpCfg.independSliceModeArg;

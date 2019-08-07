@@ -123,6 +123,15 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     param->confWinLeft   = pCfg->vpCfg.confWinLeft;
     param->confWinRight  = pCfg->vpCfg.confWinRight;
 
+    if ((pEncOP->picHeight % 16) && param->confWinBot == 0
+        && pEncOP->bitstreamFormat == STD_AVC) {
+        /*  need set the drop flag */
+       if (pEncConfig->rotAngle != 90 && pEncConfig->rotAngle != 270) // except rotation
+       {
+                param->confWinBot = 16 - (pEncOP->picHeight % 16);
+       }
+    }
+
     /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
     param->independSliceMode     = pCfg->vpCfg.independSliceMode;
     param->independSliceModeArg  = pCfg->vpCfg.independSliceModeArg;

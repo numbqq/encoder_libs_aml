@@ -59,7 +59,7 @@ static FILE *fpLog  = NULL;
 static pthread_mutex_t s_log_mutex;
 #endif
 
-debug_log_level_t g_log_level;
+debug_log_level_t g_log_level = ERR;
 
 void vp5_set_log_level(debug_log_level_t level)
 {

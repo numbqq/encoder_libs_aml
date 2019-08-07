@@ -51,6 +51,18 @@
 #include "vdi_osal.h"
 #include "debug.h"
 #include "vpuapifunc.h"
+#include <sys/time.h>
+
+#define ENCODE_TIME_STATISTICS 0
+
+#if ENCODE_TIME_STATISTICS
+static unsigned long encode_time_per_frame;
+static unsigned long long total_encode_time;
+static unsigned long long total_encode_frames;
+static struct timeval start_test;
+static struct timeval end_test;
+#endif
+
 
 #define SUPPORT_SCALE 0
 
@@ -144,7 +156,6 @@ typedef struct AMVEncContext_s {
   Uint32                      changedCount;
   Uint64                      startTimeout;
   Uint32                      cyclePerTick;
-
 
 
   Uint32                      reconFbStride;
@@ -1355,6 +1366,11 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
   retry_cnt = 0;
   PhysicalAddress paRdPtr = 0;
   PhysicalAddress paWrPtr = 0;
+
+#if ENCODE_TIME_STATISTICS
+  gettimeofday(&start_test, NULL);
+#endif
+
   while(1)
   {
         result = VPU_EncGiveCommand(ctx->enchandle, ENC_PUT_VIDEO_HEADER, &encHeaderParam);
@@ -1412,6 +1428,16 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
         ctx->bsBuffer[0].phys_addr, paRdPtr, header_size);
   }
 
+#if ENCODE_TIME_STATISTICS
+  gettimeofday(&end_test, NULL);
+  encode_time_per_frame = end_test.tv_sec - start_test.tv_sec;
+  encode_time_per_frame = encode_time_per_frame * 1000000 + end_test.tv_usec - start_test.tv_usec;
+  total_encode_frames++;
+  total_encode_time += encode_time_per_frame;
+  VLOG(WARN, "%p#Encode header spent time : %lu us, frame_number : %llu",
+    ctx_handle, encode_time_per_frame, total_encode_frames);
+#endif
+
   VLOG(INFO, "Enc HEADER size %d\n",header_size);
   *buf_nal_size = header_size;
   // cache invalid to read out by CPU
@@ -1434,10 +1460,14 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
   ENC_INT_STATUS          intStatus;
   ENC_QUERY_WRPTR_SEL     encWrPtrSel     = GET_ENC_PIC_DONE_WRPTR;
   int retry_cnt = 0;
-  int end = 0, idx;
+  int idx;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
   if (ctx == NULL) return AMVENC_FAIL;
   if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
+
+#if ENCODE_TIME_STATISTICS
+  gettimeofday(&start_test, NULL);
+#endif
 
 retry_point:
     if(ctx ->param_change_flag) {
@@ -1471,7 +1501,7 @@ retry_point:
   while (retry_cnt++ < 100) {
     if ((intStatus=HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_TIMEOUT) {
         VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
-        VLOG(ERR, "<%s:%d> Timeout of encoder interrupt reset \n", __FUNCTION__, __LINE__);
+        VLOG(ERR, "Timeout of encoder interrupt reset \n");
        return AMVENC_FAIL;
     }
     else if (intStatus == ENC_INT_STATUS_FULL || intStatus == ENC_INT_STATUS_LOW_LATENCY) {
@@ -1481,7 +1511,7 @@ retry_point:
         encWrPtrSel = (intStatus==ENC_INT_STATUS_FULL) ? GET_ENC_BSBUF_FULL_WRPTR : GET_ENC_LOW_LATENCY_WRPTR;
         VPU_EncGiveCommand(ctx->enchandle, ENC_WRPTR_SEL, &encWrPtrSel);
         VPU_EncGetBitstreamBuffer(ctx->enchandle, &paRdPtr, &paWrPtr, &size);
-        VLOG(TRACE, "<%s:%d> INT_BSBUF_FULL %p, %p\n", __FUNCTION__, __LINE__, paRdPtr, paWrPtr);
+        VLOG(TRACE, "INT_BSBUF_FULL %p, %p\n",   paRdPtr, paWrPtr);
         ctx->fullInterrupt = TRUE;
         return AMVENC_FAIL; //return TRUE;
     }
@@ -1549,8 +1579,7 @@ retry_point:
                 encOutputInfo.bitstreamBuffer, encOutputInfo.bitstreamSize);
      }
 
-  VLOG(INFO, "%s:%d Enc bitstream size %d pic_type %d \n", __FUNCTION__, __LINE__,
-                encOutputInfo.bitstreamSize, encOutputInfo.picType);
+  VLOG(INFO, "Enc bitstream size %d pic_type %d \n", encOutputInfo.bitstreamSize, encOutputInfo.picType);
      *buf_nal_size = encOutputInfo.bitstreamSize;
   // cache invalid to read out by CPU
   //vdi_invalitate_memory(ctx->encOpenParam.coreIdx,
@@ -1563,17 +1592,27 @@ retry_point:
     Retframe -> encoded_frame_type = encOutputInfo.picType;
     } else if( encOutputInfo.encSrcIdx == 0xfffffffe)
         {
-        VLOG(INFO, "%s:%d delay frame delay %d \n", __FUNCTION__, __LINE__, ctx->frame_delay);
+        VLOG(INFO, "delay frame delay %d \n", ctx->frame_delay);
         ctx->frame_delay ++;
         *buf_nal_size = 0;
         Retframe ->YCbCr[0] = 0;
     } else if(encOutputInfo.encSrcIdx == 0xfffffffb)  {
-        VLOG(INFO, "%s:%d d[VP] non-reference picture !! \n", __FUNCTION__, __LINE__);
+        VLOG(INFO, "non-reference picture !! \n");
         *buf_nal_size = 0;
         Retframe ->YCbCr[0] = 0;
     }
 
- VLOG(INFO, "%s:%d d[VP] done one picture !! \n", __FUNCTION__, __LINE__);
+#if ENCODE_TIME_STATISTICS
+    gettimeofday(&end_test, NULL);
+    encode_time_per_frame = end_test.tv_sec - start_test.tv_sec;
+    encode_time_per_frame = encode_time_per_frame * 1000000 + end_test.tv_usec - start_test.tv_usec;
+    total_encode_frames++;
+    total_encode_time += encode_time_per_frame;
+    VLOG(WARN, "%p#Encode slice time : %lu us, frame index : %llu",
+        ctx_handle, encode_time_per_frame, total_encode_frames);
+#endif
+
+    VLOG(INFO, "Done one picture !! \n");
     return AMVENC_PICTURE_READY;
 }
 
@@ -1591,6 +1630,10 @@ AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
   if (ctx->magic_num != MULTI_ENC_MAGIC)
     return AMVENC_FAIL;
 
+#if ENCODE_TIME_STATISTICS
+  VLOG(WARN, "%p#Total encode time : %llu us, Total encode frames : %llu",
+    ctx_handle, total_encode_time, total_encode_frames);
+#endif
 
 flush_retry_point:
         encParam        = &ctx->encParam;

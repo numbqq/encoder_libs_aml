@@ -39,12 +39,22 @@
 #define LOGCAT
 #endif
 
+#include <sys/time.h>
 #include "include/vp_multi_codec_1_0.h"
 #include "include/AML_MultiEncoder.h"
 #include "include/enc_define.h"
 #include "vdi_osal.h"
 
 const char version[] = "Amlogic libvp_multi_codec version 1.0";
+
+#define ENCODE_TIME_OUTER 0
+#if ENCODE_TIME_OUTER
+static unsigned long encode_time_per_frame;
+static unsigned long long total_encode_time;
+static unsigned long long total_encode_frames;
+static struct timeval start_test;
+static struct timeval end_test;
+#endif
 
 const char* vl_get_version() {
   return version;
@@ -241,6 +251,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   result.encoded_data_length_in_bytes = 0;
   result.is_valid = false;
 
+#if ENCODE_TIME_OUTER
+  gettimeofday(&start_test, NULL);
+#endif
+
   if (in_buffer_info == NULL) {
     VLOG(ERR, "invalid input buffer_info\n");
     result.is_valid = false;
@@ -412,15 +426,29 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   }
   result.is_valid = true;
   result.encoded_data_length_in_bytes = dataLength;
+#if ENCODE_TIME_OUTER
+    gettimeofday(&end_test, NULL);
+    encode_time_per_frame = end_test.tv_sec - start_test.tv_sec;
+    encode_time_per_frame = encode_time_per_frame * 1000000 + end_test.tv_usec - start_test.tv_usec;
+    total_encode_frames++;
+    total_encode_time += encode_time_per_frame;
+    printf("%p#Encode time : %lu us, frame_number : %llu\n",
+      handle->am_enc_handle, encode_time_per_frame, total_encode_frames);
+#endif
   return result;
 }
 
 int vl_multi_encoder_destroy(vl_codec_handle_t codec_handle) {
     VPMultiEncHandle *handle = (VPMultiEncHandle *)codec_handle;
     AML_MultiEncRelease(handle->am_enc_handle);
+#if ENCODE_TIME_OUTER
+    printf("%p#Total encode time : %llu, Total encode frames : %llu\n",
+        handle->am_enc_handle, total_encode_time, total_encode_frames);
+#endif
     if (handle->mSPSPPSData)
         free(handle->mSPSPPSData);
     if (handle)
         free(handle);
+
     return 1;
 }

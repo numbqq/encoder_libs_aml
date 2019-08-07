@@ -484,9 +484,7 @@ exit:
 		if (inputBuffer)
 			free(inputBuffer);
 	}
-
 	printf("Encode End!\n");
 
 	return 0;
-
 }

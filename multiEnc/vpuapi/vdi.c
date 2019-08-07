@@ -48,6 +48,7 @@
 typedef pthread_mutex_t	MUTEX_HANDLE;
 
 #define VDI_SRAM_BASE_ADDR          0x00000000    // if we can know the sram address in SOC directly for vdi layer. it is possible to set in vdi layer without allocation from driver
+#define INIT_RETRY      100
 
 #define VDI_SYSTEM_ENDIAN                   VDI_LITTLE_ENDIAN
 #define VDI_128BIT_BUS_SYSTEM_ENDIAN        VDI_128BIT_LITTLE_ENDIAN
@@ -107,7 +108,7 @@ int vdi_probe(u32 core_idx)
 int vdi_init(u32 core_idx)
 {
     vdi_info_t *vdi;
-    int i;
+    int i, retry_cnt = 0;
 
     if (core_idx >= MAX_NUM_VPU_CORE)
         return 0;
@@ -121,18 +122,25 @@ int vdi_init(u32 core_idx)
     }
 
 
-
+retry:
     vdi->vpu_fd = open(VPU_DEVICE_NAME, O_RDWR);
     if (vdi->vpu_fd < 0) {
-        VLOG(ERR, "[VDI] Can't open vpu driver. [error=%s]\n", strerror(errno));
-        return -1;
+        if (retry_cnt >= INIT_RETRY) {
+                VLOG(ERR, "[VDI] Can't open vpu driver. [error=%s]\n", strerror(errno));
+                return -1;
+        } else {
+                VLOG(ERR,"[VDI] Init open vpu driver fail retrying \n");
+                retry_cnt ++;
+                osal_msleep(100);
+                goto retry;
+        }
     }
 
     memset(vdi->vpu_buffer_pool, 0x00, sizeof(vpudrv_buffer_pool_t)*MAX_VPU_BUFFER_POOL);
 
     if (!vdi_get_instance_pool(core_idx))
     {
-        VLOG(INFO, "[VDI] fail to create shared info for saving context \n");		
+        VLOG(INFO, "[VDI] fail to create shared info for saving context \n");
         goto ERR_VDI_INIT;
     }
 
@@ -144,7 +152,7 @@ int vdi_init(u32 core_idx)
         pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 #if defined(ANDROID) || !defined(PTHREAD_MUTEX_ROBUST_NP)
 #else
-        /* If a process or a thread is terminated abnormally, 
+        /* If a process or a thread is terminated abnormally,
         * pthread_mutexattr_setrobust_np(attr, PTHREAD_MUTEX_ROBUST_NP) makes
         * next onwer call pthread_mutex_lock() without deadlock.
         */
@@ -154,7 +162,7 @@ int vdi_init(u32 core_idx)
         pthread_mutex_init((MUTEX_HANDLE *)vdi->vpu_disp_mutex, &mutexattr);
 
 
-        for( i = 0; i < MAX_NUM_INSTANCE; i++) {
+        for ( i = 0; i < MAX_NUM_INSTANCE; i++) {
             pCodecInst = (int *)vdi->pvip->codecInstPool[i];
             pCodecInst[1] = i;	// indicate instIndex of CodecInst
             pCodecInst[0] = 0;	// indicate inUse of CodecInst

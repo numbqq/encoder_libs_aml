@@ -17,7 +17,7 @@
 #ifndef _VPU_CONFIG_H_
 #define _VPU_CONFIG_H_
 
-#define ENC_STREAM_BUF_SIZE  0xF00000
+#define ENC_STREAM_BUF_SIZE  0x200000
 #define ENC_STREAM_BUF_COUNT 4
 
 #define VP512_CODE                    0x5120
@@ -93,10 +93,10 @@
 /************************************************************************/
 #define COMMAND_QUEUE_DEPTH             4
 
-#define ENC_SRC_BUF_NUM             (12+COMMAND_QUEUE_DEPTH)          //!< case of GOPsize = 8 (IBBBBBBBP), max src buffer num  = 12
+#define ENC_SRC_BUF_NUM             (4+COMMAND_QUEUE_DEPTH)          //!< case of GOPsize = 8 (IBBBBBBBP), max src buffer num  = 12
 
 #define ONE_TASKBUF_SIZE_FOR_VP5DEC_CQ         (8*1024*1024)   /* upto 8Kx4K, need 8Mbyte per task*/
-#define ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ         (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
+#define ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ         (2*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
 #define ONE_TASKBUF_SIZE_FOR_VP511DEC_CQ       (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
 
 #define ONE_TASKBUF_SIZE_FOR_CQ     ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ    

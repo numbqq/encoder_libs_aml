@@ -65,6 +65,14 @@ typedef pthread_mutex_t	MUTEX_HANDLE;
 #ifdef SUPPORT_MULTI_CORE_IN_ONE_DRIVER
 #define VPU_CORE_BASE_OFFSET 0x4000
 #endif
+enum
+{
+    INIT_VDI_STAT_NULL = 0,
+    INIT_VDI_STAT_INIT = 1,
+    INIT_VDI_STAT_OPENING = 2,
+    INIT_VDI_STAT_ALLOC = 3,
+    INIT_VDI_STAT_DONE = 4,
+};
 
 typedef struct vpu_buffer_t vpudrv_buffer_t;
 
@@ -77,21 +85,23 @@ typedef struct vpudrv_buffer_pool_t
 typedef struct  {
     unsigned long core_idx;
     unsigned int product_code;
-    int vpu_fd;	
+    int vpu_fd;
     vpu_instance_pool_t *pvip;
     int task_num;
-    int clock_state;	
+    int clock_state;
     vpudrv_buffer_t vdb_register;
     vpu_buffer_t vpu_common_memory;
     vpudrv_buffer_pool_t vpu_buffer_pool[MAX_VPU_BUFFER_POOL];
     int vpu_buffer_pool_count;
-	
+
     void* vpu_mutex;
     void* vpu_omx_mutex;
     void* vpu_disp_mutex;
 } vdi_info_t;
 
 static vdi_info_t s_vdi_info[MAX_NUM_VPU_CORE];
+static int vdi_init_flag[MAX_NUM_VPU_CORE] = {0};
+static pthread_mutex_t vid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int swap_endian(u32 core_idx, unsigned char *data, int len, int endian);
 
@@ -112,21 +122,32 @@ int vdi_init(u32 core_idx)
 
     if (core_idx >= MAX_NUM_VPU_CORE)
         return 0;
+    pthread_mutex_lock(&vid_mutex);
+    if (vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL) {
+        vdi_init_flag[core_idx] = INIT_VDI_STAT_INIT;
+        memset(&s_vdi_info[core_idx], 0x00, sizeof(s_vdi_info));
+
+    }
 
     vdi = &s_vdi_info[core_idx];
 
-    if (vdi->vpu_fd != -1 && vdi->vpu_fd != 0x00)
+    if (vdi->vpu_fd != -1 && vdi->vpu_fd != 0x00
+        && vdi_init_flag[core_idx] == INIT_VDI_STAT_DONE)
     {
+        VLOG(ERR, "[VDI] opend already.\n");
         vdi->task_num++;
+        pthread_mutex_unlock(&vid_mutex);
         return 0;
     }
 
-
+    vdi_init_flag[core_idx] = INIT_VDI_STAT_OPENING;
 retry:
     vdi->vpu_fd = open(VPU_DEVICE_NAME, O_RDWR);
     if (vdi->vpu_fd < 0) {
         if (retry_cnt >= INIT_RETRY) {
                 VLOG(ERR, "[VDI] Can't open vpu driver. [error=%s]\n", strerror(errno));
+                vdi_init_flag[core_idx] = INIT_VDI_STAT_DONE;
+                pthread_mutex_unlock(&vid_mutex);
                 return -1;
         } else {
                 VLOG(ERR,"[VDI] Init open vpu driver fail retrying \n");
@@ -137,7 +158,7 @@ retry:
     }
 
     memset(vdi->vpu_buffer_pool, 0x00, sizeof(vpudrv_buffer_pool_t)*MAX_VPU_BUFFER_POOL);
-
+    vdi_init_flag[core_idx] = INIT_VDI_STAT_ALLOC;
     if (!vdi_get_instance_pool(core_idx))
     {
         VLOG(INFO, "[VDI] fail to create shared info for saving context \n");
@@ -177,7 +198,7 @@ retry:
 
     vdi->vdb_register.virt_addr = (unsigned long)mmap(NULL, vdi->vdb_register.size, PROT_READ | PROT_WRITE, MAP_SHARED, vdi->vpu_fd, vdi->vdb_register.phys_addr);
 
-    if ((void *)vdi->vdb_register.virt_addr == MAP_FAILED) 
+    if ((void *)vdi->vdb_register.virt_addr == MAP_FAILED)
     {
         VLOG(ERR, "[VDI] fail to map vpu registers \n");
         goto ERR_VDI_INIT;
@@ -185,8 +206,6 @@ retry:
     VLOG(INFO, "[VDI] map vdb_register core_idx=%d, virtaddr=0x%lx, size=%d\n", core_idx, vdi->vdb_register.virt_addr, vdi->vdb_register.size);
 
     vdi_set_clock_gate(core_idx, 1);
-
-
 
     vdi->product_code = vdi_read_register(core_idx, VPU_PRODUCT_CODE_REGISTER);
 
@@ -202,15 +221,19 @@ retry:
         goto ERR_VDI_INIT;
     }
 
-    vdi->core_idx = core_idx; 
-    vdi->task_num++;	
+    vdi->core_idx = core_idx;
+    vdi->task_num++;
     vdi_unlock(core_idx);
+    vdi_init_flag[core_idx] = INIT_VDI_STAT_DONE;
+    pthread_mutex_unlock(&vid_mutex);
+    VLOG(INFO, "[VDI] success to init driver \n");
 
-    VLOG(INFO, "[VDI] success to init driver \n");	
     return 0;
 
 ERR_VDI_INIT:
     vdi_unlock(core_idx);
+    vdi_init_flag[core_idx] = INIT_VDI_STAT_DONE;
+    pthread_mutex_unlock(&vid_mutex);
     vdi_release(core_idx);
     return -1;
 }
@@ -311,6 +334,7 @@ int vdi_release(u32 core_idx)
 
     vdi_unlock(core_idx);
 
+    pthread_mutex_lock(&vid_mutex);
     if (vdb.size > 0)
     {
         munmap((void *)vdb.virt_addr, vdb.size);
@@ -327,6 +351,7 @@ int vdi_release(u32 core_idx)
     }
 
     memset(vdi, 0x00, sizeof(vdi_info_t));
+    pthread_mutex_unlock(&vid_mutex);
 
     return 0;
 }

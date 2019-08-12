@@ -96,7 +96,7 @@
 #define ENC_SRC_BUF_NUM             (4+COMMAND_QUEUE_DEPTH)          //!< case of GOPsize = 8 (IBBBBBBBP), max src buffer num  = 12
 
 #define ONE_TASKBUF_SIZE_FOR_VP5DEC_CQ         (8*1024*1024)   /* upto 8Kx4K, need 8Mbyte per task*/
-#define ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ         (2*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
+#define ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ         (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
 #define ONE_TASKBUF_SIZE_FOR_VP511DEC_CQ       (8*1024*1024)  /* upto 8Kx8K, need 8Mbyte per task.*/
 
 #define ONE_TASKBUF_SIZE_FOR_CQ     ONE_TASKBUF_SIZE_FOR_VP5ENC_CQ    

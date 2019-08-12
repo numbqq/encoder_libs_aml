@@ -104,8 +104,6 @@ RetCode Vp5VpuEncGiveCommand(CodecInst *pCodecInst, CodecCommand cmd, void *para
 static RetCode SetupVp5Properties(Uint32 coreIdx)
 {
     VpuAttr*    pAttr = &g_VpuCoreAttributes[coreIdx];
-    Uint32      regVal;
-    Uint8*      str;
     RetCode     ret = RETCODE_SUCCESS;
 
     VpuWriteReg(coreIdx, VP5_QUERY_OPTION, GET_VPU_INFO);
@@ -120,12 +118,10 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
         ret = RETCODE_QUERY_FAILURE;
     }
     else {
-        regVal = VpuReadReg(coreIdx, VP5_RET_PRODUCT_NAME);
-        str    = (Uint8*)&regVal;
-        pAttr->productName[0] = str[3];
-        pAttr->productName[1] = str[2];
-        pAttr->productName[2] = str[1];
-        pAttr->productName[3] = str[0];
+        pAttr->productName[0] = 'V';
+        pAttr->productName[1] = 'P';
+        pAttr->productName[2] = '5';
+        pAttr->productName[3] = 'X';
         pAttr->productName[4] = 0;
 
         pAttr->productId       = VpVpuGetProductId(coreIdx);
@@ -247,7 +243,7 @@ RetCode Vp5VpuGetProductInfo(Uint32 coreIdx, ProductInfo *productInfo)
     }
 
     productInfo->fwVersion      = VpuReadReg(coreIdx, VP5_RET_FW_VERSION);
-    productInfo->productName    = VpuReadReg(coreIdx, VP5_RET_PRODUCT_NAME);
+    productInfo->productName    = ('V' <<24) | ('P' <<16) | ('5'<<8) | ('X');
     productInfo->productVersion = VpuReadReg(coreIdx, VP5_RET_PRODUCT_VERSION);
     productInfo->customerId     = VpuReadReg(coreIdx, VP5_RET_CUSTOMER_ID);
     productInfo->stdDef0        = VpuReadReg(coreIdx, VP5_RET_STD_DEF0);

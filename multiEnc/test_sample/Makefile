@@ -1,7 +1,35 @@
-# ----------------------------------------------------------------------
 #
+# Copyright (c) 2019 Amlogic, Inc. All rights reserved.
 #
+#This source code is subject to the terms and conditions defined in below
+# which is part of this source code package.
 #
+# Description:
+
+
+# copyright (c) 2019 amlogic, inc. all rights reserved.
+#
+# all information contained herein is amlogic confidential.
+#
+# this software is provided to you pursuant to software license
+# agreement (sla) with amlogic inc ("amlogic"). this software may be
+# used only in accordance with the terms of this agreement.
+#
+# redistribution and use in source and binary forms, with or without
+# modification is strictly prohibited without prior written permission
+# from amlogic.
+#
+# this software is provided by the copyright holders and contrIBUTORS
+# "as is" and any express or implied warranties, including, buT NOT
+# limited to, the implied warranties of merchantability and fiTNESS FOR
+# a particular purpose are disclaimed. in no event shall the cOPYRIGHT
+# owner or contributors be liable for any direct, indirect, inCIDENTAL,
+# special, exemplary, or consequential damages (including, but NOT
+# limited to, procurement of substitute goods or services; losS OF USE,
+# data, or profits; or business interruption) however caused aND ON ANY
+# theory of liability, whether in contract, strict liability, OR TORT
+# (including negligence or otherwise) arising in any way out oF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 .PHONY: CREATE_DIR clean all
 

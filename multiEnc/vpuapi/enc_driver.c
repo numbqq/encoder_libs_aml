@@ -2563,7 +2563,7 @@ RetCode CheckEncCustomGopParamValid(EncOpenParam* pop)
 
     for(i = 0; i < gop_size; i++)
     {
-        gopPicParam = &gopParam->picParam[ei];
+        gopPicParam = &gopParam->picParam[i];
 
         if(gopPicParam->pocOffset <= 0)
         {

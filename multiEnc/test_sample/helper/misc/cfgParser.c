@@ -74,7 +74,7 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"VpFrontSynchro",            0,              1,                      0}, // 30
     {"LosslessCoding",              0,              1,                      0},
     {"UsePresetEncTools",           0,              3,                      0},
-    {"GopPreset",                   0,             16,                      0}, 
+    {"GopPreset",                   0,             16,                      0},
     {"RateControl",                 0,              1,                      0},
     {"EncBitrate",                  0,              700000000,              0},
     {"InitialDelay",                10,             3000,                   0},
@@ -129,68 +129,68 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"EnCustomVpsHeader",           0,              1,                      0},
     {"EnCustomSpsHeader",           0,              1,                      0},
     {"EnCustomPpsHeader",           0,              1,                      0},
-    {"CustomVpsPsId",               0,              15,                     0}, 
+    {"CustomVpsPsId",               0,              15,                     0},
     {"CustomSpsPsId",               0,              15,                     0},
     {"CustomSpsActiveVpsId",        0,              15,                     0}, //90
     {"CustomPpsActiveSpsId",        0,              15,                     0},
     {"CustomVpsIntFlag",            0,              1,                      1},
-    {"CustomVpsAvailFlag",          0,              1,                      1}, 
+    {"CustomVpsAvailFlag",          0,              1,                      1},
     {"CustomVpsMaxLayerMinus1",     0,              62,                     0},
     {"CustomVpsMaxSubLayerMinus1",  0,              6,                      0},
     {"CustomVpsTempIdNestFlag",     0,              1,                      0},
     {"CustomVpsMaxLayerId",         0,              31,                     0},
-    {"CustomVpsNumLayerSetMinus1",  0,              2,                      0}, 
+    {"CustomVpsNumLayerSetMinus1",  0,              2,                      0},
     {"CustomVpsExtFlag",            0,              1,                      0},
     {"CustomVpsExtDataFlag",        0,              1,                      0}, //100
     {"CustomVpsSubOrderInfoFlag",   0,              1,                      0},
     {"CustomSpsSubOrderInfoFlag",   0,              1,                      0},
-    {"CustomVpsLayerId0",           0,              INT_MAX,                0}, 
+    {"CustomVpsLayerId0",           0,              INT_MAX,                0},
     {"CustomVpsLayerId1",           0,              INT_MAX,                0},
     {"CustomSpsLog2MaxPocMinus4",   0,              12,                     4},
 // newly added for VP520
     {"EncMonochrome",               0,              1,                      0},
     {"StrongIntraSmoothing",        0,              1,                      1},
-    {"RoiAvgQP",                    0,              63,                     0}, 
+    {"RoiAvgQP",                    0,              63,                     0},
     {"WeightedPred",                0,              3,                      0},
     {"EnBgDetect",                  0,              1,                      0}, // 110
     {"BgThDiff",                    0,              255,                    8},
     {"BgThMeanDiff",                0,              255,                    1},
-    {"BgLambdaQp",                  0,              63,                    32}, 
+    {"BgLambdaQp",                  0,              63,                    32},
     {"BgDeltaQp",                   -16,            15,                     3},
     {"TileNumColumns",              1,              6,                      1},
     {"TileNumRows",                 1,              6,                      1},
     {"TileUniformSpace",            0,              1,                      1},
-    {"EnLambdaMap",                 0,              1,                      0}, 
+    {"EnLambdaMap",                 0,              1,                      0},
     {"EnCustomLambda",              0,              1,                      0},
     {"EnCustomMD",                  0,              1,                      0}, //120
     {"PU04DeltaRate",               0,              255,                    0},
     {"PU08DeltaRate",               0,              255,                    0},
-    {"PU16DeltaRate",               0,              255,                    0}, 
+    {"PU16DeltaRate",               0,              255,                    0},
     {"PU32DeltaRate",               0,              255,                    0},
     {"PU04IntraPlanarDeltaRate",    0,              255,                    0},
     {"PU04IntraDcDeltaRate",        0,              255,                    0},
     {"PU04IntraAngleDeltaRate",     0,              255,                    0},
-    {"PU08IntraPlanarDeltaRate",    0,              255,                    0}, 
+    {"PU08IntraPlanarDeltaRate",    0,              255,                    0},
     {"PU08IntraDcDeltaRate",        0,              255,                    0},
     {"PU08IntraAngleDeltaRate",     0,              255,                    0}, //130
     {"PU16IntraPlanarDeltaRate",    0,              255,                    0},
     {"PU16IntraDcDeltaRate",        0,              255,                    0},
-    {"PU16IntraAngleDeltaRate",     0,              255,                    0}, 
+    {"PU16IntraAngleDeltaRate",     0,              255,                    0},
     {"PU32IntraPlanarDeltaRate",    0,              255,                    0},
     {"PU32IntraDcDeltaRate",        0,              255,                    0},
     {"PU32IntraAngleDeltaRate",     0,              255,                    0},
     {"CU08IntraDeltaRate",          0,              255,                    0},
-    {"CU08InterDeltaRate",          0,              255,                    0}, 
+    {"CU08InterDeltaRate",          0,              255,                    0},
     {"CU08MergeDeltaRate",          0,              255,                    0},
     {"CU16IntraDeltaRate",          0,              255,                    0}, //140
     {"CU16InterDeltaRate",          0,              255,                    0},
     {"CU16MergeDeltaRate",          0,              255,                    0},
-    {"CU32IntraDeltaRate",          0,              255,                    0}, 
+    {"CU32IntraDeltaRate",          0,              255,                    0},
     {"CU32InterDeltaRate",          0,              255,                    0},
     {"CU32MergeDeltaRate",          0,              255,                    0},
     {"DisableCoefClear",            0,              1,                      0},
     {"EnModeMap",                   0,              3,                      0},
-    {"ForcePicSkipStart",          -1,              INT_MAX,               -1}, 
+    {"ForcePicSkipStart",          -1,              INT_MAX,               -1},
     {"ForcePicSkipEnd",            -1,              INT_MAX,               -1},
     {"ForceCoefDropStart",         -1,              INT_MAX,               -1}, //150
     {"ForceCoefDropEnd",           -1,              INT_MAX,               -1},
@@ -200,12 +200,12 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"LfRefDeltaIntra",            -63,            63,                      1},
     {"LfRefDeltaRef0",             -63,            63,                      0},
     {"LfRefDeltaRef1",             -63,            63,                     -1},
-    {"LfModeDelta",                -63,            63,                      0},  
+    {"LfModeDelta",                -63,            63,                      0},
     {"EnSVC",                       0,              1,                      0},
     {"YDcQpOffset",                -3,              3,                      0}, // 160
     {"CbCrDcQpOffset",             -3,              3,                      0},
     {"CbCrAcQpOffset",             -3,              3,                      0},
-    {"StillPictureProfile",         0,              1,                      0}, 
+    {"StillPictureProfile",         0,              1,                      0},
     {"SvcMode",                     0,              1,                      1},
     {"VbvBufferSize",              10,             3000,                   3000},
     {"EncBitrateBL",                0,              700000000,              0},
@@ -220,7 +220,7 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"MBLevelRateControl",          0,              1,                      0},
     {"CABAC",                       0,              1,                      1},
     {"RoiQpMapFile",                0,              1,                      1}, // 178  total : 179
-    {"S2fmeOff",                    0,              1,                      0}, 
+    {"S2fmeOff",                    0,              1,                      0},
 };
 
 //------------------------------------------------------------------------------
@@ -232,7 +232,7 @@ static int GetValue(osal_file_t fp, char *para, char *value)
 	char lineStr[256];
 	char paraStr[256];
 	osal_fseek(fp, 0, SEEK_SET);
-	
+
 	while (1) {
 		if (fgets(lineStr, 256, fp) == NULL)
 			return 0;
@@ -242,7 +242,7 @@ static int GetValue(osal_file_t fp, char *para, char *value)
 				return 1;
 		}
 	}
-} 
+}
 
 // Parse "string number number ..." at most "num" numbers
 // e.g. SKIP_PIC_NUM 1 3 4 5
@@ -294,7 +294,7 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
         goto __end_parseMp4CfgFile;
     else
 		strcpy(pEncCfg->SrcFileName, sValue);
-	
+
 	if (GetValue(fp, "FRAME_NUMBER_ENCODED", sValue) == 0)
         goto __end_parseMp4CfgFile;
     pEncCfg->NumFrame = atoi(sValue);
@@ -322,7 +322,7 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
         timeRes = (int) frameRate;
         // divide 2 or 5
         if (timeInc%2 == 0 && timeRes%2 == 0) {
-            timeInc /= 2; 
+            timeInc /= 2;
             timeRes /= 2;
         }
         if (timeInc%5 == 0 && timeRes%5 == 0) {
@@ -379,8 +379,8 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
 	pEncCfg->SliceSizeMode = atoi(sValue);
 	if (GetValue(fp, "SLICE_SIZE_NUMBER", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->SliceSizeNum = atoi(sValue);	
-	
+        pEncCfg->SliceSizeNum = atoi(sValue);
+
 	if (GetValue(fp, "RATE_CONTROL_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
 	pEncCfg->RcEnable = atoi(sValue);
@@ -512,16 +512,16 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
         timeRes = (int) frameRate;
         // divide 2 or 5
         if (timeInc%2 == 0 && timeRes%2 == 0) {
-            timeInc /= 2; 
+            timeInc /= 2;
             timeRes /= 2;
         }
         if (timeInc%5 == 0 && timeRes%5 == 0) {
-            timeInc /= 5; 
+            timeInc /= 5;
             timeRes /= 5;
         }
 
         if (timeRes == 2997 && timeInc == 100) {
-            timeRes = 30000; 
+            timeRes = 30000;
             timeInc = 1001;
         }
         pEncCfg->FrameRate = (timeInc - 1) << 16;
@@ -572,11 +572,11 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
     pEncCfg->SliceSizeMode = atoi(sValue);
     if (GetValue(fp, "SLICE_SIZE_NUMBER", sValue) == 0)
         goto __end_parseAvcCfgFile;
-    pEncCfg->SliceSizeNum = atoi(sValue);	
+    pEncCfg->SliceSizeNum = atoi(sValue);
     if (GetValue(fp, "AUD_ENABLE", sValue) == 0)
         pEncCfg->aud_en = 0;
     else
-        pEncCfg->aud_en = atoi(sValue);	
+        pEncCfg->aud_en = atoi(sValue);
 
     /**
     * Error Resilience
@@ -586,7 +586,7 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
         pEncCfg->intraCostWeight = 0;
     else
         pEncCfg->intraCostWeight = atoi(sValue);
-    
+
     /**
     * CROP information
     */
@@ -736,7 +736,7 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
 
 
     osal_memset(pEncCfg->skipPicNums, 0, sizeof(pEncCfg->skipPicNums));
-    GetValues(fp, "SKIP_PIC_NUMS", pEncCfg->skipPicNums, sizeof(pEncCfg->skipPicNums));    
+    GetValues(fp, "SKIP_PIC_NUMS", pEncCfg->skipPicNums, sizeof(pEncCfg->skipPicNums));
 
 
     /**
@@ -744,7 +744,7 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
     */
     if (GetValue(fp, "VUI_PARAMETERS_PRESENT_FLAG", sValue) == 0)
         pEncCfg->VuiPresFlag = 0;
-    else 
+    else
         pEncCfg->VuiPresFlag = atoi(sValue);
 
     if (pEncCfg->VuiPresFlag == 1) {
@@ -762,7 +762,7 @@ int parseAvcCfgFile(ENC_CFG *pEncCfg, char *FileName)
 
             if (GetValue(fp, "VIDEO_FULL_RANGE_FLAG", sValue) == 0)
                 pEncCfg->VideoFullRangeFlag = 0;
-            else 
+            else
                 pEncCfg->VideoFullRangeFlag = atoi(sValue);
 
             if (GetValue(fp, "COLOUR_DESCRIPTION_PRESENT_FLAG", sValue) == 0)
@@ -853,7 +853,7 @@ static int VP_GetValue(
     int iValue;
     int ret;
     char sValue[256] = {0, };
-    
+
     for (i=0; i < MAX_CFG ;i++) {
         if ( strcmp(vpCfgInfo[i].name, cfgName) == 0)
             break;
@@ -897,18 +897,19 @@ static int VP_SetGOPInfo(
     char sliceType;
 
     osal_memset(gopPicParam, 0, sizeof(CustomGopPicParam));
-    
-    numParsed = sscanf(lineStr, "%c %d %d %d %d %d", 
-        &sliceType, &gopPicParam->pocOffset, &gopPicParam->picQp, 
+
+    numParsed = sscanf(lineStr, "%c %d %d %d %d %d",
+        &sliceType, &gopPicParam->pocOffset, &gopPicParam->picQp,
         &gopPicParam->temporalId, &gopPicParam->refPocL0, &gopPicParam->refPocL1);
 
-
+    VLOG(DEBUG, "HEVC type %c, poc %d, qp %d, temporal %d, ref0 %d, ref1 %d, nums %d\n",
+        sliceType, gopPicParam->pocOffset,gopPicParam->picQp, gopPicParam->temporalId,
+        gopPicParam->refPocL0, gopPicParam->refPocL1, numParsed);
 
     if (sliceType=='I') {
         gopPicParam->picType = PIC_TYPE_I;
     }
     else if (sliceType=='P') {
-        
         if (numParsed == 6) {
             gopPicParam->picType = PIC_TYPE_P;
             gopPicParam->numRefPicL0 = 2;
@@ -935,10 +936,8 @@ static int VP_SetGOPInfo(
 
     gopPicParam->picQp = MIN(63, gopPicParam->picQp + intraQp);
 
-     
     return 1;
 }
-
 
 static int VP_AVCSetGOPInfo(
     char* lineStr,
@@ -951,17 +950,21 @@ static int VP_AVCSetGOPInfo(
     char sliceType;
 
     osal_memset(gopPicParam, 0, sizeof(CustomGopPicParam));
-    
-    numParsed = sscanf(lineStr, "%c %d %d %d %d", 
-        &sliceType, &gopPicParam->pocOffset, &gopPicParam->picQp, 
-        &gopPicParam->refPocL0, &gopPicParam->refPocL1);
+
+    numParsed = sscanf(lineStr, "%c %d %d %d %d %d",
+        &sliceType, &gopPicParam->pocOffset, &gopPicParam->picQp,
+        &gopPicParam->temporalId, &gopPicParam->refPocL0, &gopPicParam->refPocL1);
+
+    VLOG(DEBUG, "AVC type %c, poc %d, qp %d, temporal %d, ref0 %d, ref1 %d, nums %d\n",
+        sliceType, gopPicParam->pocOffset,gopPicParam->picQp, gopPicParam->temporalId,
+        gopPicParam->refPocL0, gopPicParam->refPocL1, numParsed);
 
     if (sliceType=='I') {
         gopPicParam->picType = PIC_TYPE_I;
     }
     else if (sliceType=='P') {
-        
-        if (numParsed == 5) {
+
+        if (numParsed == 6) {
             gopPicParam->picType = PIC_TYPE_P;
             gopPicParam->numRefPicL0 = 2;
         }
@@ -977,12 +980,12 @@ static int VP_AVCSetGOPInfo(
     else {
         return 0;
     }
-    if (sliceType=='B' && numParsed != 5) {
+    if (sliceType == 'B' && numParsed != 6) {
         return 0;
     }
 
     gopPicParam->picQp = gopPicParam->picQp + intraQp;
-     
+
     return 1;
 }
 
@@ -999,7 +1002,7 @@ int parseRoiCtuModeParam(
     osal_memset(roiRegion, 0, sizeof(VpuRect));
     *roiQp = 0;
 
-    numParsed = sscanf(lineStr, "%d %d %d %d %d", 
+    numParsed = sscanf(lineStr, "%d %d %d %d %d",
         &roiRegion->left, &roiRegion->right, &roiRegion->top, &roiRegion->bottom, roiQp);
 
     if (numParsed != 5) {
@@ -1041,7 +1044,7 @@ int parseVpEncCfgFile(
     int iValue = 0, ret = 0, i = 0;
     int intra8=0, intra16=0, intra32=0, frameSkip=0; // temp value
     UNREFERENCED_PARAMETER(frameSkip);
-    
+
     fp = osal_fopen(FileName, "r");
     if (fp == NULL) {
         VLOG(ERR, "file open err : %s, errno(%d)\n", FileName, errno);
@@ -1120,7 +1123,7 @@ int parseVpEncCfgFile(
 
     if (VP_GetValue(fp, "QP", &iValue) == 0) //INTRA_QP
         goto __end_parse;
-    else 
+    else
         pEncCfg->vpCfg.intraQP = iValue;
 
     if (VP_GetValue(fp, "IntraPeriod", &iValue) == 0)
@@ -1303,7 +1306,7 @@ int parseVpEncCfgFile(
         else
             pEncCfg->VbvBufferSize = iValue;
     }
-    
+
     if (VP_GetValue(fp, "MinQp", &iValue) == 0)
         goto __end_parse;
     else
@@ -1568,7 +1571,7 @@ int parseVpEncCfgFile(
         goto __end_parse;
     else
         pEncCfg->vpCfg.entropyCodingMode = iValue;
-    
+
     // H.264 END
 
 
@@ -1763,19 +1766,16 @@ int parseVpEncCfgFile(
     else
         pEncCfg->vpCfg.cu32MergeDeltaRate = iValue;
 
-   
     if (VP_GetValue(fp, "DisableCoefClear", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->vpCfg.coefClearDisable = iValue;
-
 
     if (VP_GetValue(fp, "EnModeMap", &iValue) == 0)
         goto __end_parse;
     else
         pEncCfg->vpCfg.customModeMapFlag = iValue;
 
-    
     if (VP_GetValue(fp, "ForcePicSkipStart", &iValue) == 0)
         goto __end_parse;
     else
@@ -1834,7 +1834,7 @@ int parseVpEncCfgFile(
             sscanf(sValue, "%s\n", pEncCfg->vpCfg.WpParamFileName);
         }
     }
-    
+
 #define NUM_MAX_PARAM_CHANGE    10
     for (i=0; i<NUM_MAX_PARAM_CHANGE; i++) {
         sprintf(tempStr, "SPCh%d", i+1);
@@ -1855,7 +1855,7 @@ __end_parse:
 }
 
 int parseVpChangeParamCfgFile(
-    ENC_CFG *pEncCfg, 
+    ENC_CFG *pEncCfg,
     char *FileName
     )
 {
@@ -1947,7 +1947,7 @@ int parseVpChangeParamCfgFile(
 
     if (VP_GetValue(fp, "QP", &iValue) == 0)
         goto __end_parse;
-    else 
+    else
         pEncCfg->vpCfg.intraQP = iValue;
 
     if (VP_GetValue(fp, "IntraPeriod", &iValue) == 0)
@@ -1981,7 +1981,7 @@ int parseVpChangeParamCfgFile(
         else
             pEncCfg->VbvBufferSize = iValue;
     }
-    
+
     if (VP_GetValue(fp, "MinQp", &iValue) == 0)
         goto __end_parse;
     else
@@ -2293,5 +2293,3 @@ __end_parse:
     osal_fclose(fp);
     return ret;
 }
-
- 

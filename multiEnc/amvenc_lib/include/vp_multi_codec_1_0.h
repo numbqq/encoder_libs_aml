@@ -40,11 +40,22 @@
 
 #define vl_codec_handle_t long
 
+
+ typedef struct enc_frame_extra_info {
+  int frame_type; /* encoded frame type as vl_frame_type_t */
+  int average_qp_value; /* average qp value of the encoded frame */
+  int intra_blocks;  /* intra blockes (in 8x8) of the encoded frame */
+  int merged_blocks; /* merged blockes (in 8x8) of the encoded frame */
+  int skipped_blocks; /* skipped blockes (in 8x8) of the encoded frame */
+} enc_frame_extra_info_t;
+
+/* encoded frame info */
 typedef struct encoding_metadata_e {
   int encoded_data_length_in_bytes; /* size of the encoded buffer */
   bool is_key_frame; /* if true, the encoded frame is a keyframe */
   int timestamp_us;  /* timestamp in usec of the encode frame */
   bool is_valid;     /* if true, the encoding was successful */
+  enc_frame_extra_info_t extra; /* extra info of encoded frame if is_valid true */
 } encoding_metadata_t;
 
 typedef enum vl_codec_id_e {
@@ -85,7 +96,7 @@ typedef enum {
   DMA_TYPE = 3,
 } vl_buffer_type_t;
 
-/* encoder info*/
+/* encoder info config */
 typedef struct vl_encode_info {
   int width;
   int height;
@@ -94,7 +105,9 @@ typedef struct vl_encode_info {
   int gop;
   bool prepend_spspps_to_idr_frames;
   vl_img_format_t img_format;
-  int qp_mode;
+  int qp_mode; /* 1: use customer QP range, 0:use default QP range */
+  int enc_feature_opts; /*option features flag settings */
+                       /* bit 0: qp hint(roi) 0:disable (default) 1: enable */
 } vl_encode_info_t;
 
 /* dma buffer info*/
@@ -228,6 +241,23 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t handle,
                                            unsigned char* out,
                                            vl_buffer_info_t *in_buffer_info,
                                            vl_buffer_info_t *ret_buffer_info);
+
+
+/**
+ *
+ * vl_video_encoder_update_qp_hint
+ *@param : handle
+ *@param : pq_hint_table: the char pointer with hint qp value (0-51) of each
+ *block in raster scan order.block size for AVC is 16x16, HEVC is 32x32)
+ *@size : size of the pq_hint_table.it must be equal or larger than the total
+ *number of the blocks of the whole frame. otherwise it will take no action.
+ *
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_update_qp_hint(vl_codec_handle_t handle,
+                            unsigned char *pq_hint_table,
+                            int size);
+
 
 /**
  * destroy encoder

@@ -65,7 +65,11 @@ typedef struct FrameIO_s {
   uint32 num_planes;
   int shared_fd[3];
   // OUTPUT  bit-stream information
-  int encoded_frame_type;  //define of PicType in vpuapi.h
+  int encoded_frame_type; //define of PicType in vpuapi.h
+  int enc_average_qp; //average qp value of the encoded frame
+  int enc_intra_blocks; //intra blockes (in 8x8) of the encoded frame
+  int enc_merged_blocks; //merged blockes (in 8x8) of the encoded frame
+  int enc_skipped_blocks; //skipped blockes (in 8x8) of the encoded frame
 } AMVMultiEncFrameIO;
 
 typedef enum AMVGOPModeOPT_S {
@@ -132,6 +136,7 @@ typedef struct EncInitParams_s {
   uint32 roi_enable; /* enable roi  */
   uint32 lambda_map_enable; /* enable lambda map */
   uint32 mode_map_enable; /* enable mode map*/
+  uint32 weight_pred_enable; /* enable weighted pred */
 
   int qp_mode;
   int maxQP;
@@ -158,6 +163,9 @@ extern AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t handle,
 extern AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t handle,
                                 unsigned char* buffer,
                                 unsigned int* buf_nal_size);
+extern AMVEnc_Status AML_MultiEncUpdateRoi(amv_enc_handle_t handle,
+                                unsigned char* buffer,
+                                int size);
 extern AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t handle);
 
 #endif

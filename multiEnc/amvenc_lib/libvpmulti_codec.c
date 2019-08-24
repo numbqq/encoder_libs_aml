@@ -127,6 +127,8 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.MBsIntraOverlap = 0;
     handle->mEncParams.encode_once = 1;
 
+    if (encode_info.enc_feature_opts & 0x1) handle->mEncParams.roi_enable = 1;
+
   if (encode_info.img_format == IMG_FMT_NV12) {
     VLOG(INFO, "img_format is IMG_FMT_NV12 \n");
     handle->fmt = AMVENC_NV12;
@@ -163,7 +165,11 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.level = AVC_LEVEL4;
         handle->mEncParams.initQP = 30;
         handle->mEncParams.BitrateScale = ENC_SETTING_OFF;
+    } else {
+        VLOG(ERR, "No surpported codec_id %d\n", codec_id);
+        return AMVENC_FAIL;
     }
+
     return AMVENC_SUCCESS;
 }
 
@@ -219,7 +225,7 @@ vl_codec_handle_t vl_multi_encoder_init(vl_codec_id_t codec_id,
     goto exit;
 
   mHandle->am_enc_handle = AML_MultiEncInitialize(&(mHandle->mEncParams));
-  if (mHandle->am_enc_handle == NULL)
+  if (mHandle->am_enc_handle == 0)
     goto exit;
   mHandle->mPrependSPSPPSToIDRFrames =
                 encode_info.prepend_spspps_to_idr_frames;
@@ -246,10 +252,8 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
 
   encoding_metadata_t result;
-  result.timestamp_us = 0;
-  result.is_key_frame = false;
-  result.encoded_data_length_in_bytes = 0;
-  result.is_valid = false;
+
+  memset(&result, 0, sizeof(encoding_metadata_t));
 
 #if ENCODE_TIME_OUTER
   gettimeofday(&start_test, NULL);
@@ -306,7 +310,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     videoInput.coding_timestamp =
         (unsigned long long)handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in us
 
-    VLOG(DEBUG, "videoInput.frame_rate %f videoInput.coding_timestamp %d, mNumInputFrames %d",
+    VLOG(DEBUG, "videoInput.frame_rate %f videoInput.coding_timestamp %lld, mNumInputFrames %d",
         videoInput.frame_rate * 1000, videoInput.coding_timestamp, handle->mNumInputFrames);
     result.timestamp_us = videoInput.coding_timestamp;
     handle->shared_fd[0] = -1;
@@ -395,6 +399,18 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         }
         result.is_key_frame = true;
       }
+      if (videoRet.encoded_frame_type == 5)
+        result.extra.frame_type = FRAME_TYPE_IDR;
+      else if (videoRet.encoded_frame_type == 0)
+        result.extra.frame_type = FRAME_TYPE_I;
+      else if (videoRet.encoded_frame_type == 1)
+        result.extra.frame_type = FRAME_TYPE_P;
+      else if (videoRet.encoded_frame_type == 2)
+        result.extra.frame_type = FRAME_TYPE_B;
+      result.extra.average_qp_value = videoRet.enc_average_qp;
+      result.extra.intra_blocks = videoRet.enc_intra_blocks;
+      result.extra.merged_blocks = videoRet.enc_merged_blocks;
+      result.extra.skipped_blocks = videoRet.enc_skipped_blocks;
     } else if ((ret == AMVENC_SKIPPED_PICTURE) || (ret == AMVENC_TIMEOUT)) {
       dataLength = 0;
       if (ret == AMVENC_TIMEOUT) {
@@ -419,7 +435,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
             for (i = 0; i < videoRet.num_planes; i++)
                 ret_buf ->buf_info.dma_info.shared_fd[i] = videoRet.shared_fd[i];
         }
-    } else if (videoRet.YCbCr[0] != NULL) {
+    } else if (videoRet.YCbCr[0] != 0) {
         ret_buf ->buf_type = (vl_buffer_type_t)(videoRet.type);
         ret_buf ->buf_info.in_ptr[0] = videoRet.YCbCr[0];
     }
@@ -435,7 +451,30 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     printf("%p#Encode time : %lu us, frame_number : %llu\n",
       handle->am_enc_handle, encode_time_per_frame, total_encode_frames);
 #endif
+
+  VLOG(INFO, "frame extra info type %d, av_qp %d,intra %d,merged %d,skip %d\n",
+        result.extra.frame_type, result.extra.average_qp_value,
+        result.extra.intra_blocks, result.extra.merged_blocks,
+        result.extra.skipped_blocks);
+
   return result;
+}
+
+int vl_video_encoder_update_qp_hint(vl_codec_handle_t codec_handle,
+                            unsigned char *pq_hint_table,
+                            int size)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.roi_enable == 0) //no eoi enabled
+        return -2;
+    ret = AML_MultiEncUpdateRoi(handle->am_enc_handle, pq_hint_table, size);
+    if (ret != AMVENC_SUCCESS)
+        return -3;
+    return 0;
 }
 
 int vl_multi_encoder_destroy(vl_codec_handle_t codec_handle) {

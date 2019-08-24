@@ -404,7 +404,6 @@ RetCode ProductVpuAllocateFramebuffer(
     // Variables for TILED_FRAME/FILED_MB_RASTER
     Uint32          sizeLuma;
     Uint32          sizeChroma;
-    ProductId       productId     = (ProductId)inst->productId;
     RetCode         ret           = RETCODE_SUCCESS;
     
     osal_memset((void*)&vbFrame, 0x00, sizeof(vpu_buffer_t));

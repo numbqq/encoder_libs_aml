@@ -53,6 +53,13 @@
 #include "vpuapifunc.h"
 #include <sys/time.h>
 
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
 #define ENCODE_TIME_STATISTICS 0
 
 #if ENCODE_TIME_STATISTICS
@@ -62,7 +69,6 @@ static unsigned long long total_encode_frames;
 static struct timeval start_test;
 static struct timeval end_test;
 #endif
-
 
 #define SUPPORT_SCALE 0
 
@@ -84,6 +90,30 @@ static bool INIT_GE2D = false;
 #define vp_align128(a)    ((((a)+127)>>7)<<7)
 #define vp_align256(a)    ((((a)+255)>>8)<<8)
 
+typedef union {
+    struct {
+        Uint32  ctu_force_mode  :  2; //[ 1: 0]
+        Uint32  ctu_coeff_drop  :  1; //[    2]
+        Uint32  reserved        :  5; //[ 7: 3]
+        Uint32  sub_ctu_qp_0    :  6; //[13: 8]
+        Uint32  sub_ctu_qp_1    :  6; //[19:14]
+        Uint32  sub_ctu_qp_2    :  6; //[25:20]
+        Uint32  sub_ctu_qp_3    :  6; //[31:26]
+
+        Uint32  lambda_sad_0    :  8; //[39:32]
+        Uint32  lambda_sad_1    :  8; //[47:40]
+        Uint32  lambda_sad_2    :  8; //[55:48]
+        Uint32  lambda_sad_3    :  8; //[63:56]
+    } field;
+} EncCustomMap; // for vp5xx custom map (1 CTU = 64bits)
+
+typedef union {
+    struct {
+        Uint8  mb_force_mode  :  2; //[ 1: 0]
+        Uint8  mb_qp          :  6; //[ 7: 2]
+    } field;
+} AvcEncCustomMap; // for AVC custom map on vp  (1 MB = 8bits)
+
 typedef struct
 {
     Uint8 s4[SL_NUM_MATRIX][16]; // [INTRA_Y/U/V,INTER_Y/U/V][NUM_COEFF]
@@ -93,6 +123,16 @@ typedef struct
     Uint8 s16dc[SL_NUM_MATRIX];
     Uint8 s32dc[2];
 }UserScalingList;
+
+typedef struct
+{
+    Uint32 CustMeanY;
+    Uint32 CustMeadCb;
+    Uint32 CustMeadCr;
+    Uint32 CustSigmaY;
+    Uint32 CustSigmaCb;
+    Uint32 CustSigmaCr;
+} WeigtedPredInfo;
 
 typedef enum {
     ENC_INT_STATUS_NONE,        // Interrupt not asserted yet
@@ -184,6 +224,15 @@ typedef struct AMVEncContext_s {
   unsigned long long mNumInputFrames;
   AMVEncBufferType bufType;
   uint32 mNumPlanes;
+
+  uint8 *CustomRoiMapBuf; // store the latest value
+  uint8 *CustomLambdaMapBuf;
+  uint8 *CustomModeMapBuf;
+  uint32 CustomMapSize; // this is the max value
+  uint32 CustomUpdateID; //store the update count
+  uint32 CustomMapUpdatedId[MAX_REG_FRAME]; // updated ID cnt
+  WeigtedPredInfo wp_para;
+
 #if SUPPORT_SCALE
   uint32 ge2d_initial_done;
 #endif
@@ -269,7 +318,7 @@ static void set_ge2dinfo(aml_ge2d_info_t* pge2dinfo,
 void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint32 height, uint32 stride,
                         bool aligned, EndianMode endian) {
     unsigned i;
-  if (dst == NULL || src == NULL) {
+  if (dst == 0 || src == NULL) {
     VLOG(ERR, "yuv_plane_memcpy error ptr\n");
     return;
   }
@@ -284,7 +333,7 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
   }
 }
 
-BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
+static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 {
     int i;
   EncVpParam *param = &pEncOP->EncStdParam.vpParam;
@@ -446,10 +495,10 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
         param->gopParam.picParam[i].numRefPicL0  = pCfg->vpCfg.gopParam.picParam[i].numRefPicL0;
     }
 #endif
-  param->roiEnable = 0; //pCfg->vpCfg.roiEnable;
+  param->roiEnable = InitParam->roi_enable; //pCfg->vpCfg.roiEnable;
   // VPS & VUI
-  param->numUnitsInTick = 0; //1000;//pCfg->vpCfg.numUnitsInTick;
-  param->timeScale = 0; //pEncOP->frameRateInfo * 1000; //pCfg->vpCfg.timeScale;
+  param->numUnitsInTick = 1000;//pCfg->vpCfg.numUnitsInTick;
+  param->timeScale = pEncOP->frameRateInfo * 1000; //pCfg->vpCfg.timeScale;
   param->numTicksPocDiffOne = 0;//pCfg->vpCfg.numTicksPocDiffOne;
 
   param->chromaCbQpOffset = 0; //pCfg->vpCfg.chromaCbQpOffset;
@@ -472,7 +521,7 @@ BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 
   param->monochromeEnable = 0; //pCfg->vpCfg.monochromeEnable;
   param->strongIntraSmoothEnable = 1; //pCfg->vpCfg.strongIntraSmoothEnable;
-  param->weightPredEnable = 0; //pCfg->vpCfg.weightPredEnable;
+  param->weightPredEnable = InitParam->weight_pred_enable; //pCfg->vpCfg.weightPredEnable;
   param->bgDetectEnable = 0; //pCfg->vpCfg.bgDetectEnable;
   param->bgThrDiff = 8; //pCfg->vpCfg.bgThrDiff;
   param->bgThrMeanDiff = 1;//pCfg->vpCfg.bgThrMeanDiff;
@@ -563,7 +612,7 @@ static ENC_INT_STATUS HandlingInterruptFlag(AMVMultiCtx* ctx)
     if (interruptFlag == -1) {
       Uint64 currentTimeout = osal_gettime();
       if ((currentTimeout - ctx->startTimeout) > interruptTimeout) {
-        VLOG(ERR, "startTimeout(%lld) currentTime(%lld) diff(%d)\n",
+        VLOG(ERR, "startTimeout(%ld) currentTime(%ld) diff(%d)\n",
                      ctx->startTimeout, currentTimeout, (Uint32)(currentTimeout - ctx->startTimeout));
         status = ENC_INT_STATUS_TIMEOUT;
         break;
@@ -861,9 +910,27 @@ static BOOL RegisterFrameBuffers(AMVMultiCtx *ctx)
   if (ctx->mInitParams.roi_enable
         || ctx->mInitParams.lambda_map_enable
         || ctx->mInitParams.mode_map_enable) {
+    ctx->CustomMapSize = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ?
+                            MAX_MB_NUM : MAX_CTU_NUM * 8;
+    if (ctx->mInitParams.roi_enable) {
+      ctx->CustomRoiMapBuf = (unsigned char *)malloc(ctx->CustomMapSize);
+      //set default qp value to 30;
+      memset(ctx->CustomRoiMapBuf, 0x1e , ctx->CustomMapSize);
+    }
+    if (ctx->mInitParams.mode_map_enable) {
+      ctx->CustomModeMapBuf = (unsigned char *)malloc(ctx->CustomMapSize);
+      memset(ctx->CustomModeMapBuf, 0x0 , ctx->CustomMapSize);
+    }
+
+    if (ctx->mInitParams.lambda_map_enable &&
+        ctx->encOpenParam.bitstreamFormat == STD_HEVC) {
+      ctx->CustomLambdaMapBuf = (unsigned char *)malloc(ctx->CustomMapSize);
+      memset(ctx->CustomLambdaMapBuf, 0x0 , ctx->CustomMapSize);
+    }
+    ctx->CustomUpdateID ++; // force the first update
     vdi_lock(ctx->encOpenParam.coreIdx);
     for (idx = 0; idx < ctx->src_num; idx++) {
-      ctx->vbCustomMap[idx].size = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? MAX_MB_NUM : MAX_CTU_NUM * 8;
+      ctx->vbCustomMap[idx].size = ctx->CustomMapSize;
       if (vdi_allocate_dma_memory(ctx->encOpenParam.coreIdx, &ctx->vbCustomMap[idx]) < 0) {
         vdi_unlock(ctx->encOpenParam.coreIdx);
         ctx->vbCustomMap[idx].size = 0;
@@ -874,6 +941,116 @@ static BOOL RegisterFrameBuffers(AMVMultiCtx *ctx)
     vdi_unlock(ctx->encOpenParam.coreIdx);
   }
   return TRUE;
+}
+
+static void SetCustMapData(AMVMultiCtx *ctx, EncParam *encParam, unsigned long addrCustomMap)
+{
+  Uint8 *roiMapBuf;
+  int sumQp = 0;
+  int h, w, bufSize;
+
+  if (ctx->encOpenParam.bitstreamFormat == STD_AVC) {
+    AvcEncCustomMap customMapBuf[MAX_MB_NUM];
+    int MbWidth = VPU_ALIGN16(ctx->encOpenParam.picWidth) >> 4;
+    int MbHeight = VPU_ALIGN16(ctx->encOpenParam.picHeight) >> 4;
+    int mbAddr;
+    osal_memset(&customMapBuf[0], 0x00, MAX_MB_NUM);
+    roiMapBuf = ctx->CustomRoiMapBuf;
+    if (encParam->customMapOpt.customRoiMapEnable == 1) {
+      bufSize = MbWidth*MbHeight;
+      for (h = 0; h < MbHeight; h++) {
+        for (w = 0; w < MbWidth; w++) {
+          mbAddr = w + h*MbWidth;
+          customMapBuf[mbAddr].field.mb_qp = MAX(MIN(roiMapBuf[mbAddr]&0x3f, 51), 0);
+          sumQp += customMapBuf[mbAddr].field.mb_qp;
+        }
+      }
+      encParam->customMapOpt.roiAvgQp = (sumQp + (bufSize>>1)) / bufSize; // round off.
+    }
+
+    if (encParam->customMapOpt.customModeMapEnable == 1) {
+      bufSize = MbWidth*MbHeight;
+      for (h = 0; h < MbHeight; h++) {
+        for (w = 0; w < MbWidth; w++) {
+          mbAddr = w + h*MbWidth;
+          customMapBuf[mbAddr].field.mb_force_mode = ctx->CustomModeMapBuf[mbAddr] & 0x3;
+        }
+      }
+    }
+
+    encParam->customMapOpt.addrCustomMap = addrCustomMap;
+    vdi_write_memory(ctx->encOpenParam.coreIdx,
+                      encParam->customMapOpt.addrCustomMap,
+                      (unsigned char*)customMapBuf,
+                      MAX_MB_NUM, VDI_LITTLE_ENDIAN);
+  }
+  else {
+    // for HEVC custom map.
+    EncCustomMap customMapBuf[MAX_CTU_NUM];// custom map 1 CTU data = 64bits
+    int ctuMapWidthCnt = VPU_ALIGN64(ctx->encOpenParam.picWidth) >> 6;
+    int ctuMapHeightCnt = VPU_ALIGN64(ctx->encOpenParam.picHeight) >> 6;
+    int ctuMapStride = VPU_ALIGN64(ctx->encOpenParam.picWidth) >> 6;
+    int subCtuMapStride = VPU_ALIGN64(ctx->encOpenParam.picWidth) >> 5;
+    int ctuPos;
+    Uint8* src;
+
+    osal_memset(&customMapBuf[0], 0x00, MAX_CTU_NUM * 8);
+    roiMapBuf = ctx->CustomRoiMapBuf;
+    if (encParam->customMapOpt.customRoiMapEnable == 1) {
+      bufSize = subCtuMapStride*(VPU_ALIGN64(ctx->encOpenParam.picHeight) >> 5);
+
+      for (h = 0; h < ctuMapHeightCnt; h++) {
+        src = &roiMapBuf[subCtuMapStride * h * 2];
+        for (w = 0; w < ctuMapWidthCnt; w++, src += 2) {
+          ctuPos = (h * ctuMapStride + w);
+          // store in the order of sub-ctu.
+          customMapBuf[ctuPos].field.sub_ctu_qp_0 = MAX(MIN(*src, 51), 0);
+          customMapBuf[ctuPos].field.sub_ctu_qp_1 = MAX(MIN(*(src + 1), 51), 0);
+          customMapBuf[ctuPos].field.sub_ctu_qp_2 = MAX(MIN(*(src + subCtuMapStride), 51), 0);
+          customMapBuf[ctuPos].field.sub_ctu_qp_3 = MAX(MIN(*(src + subCtuMapStride + 1), 51), 0);
+          sumQp += (customMapBuf[ctuPos].field.sub_ctu_qp_0 +
+                    customMapBuf[ctuPos].field.sub_ctu_qp_1 +
+                    customMapBuf[ctuPos].field.sub_ctu_qp_2 +
+                    customMapBuf[ctuPos].field.sub_ctu_qp_3);
+        }
+      }
+      encParam->customMapOpt.roiAvgQp = (sumQp + (bufSize>>1)) / bufSize; // round off.
+    }
+
+    if (encParam->customMapOpt.customLambdaMapEnable == 1) {
+//       bufSize = subCtuMapStride*(VPU_ALIGN64(ctx->encOpenParam.picHeight) >> 5);
+       for (h = 0; h < ctuMapHeightCnt; h++) {
+         src = &(ctx->CustomLambdaMapBuf[subCtuMapStride * 2 * h]);
+         for (w = 0; w < ctuMapWidthCnt; w++, src += 2) {
+           ctuPos = (h * ctuMapStride + w);
+           // store in the order of sub-ctu.
+           customMapBuf[ctuPos].field.lambda_sad_0 = *src;
+           customMapBuf[ctuPos].field.lambda_sad_1 = *(src + 1);
+           customMapBuf[ctuPos].field.lambda_sad_2 = *(src + subCtuMapStride);
+           customMapBuf[ctuPos].field.lambda_sad_3 = *(src + subCtuMapStride + 1);
+         }
+       }
+    }
+
+    if ((encParam->customMapOpt.customModeMapEnable == 1)
+      || (encParam->customMapOpt.customCoefDropEnable == 1)) {
+//      bufSize = ctuMapWidthCnt * ctuMapHeightCnt;
+      for (h = 0; h < ctuMapHeightCnt; h++) {
+        src = &(ctx->CustomModeMapBuf[ctuMapStride * h]);
+        for (w = 0; w < ctuMapWidthCnt; w++, src++) {
+          ctuPos = (h * ctuMapStride + w);
+          customMapBuf[ctuPos].field.ctu_force_mode = (*src) & 0x3;
+          customMapBuf[ctuPos].field.ctu_coeff_drop  = ((*src) >> 2) & 0x1;
+        }
+      }
+    }
+
+    encParam->customMapOpt.addrCustomMap = addrCustomMap;
+    vdi_write_memory(ctx->encOpenParam.coreIdx,
+                     encParam->customMapOpt.addrCustomMap,
+                     (unsigned char*)customMapBuf,
+                     MAX_CTU_NUM * 8, VDI_LITTLE_ENDIAN);
+  }
 }
 
 #if SUPPORT_SCALE
@@ -1025,11 +1202,11 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   if (SetSequenceInfo(ctx) == FALSE)
     goto fail_exit;
   // Allocate and register encoder frame buffer
-  if(AllocateReconFrameBuffer(ctx) == FALSE)
+  if (AllocateReconFrameBuffer(ctx) == FALSE)
     goto fail_exit;
-  if(AllocateYuvBufferHeader(ctx) == FALSE)
+  if (AllocateYuvBufferHeader(ctx) == FALSE)
     goto fail_exit;
-  if(RegisterFrameBuffers(ctx) == FALSE)
+  if (RegisterFrameBuffers(ctx) == FALSE)
     goto fail_exit;
 
 #if SUPPORT_SCALE
@@ -1068,6 +1245,21 @@ fail_exit:
     if (ctx->vbCustomMap[idx].size)
       vdi_free_dma_memory(coreIdx, &ctx->vbCustomMap[idx]);
   }
+  if (ctx->CustomRoiMapBuf)
+  {
+    free(ctx->CustomRoiMapBuf);
+    ctx->CustomRoiMapBuf = NULL;
+  }
+  if (ctx->CustomLambdaMapBuf)
+  {
+    free(ctx->CustomLambdaMapBuf);
+    ctx->CustomLambdaMapBuf = NULL;
+  }
+  if (ctx->CustomModeMapBuf)
+  {
+    free(ctx->CustomModeMapBuf);
+    ctx->CustomModeMapBuf = NULL;
+  }
   for (idx = 0; idx < ENC_SRC_BUF_NUM; idx++) {
     if (ctx->pFbSrcMem[idx].size)
       vdi_free_dma_memory(coreIdx, &ctx->pFbSrcMem[idx]);
@@ -1086,10 +1278,9 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
                                AMVMultiEncFrameIO* input) {
   Uint32 src_stride;
   Uint32 luma_stride, chroma_stride;
-  Uint32 size_src_luma, size_src_chroma;
+  Uint32 size_src_luma;
+//  Uint32 size_src_chroma;
   char *y_dst = NULL;
-  char *u_dst = NULL;
-  char *v_dst = NULL;
   char *src = NULL;
   int idx, idx_1, endian;
   bool width32alinged = true; //width is multiple of 32 or not
@@ -1201,7 +1392,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         do_strechblit(&amlge2d.ge2dinfo, input);
         aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
         size_src_luma = luma_stride * vp_align32(ctx->enc_height);
-        size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
+//        size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
         y = (char *) ctx->pFbSrcMem[idx].virt_addr;
         if (ctx->enc_width % 32) {
             for (int i = 0; i < ctx->enc_height; i++) {
@@ -1218,7 +1409,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
       // set frame buffers
       // calculate required buffer size
       size_src_luma = luma_stride * vp_align32(ctx->enc_height);
-      size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
+//      size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
       endian = ctx->pFbSrc[idx].endian;
 
       y_dst = (char *) ctx->pFbSrcMem[idx].virt_addr;
@@ -1295,7 +1486,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   param->picStreamBufferSize = ctx->bsBuffer[idx].size;
 
 
-  param->srcIdx                             = param->srcIdx;
+//  param->srcIdx                             = param->srcIdx;
   param->srcEndFlag                         = 0; //in->last;
 //    encParam->sourceFrame                        = &in->fb;
   param->sourceFrame->sourceLBurstEn        = 0;
@@ -1324,11 +1515,90 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   param->codeOption.encodeEOS               = 0;
   param->codeOption.encodeEOB               = 0;
 
-  param->customMapOpt.customLambdaMapEnable = 0; //testEncConfig.lambda_map_enable;
-  param->customMapOpt.customModeMapEnable = 0; //testEncConfig.mode_map_flag & 0x1;
-  param->customMapOpt.customCoefDropEnable  = 0; //(testEncConfig.mode_map_flag & 0x2) >> 1;
-  param->customMapOpt.customRoiMapEnable    = 0; //testEncConfig.roi_enable;
+  // set custom map param
+  param->customMapOpt.customLambdaMapEnable = ctx->mInitParams.lambda_map_enable;
+  param->customMapOpt.customModeMapEnable = ctx->mInitParams.mode_map_enable & 0x1;
+  param->customMapOpt.customCoefDropEnable = (ctx->mInitParams.mode_map_enable & 0x2) >> 1;
+  param->customMapOpt.customRoiMapEnable = ctx->mInitParams.roi_enable;
 
+  if (param->customMapOpt.customRoiMapEnable
+    || param->customMapOpt.customLambdaMapEnable
+    || param->customMapOpt.customModeMapEnable
+    || param->customMapOpt.customCoefDropEnable) {
+
+    if (ctx->CustomMapUpdatedId[idx] != ctx->CustomUpdateID) {
+      // the custom map changed refresh the data
+     // packaging roi/lambda/mode data to custom map buffer
+      ctx->CustomMapUpdatedId[idx] = ctx->CustomUpdateID;
+      SetCustMapData(ctx, param, ctx->vbCustomMap[idx].phys_addr);
+      VLOG(INFO, "ROI updted buffer addr %x \n",
+                param->customMapOpt.addrCustomMap);
+    } else {
+       param->customMapOpt.addrCustomMap = ctx->vbCustomMap[idx].phys_addr;
+       VLOG(INFO, "ROI no updte use old buffer addr %x \n",
+                param->customMapOpt.addrCustomMap);
+    }
+  }
+
+  // weighted prediction
+  if ((ctx->mInitParams.weight_pred_enable & 0x1)) {
+    Uint32 meanY, meanCb, meanCr, sigmaY, sigmaCb, sigmaCr;
+    Uint32 maxMean  = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff :
+      ((1 << ctx->encOpenParam.EncStdParam.vpParam.internalBitDepth) - 1);
+    Uint32 maxSigma = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? 0xffff :
+      ((1 << (ctx->encOpenParam.EncStdParam.vpParam.internalBitDepth + 6)) - 1);
+
+    meanY = ctx->wp_para.CustMeanY;
+    meanCb = ctx->wp_para.CustMeadCb;
+    meanCr = ctx->wp_para.CustMeadCr;
+    sigmaY = ctx->wp_para.CustSigmaY;
+    sigmaCb = ctx->wp_para.CustSigmaCb;
+    sigmaCr = ctx->wp_para.CustSigmaCr;
+
+    meanY = max(min(maxMean, meanY), 0);
+    meanCb = max(min(maxMean, meanCb), 0);
+    meanCr = max(min(maxMean, meanCr), 0);
+    sigmaY = max(min(maxSigma, sigmaY), 0);
+    sigmaCb = max(min(maxSigma, sigmaCb), 0);
+    sigmaCr = max(min(maxSigma, sigmaCr), 0);
+
+    // set weighted prediction param.
+    param->wpPixSigmaY = sigmaY;
+    param->wpPixSigmaCb = sigmaCb;
+    param->wpPixSigmaCr = sigmaCr;
+    param->wpPixMeanY = meanY;
+    param->wpPixMeanCb = meanCb;
+    param->wpPixMeanCr = meanCr;
+  }
+
+  return AMVENC_SUCCESS;
+}
+
+
+AMVEnc_Status AML_MultiEncUpdateRoi(amv_enc_handle_t ctx_handle,
+                                unsigned char* buffer,
+                                int size)
+{
+  int required_size;
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  VLOG(INFO, "Update Roi table update cur update ID %d size %d\n",
+     ctx->CustomUpdateID, size);
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.roi_enable == 0)
+    return AMVENC_FAIL;
+  if (ctx->encOpenParam.bitstreamFormat == STD_AVC)
+    required_size = ((ctx->enc_width + 15)/16)*((ctx->enc_height + 15)/16);
+  else  //HEVC
+    required_size = ((ctx->enc_width + 31)/32)*((ctx->enc_height + 31)/32);
+  VLOG(INFO, "Update Roi table update cur update ID %d size %d required %d \n",
+     ctx->CustomUpdateID, size, required_size);
+  if (size < required_size)
+    return AMVENC_FAIL;
+  memcpy(ctx->CustomRoiMapBuf, buffer, required_size);
+  ctx->CustomUpdateID ++;
+  if (ctx->CustomUpdateID > 256) ctx->CustomUpdateID = 1;
   return AMVENC_SUCCESS;
 }
 
@@ -1336,12 +1606,12 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
                                 unsigned char* buffer,
                                 unsigned int* buf_nal_size)
 {
-  int ret;
   EncHeaderParam encHeaderParam;
   EncOutputInfo  encOutputInfo;
   ENC_INT_STATUS status;
-  int retry_cnt = 0, header_size = 0;
-  PhysicalAddress prdPrt, pwrPtr;
+  PhysicalAddress paRdPtr = 0;
+  PhysicalAddress paWrPtr = 0;
+  int header_size = 0;
   RetCode result= RETCODE_SUCCESS;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
   ENC_QUERY_WRPTR_SEL encWrPtrSel = GET_ENC_PIC_DONE_WRPTR;
@@ -1363,9 +1633,6 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
     // H.264
     encHeaderParam.headerType = CODEOPT_ENC_SPS | CODEOPT_ENC_PPS;
   }
-  retry_cnt = 0;
-  PhysicalAddress paRdPtr = 0;
-  PhysicalAddress paWrPtr = 0;
 
 #if ENCODE_TIME_STATISTICS
   gettimeofday(&start_test, NULL);
@@ -1424,7 +1691,7 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
     header_size = encOutputInfo.bitstreamSize;
     VLOG(DEBUG, "header_size %d paWrPtr-paRdPtr %d", header_size, paWrPtr-paRdPtr);
   if (paRdPtr != ctx->bsBuffer[0].phys_addr) {
-    VLOG(ERR, "BS buffer no match!! expect %x acutual %x size %d\n",
+    VLOG(ERR, "BS buffer no match!! expect %lx acutual %x size %d\n",
         ctx->bsBuffer[0].phys_addr, paRdPtr, header_size);
   }
 
@@ -1453,7 +1720,6 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
                              unsigned char* buffer,
                              unsigned int* buf_nal_size,
                              AMVMultiEncFrameIO *Retframe) {
-  AMVEnc_Status ret = AMVENC_FAIL;
   RetCode                 result;
   EncParam*               encParam;
   EncOutputInfo           encOutputInfo;
@@ -1511,7 +1777,7 @@ retry_point:
         encWrPtrSel = (intStatus==ENC_INT_STATUS_FULL) ? GET_ENC_BSBUF_FULL_WRPTR : GET_ENC_LOW_LATENCY_WRPTR;
         VPU_EncGiveCommand(ctx->enchandle, ENC_WRPTR_SEL, &encWrPtrSel);
         VPU_EncGetBitstreamBuffer(ctx->enchandle, &paRdPtr, &paWrPtr, &size);
-        VLOG(TRACE, "INT_BSBUF_FULL %p, %p\n",   paRdPtr, paWrPtr);
+        VLOG(TRACE, "INT_BSBUF_FULL %d, %d\n",   paRdPtr, paWrPtr);
         ctx->fullInterrupt = TRUE;
         return AMVENC_FAIL; //return TRUE;
     }
@@ -1574,7 +1840,7 @@ retry_point:
     // copy frames
     if (encOutputInfo.bitstreamBuffer !=
         ctx->bsBuffer[idx].phys_addr) {
-        VLOG(ERR, "BS buffer no match!! expect %x acutual %x size %d\n",
+        VLOG(ERR, "BS buffer no match!! expect %lx acutual %x size %d\n",
                 ctx->bsBuffer[idx].phys_addr,
                 encOutputInfo.bitstreamBuffer, encOutputInfo.bitstreamSize);
      }
@@ -1589,7 +1855,12 @@ retry_point:
         ctx->encOpenParam.streamEndian);
 
     *Retframe= ctx->FrameIO[idx];
-    Retframe -> encoded_frame_type = encOutputInfo.picType;
+    Retframe->encoded_frame_type = encOutputInfo.picType;
+    Retframe->enc_average_qp = encOutputInfo.avgCtuQp;
+    Retframe->enc_intra_blocks = encOutputInfo.numOfIntra;
+    Retframe->enc_merged_blocks = encOutputInfo.numOfMerge;
+    Retframe->enc_skipped_blocks = encOutputInfo.numOfSkipBlock;
+
     } else if( encOutputInfo.encSrcIdx == 0xfffffffe)
         {
         VLOG(INFO, "delay frame delay %d \n", ctx->frame_delay);
@@ -1599,7 +1870,7 @@ retry_point:
     } else if(encOutputInfo.encSrcIdx == 0xfffffffb)  {
         VLOG(INFO, "non-reference picture !! \n");
         *buf_nal_size = 0;
-        Retframe ->YCbCr[0] = 0;
+        Retframe->YCbCr[0] = 0;
     }
 
 #if ENCODE_TIME_STATISTICS
@@ -1617,7 +1888,7 @@ retry_point:
 }
 
 AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
-  AMVEnc_Status ret = AMVENC_FAIL;
+  AMVEnc_Status ret = AMVENC_SUCCESS;
   RetCode       result;
   EncParam*    encParam;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
@@ -1690,7 +1961,21 @@ flush_retry_point:
     if (ctx->bsBuffer[idx].size)
       vdi_free_dma_memory(coreIdx, &ctx->bsBuffer[idx]);
   }
-
+  if (ctx->CustomRoiMapBuf)
+  {
+    free(ctx->CustomRoiMapBuf);
+    ctx->CustomRoiMapBuf = NULL;
+  }
+  if (ctx->CustomLambdaMapBuf)
+  {
+    free(ctx->CustomLambdaMapBuf);
+    ctx->CustomLambdaMapBuf = NULL;
+  }
+  if (ctx->CustomModeMapBuf)
+  {
+    free(ctx->CustomModeMapBuf);
+    ctx->CustomModeMapBuf = NULL;
+  }
 
 #if SUPPORT_SCALE
   if (ctx-> ge2d_initial_done) {
@@ -1704,5 +1989,5 @@ flush_retry_point:
 
   free(ctx);
   VLOG(INFO, "AML_HEVCRelease succeed\n");
-  return AMVENC_SUCCESS;
+  return ret;
 }

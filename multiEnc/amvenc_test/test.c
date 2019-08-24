@@ -57,8 +57,10 @@ int main(int argc, const char *argv[])
 	int ret = 0;
 	int outfd = -1;
 	FILE *fp = NULL;
+	FILE *fp_roi = NULL;
 	int datalen = 0;
 	int retry_cnt = 0;
+	int roi_enabled = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 
 	unsigned char *vaddr = NULL;
@@ -76,12 +78,12 @@ int main(int argc, const char *argv[])
 	int num_planes = 1;
 	struct usr_ctx_s ctx;
 
-	if (argc < 12)
+	if (argc < 13)
 	{
 		printf("Amlogic Encoder API \n");
 		printf(" usage: aml_enc_test "
 		       "[srcfile][outfile][width][height][gop][framerate][bitrate][num][fmt]["
-		       "buf type][num_planes][codec_id]\n");
+		       "buf type][num_planes][codec_id] [roifile]\n");
 		printf("  options  \t:\n");
 		printf("  srcfile  \t: yuv data url in your root fs\n");
 		printf("  outfile  \t: stream url in your root fs\n");
@@ -95,6 +97,7 @@ int main(int argc, const char *argv[])
 		printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
 		printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 		printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
+		printf("  roifile \t: roi info url in your root fs optional if no present roi disable \n");
 		return -1;
 	} else
 	{
@@ -148,6 +151,11 @@ int main(int argc, const char *argv[])
 		break;
 	}
 
+	if (codec_id != CODEC_ID_H264 && codec_id != CODEC_ID_H265) {
+		printf("unsupported codec id %d \n", codec_id);
+		return -1;
+	}
+
 	if ((framerate < 0) || (framerate > FRAMERATE))
 	{
 		printf("invalid framerate %d \n", framerate);
@@ -179,6 +187,16 @@ int main(int argc, const char *argv[])
 	printf("fmt     is\t: %d ;\n", fmt);
 	printf("buf_type is\t: %d ;\n", buf_type);
 	printf("num_planes is\t: %d ;\n", num_planes);
+	printf("codec is\t: %d ;\n", num_planes);
+	if (codec_id == CODEC_ID_H265)
+		printf("codec is H265\n");
+	else
+		printf("codec is H264\n");
+	if (argc > 13) {
+		printf("roi_url is\t: %s ;\n", argv[13]);
+		roi_enabled = 1;
+	}
+
 
 	unsigned int framesize = width * height * 3 / 2;
 	unsigned ysize = width * height;
@@ -192,10 +210,13 @@ int main(int argc, const char *argv[])
 	unsigned char *input[3] = { NULL };
 	vl_buffer_info_t inbuf_info;
 	vl_dma_info_t *dma_info = NULL;
+	unsigned char *roi_buffer = NULL;
+	unsigned int roi_size;
+
 
 	memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
 	inbuf_info.buf_type = (vl_buffer_type_t) buf_type;
-
+	memset(&qp_tbl, 0, sizeof(qp_param_t));
 	qp_tbl.qp_min = 0;
 	qp_tbl.qp_max = 51;
 	qp_tbl.qp_I_base = 30;
@@ -205,12 +226,22 @@ int main(int argc, const char *argv[])
 	qp_tbl.qp_P_min = 0;
 	qp_tbl.qp_P_max = 51;
 
+	memset(&encode_info, 0, sizeof(vl_encode_info_t));
 	encode_info.width = width;
 	encode_info.height = height;
 	encode_info.bit_rate = bitrate;
 	encode_info.frame_rate = framerate;
 	encode_info.gop = gop;
 	encode_info.img_format = fmt;
+	if (roi_enabled) {
+		encode_info.enc_feature_opts |= 0x1;
+		roi_size = ((width+15)/16)*((height+15)/16);
+		roi_buffer = (unsigned char *) malloc(roi_size + 1);
+		if (roi_buffer == NULL) {
+			printf("Can not allocat roi_buffer\n");
+			goto exit;
+		}
+	}
 
 	if (inbuf_info.buf_type == DMA_TYPE)
 	{
@@ -358,6 +389,15 @@ int main(int argc, const char *argv[])
 		goto exit;
 	}
 
+	if (roi_enabled) {
+		fp_roi = fopen((argv[13]), "rb");
+		if (fp_roi == NULL)
+		{
+			printf("open roi file error!\n");
+			goto exit;
+		}
+	}
+
 	outfd = open((argv[2]), O_CREAT | O_RDWR | O_TRUNC, 0644);
 	if (outfd < 0)
 	{
@@ -436,7 +476,22 @@ retry:
 		{
 			sync_cpu(&ctx);
 		}
-
+		if (roi_enabled) {
+			if (fread(roi_buffer, 1, roi_size, fp_roi) != roi_size)
+			{
+				fseek(fp_roi, 0, SEEK_SET); //back to start
+				if (fread(roi_buffer, 1, roi_size,
+				    fp_roi) != roi_size) {
+					printf("read roi file error!\n");
+					goto exit;
+				}
+			}
+			if (vl_video_encoder_update_qp_hint(handle_enc,
+			    roi_buffer,
+			    roi_size) != 0) {
+				printf("update qp hint failed.\n");
+			}
+		}
 		encoding_metadata =
 		    vl_multi_encoder_encode(handle_enc, FRAME_TYPE_AUTO,
 					    outbuffer, &inbuf_info, &ret_buf);
@@ -464,8 +519,14 @@ exit:
 	if (fp)
 		fclose(fp);
 
+	if (fp_roi)
+		fclose(fp_roi);
+
 	if (outbuffer != NULL)
 		free(outbuffer);
+
+	if (roi_buffer != NULL)
+		free(roi_buffer);
 
 	if (inbuf_info.buf_type == DMA_TYPE)
 	{

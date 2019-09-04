@@ -217,6 +217,8 @@ retry:
 
     vdi->product_code = vdi_read_register(core_idx, VPU_PRODUCT_CODE_REGISTER);
 
+    vdi_set_clock_gate(core_idx, 0);
+
     if (vdi_lock(core_idx) < 0)
     {
         VLOG(ERR, "[VDI] fail to handle lock function\n");
@@ -258,16 +260,16 @@ int vdi_set_bit_firmware_to_pm(u32 core_idx, const u16 *code)
     vdi = &s_vdi_info[core_idx];
 
     if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
-        return 0;	
+        return 0;
 
-    bit_firmware_info.size = sizeof(vpu_bit_firmware_info_t);	
+    bit_firmware_info.size = sizeof(vpu_bit_firmware_info_t);
     bit_firmware_info.core_idx = core_idx;
-#ifdef SUPPORT_MULTI_CORE_IN_ONE_DRIVER	
+#ifdef SUPPORT_MULTI_CORE_IN_ONE_DRIVER
     bit_firmware_info.reg_base_offset = (core_idx*VPU_CORE_BASE_OFFSET);
 #else
     bit_firmware_info.reg_base_offset = 0;
-#endif	
-    for (i=0; i<512; i++) 
+#endif
+    for (i=0; i<512; i++)
         bit_firmware_info.bit_code[i] = code[i];
 
     if (write(vdi->vpu_fd, &bit_firmware_info, bit_firmware_info.size) < 0)
@@ -313,7 +315,7 @@ int vdi_release(u32 core_idx)
         return -1;
     }
 
-    if (vdi->task_num > 1) // means that the opened instance remains 
+    if (vdi->task_num > 1) // means that the opened instance remains
     {
         vdi->task_num--;
         vdi_unlock(core_idx);
@@ -326,7 +328,7 @@ int vdi_release(u32 core_idx)
         munmap((void *)vdi->vdb_register.virt_addr, vdi->vdb_register.size);
 
     osal_memset(&vdi->vdb_register, 0x00, sizeof(vpudrv_buffer_t));
-    vdb.size = 0;	
+    vdb.size = 0;
     // get common memory information to free virtual address
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
@@ -404,7 +406,7 @@ int vdi_allocate_common_memory(u32 core_idx)
     }
 
     vdb.virt_addr = (unsigned long)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE, MAP_SHARED, vdi->vpu_fd, vdb.phys_addr);
-    if ((void *)vdb.virt_addr == MAP_FAILED) 
+    if ((void *)vdb.virt_addr == MAP_FAILED)
     {
         VLOG(ERR, "[VDI] fail to map common memory phyaddr=0x%lx, size = %d\n", (ulong)vdb.phys_addr, (int)vdb.size);
         return -1;
@@ -471,7 +473,7 @@ vpu_instance_pool_t *vdi_get_instance_pool(u32 core_idx)
 
         vdb.virt_addr = (ulong)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE, MAP_SHARED, vdi->vpu_fd, 0);
 
-        if ((void *)vdb.virt_addr == MAP_FAILED) 
+        if ((void *)vdb.virt_addr == MAP_FAILED)
         {
             VLOG(ERR, "[VDI] fail to map instance pool phyaddr=0x%x, size = %d\n", (int)vdb.phys_addr, (int)vdb.size);
             return NULL;
@@ -495,7 +497,7 @@ int vdi_open_instance(u32 core_idx, u32 inst_idx)
 {
     vdi_info_t *vdi;
     vpudrv_inst_info_t inst_info;
-    
+
     if (core_idx >= MAX_NUM_VPU_CORE)
         return -1;
 
@@ -519,7 +521,7 @@ int vdi_open_instance(u32 core_idx, u32 inst_idx)
 int vdi_close_instance(u32 core_idx, u32 inst_idx)
 {
     vdi_info_t *vdi;
-    vpudrv_inst_info_t inst_info = {0, };;
+    vpudrv_inst_info_t inst_info = {0, };
 
     if (core_idx >= MAX_NUM_VPU_CORE)
         return -1;
@@ -579,7 +581,7 @@ static void restore_mutex_in_dead(MUTEX_HANDLE *mutex)
 	if (!mutex)
 		return;
 #if 0 // defined(ANDROID)
-	mutex_value = mutex->value;	
+	mutex_value = mutex->value;
 #else
 	memcpy(&mutex_value, mutex, sizeof(mutex_value));
 #endif
@@ -654,7 +656,7 @@ int vdi_disp_lock(u32 core_idx)
     restore_mutex_in_dead((MUTEX_HANDLE *)vdi->vpu_disp_mutex);
     pthread_mutex_lock((MUTEX_HANDLE*)vdi->vpu_disp_mutex);
 #else
-    if (pthread_mutex_lock((MUTEX_HANDLE *)vdi->vpu_disp_mutex) != 0) 
+    if (pthread_mutex_lock((MUTEX_HANDLE *)vdi->vpu_disp_mutex) != 0)
         VLOG(ERR, "%s:%d failed to pthread_mutex_lock\n", __FUNCTION__, __LINE__);
         return -1;
     }
@@ -698,7 +700,7 @@ void vdi_write_register(u32 core_idx, unsigned int addr, unsigned int data)
 #else
     reg_addr = (unsigned long *)(addr + (unsigned long)vdi->vdb_register.virt_addr);
 #endif
-    *(volatile unsigned int *)reg_addr = data;	
+    *(volatile unsigned int *)reg_addr = data;
 }
 
 unsigned int vdi_read_register(u32 core_idx, unsigned int addr)
@@ -716,7 +718,7 @@ unsigned int vdi_read_register(u32 core_idx, unsigned int addr)
 
 
 #ifdef SUPPORT_MULTI_CORE_IN_ONE_DRIVER
-    reg_addr = (unsigned long *)(addr + (unsigned long)vdi->vdb_register.virt_addr + (core_idx*VPU_CORE_BASE_OFFSET));	
+    reg_addr = (unsigned long *)(addr + (unsigned long)vdi->vdb_register.virt_addr + (core_idx*VPU_CORE_BASE_OFFSET));
 #else
     reg_addr = (unsigned long *)(addr + (unsigned long)vdi->vdb_register.virt_addr);
 #endif
@@ -762,7 +764,7 @@ int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian)
     vdi_info_t *vdi;
     vpudrv_buffer_t vdb;
 	unsigned long offset;
-    
+
     int i;
     Uint8*  zero;
 
@@ -799,8 +801,8 @@ int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian)
     zero = (Uint8*)osal_malloc(len);
     osal_memset((void*)zero, 0x00, len);
 
-	offset = addr - (unsigned long)vdb.phys_addr;
-    osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), zero, len);	
+    offset = addr - (unsigned long)vdb.phys_addr;
+    osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), zero, len);
 
     osal_free(zero);
     vdb.phys_addr = addr;
@@ -848,8 +850,8 @@ int vdi_write_memory(u32 core_idx, unsigned int addr, unsigned char *data, int l
         return -1;
     }
 
-    
-	offset = addr - (unsigned long)vdb.phys_addr;
+
+    offset = addr - (unsigned long)vdb.phys_addr;
     swap_endian(core_idx, data, len, endian);
     osal_memcpy((void *)((unsigned long)vdb.virt_addr+offset), data, len);
     vdb.phys_addr = addr;
@@ -884,7 +886,7 @@ int vdi_read_memory(u32 core_idx, unsigned int addr, unsigned char *data, int le
         {
             vdb = vdi->vpu_buffer_pool[i].vdb;
             if (addr >= vdb.phys_addr && addr < (vdb.phys_addr + vdb.size))
-                break;		
+                break;
         }
     }
 
@@ -917,7 +919,7 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     vdi = &s_vdi_info[core_idx];
 
     if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
-        return -1;	
+        return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
 
@@ -925,7 +927,7 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     vdb.cached = 1;
     if (ioctl(vdi->vpu_fd, VDI_IOCTL_ALLOCATE_PHYSICAL_MEMORY, &vdb) < 0)
     {
-        VLOG(ERR, "[VDI] fail to vdi_allocate_dma_memory size=%d\n", vb->size);		
+        VLOG(ERR, "[VDI] fail to vdi_allocate_dma_memory size=%d\n", vb->size);
         return -1;
     }
     vb->phys_addr = (ulong)vdb.phys_addr;
@@ -934,7 +936,7 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     //map to virtual address
     vdb.virt_addr = (ulong)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE,
         MAP_SHARED, vdi->vpu_fd, vdb.phys_addr);
-    if ((void *)vdb.virt_addr == MAP_FAILED) 
+    if ((void *)vdb.virt_addr == MAP_FAILED)
     {
         memset(vb, 0x00, sizeof(vpu_buffer_t));
         return -1;
@@ -988,7 +990,7 @@ int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     vdi = &s_vdi_info[core_idx];
 
     if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
-        return -1;	
+        return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
 
@@ -1015,7 +1017,7 @@ int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
                 vdi->vpu_buffer_pool[i].inuse = 1;
                 break;
             }
-        }			
+        }
     }
 
     //VLOG(INFO, "[VDI] vdi_attach_dma_memory, physaddr=0x%lx, virtaddr=0x%lx, size=%d, index=%d\n", vb->phys_addr, vb->virt_addr, vb->size, i);
@@ -1092,7 +1094,8 @@ void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb)
 
     if (!vdb.size)
     {
-        VLOG(ERR, "[VDI] invalid buffer to free address = 0x%lx\n", (ulong)vdb.virt_addr);
+        VLOG(ERR, "[VDI] invalid buffer to free address = 0x%lx vb address 0x%lx size %d\n",
+                (ulong)vdb.virt_addr, vb->phys_addr, vb->size);
         return ;
     }
     ioctl(vdi->vpu_fd, VDI_IOCTL_FREE_PHYSICALMEMORY, &vdb);
@@ -1243,15 +1246,11 @@ int vdi_set_clock_gate(u32 core_idx, int enable)
     if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (vdi->product_code == VP512_CODE || vdi->product_code == VP520_CODE || vdi->product_code == VP515_CODE || vdi->product_code == VP525_CODE ||
-        vdi->product_code == VP521_CODE || vdi->product_code == VP521C_CODE || vdi->product_code == VP511_CODE ) {
-        return 0;
-    }
     vdi->clock_state = enable;
 
-    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_SET_CLOCK_GATE, &enable);	
+    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_SET_CLOCK_GATE, &enable);
 
-
+    VLOG(INFO, "[VDI] clock enable %d\n", enable);
     return ret;
 }
 
@@ -1459,13 +1458,13 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
         case VDI_32BIT_LITTLE_ENDIAN: endian = 0x04; break;
         case VDI_32BIT_BIG_ENDIAN:    endian = 0x03; break;
         }
-    } 
+    }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
     }
 
-    return (endian&0x0f); 
+    return (endian&0x0f);
 }
 
 void byte_swap(unsigned char* data, int len)
@@ -1567,4 +1566,3 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
 
     return 1;
 }
- 

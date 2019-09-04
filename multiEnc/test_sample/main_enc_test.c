@@ -223,6 +223,7 @@ int main(int argc, char **argv)
     osal_memset(&config,   0x00, sizeof(CNMComponentConfig));
 
     InitLog();
+    vp5_set_log_level(ERR);
     SetDefaultEncTestConfig(&testConfig);
     argument.argc = argc;
     argument.argv = argv;

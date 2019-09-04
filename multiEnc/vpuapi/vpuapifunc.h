@@ -59,7 +59,7 @@ enum {
 
     W_AVC_DEC                  = 0x02,
     W_AVC_ENC                  = 0x03,
- 
+
     W_VP9_DEC                  = 0x16,
     W_AVS2_DEC                 = 0x18,
 
@@ -139,7 +139,7 @@ typedef enum {
 #define APIDPRINT(_fmt, ...)            printf(_fmt, ##__VA_ARGS__)
 #endif
 #else
-#define APIDPRINT(_fmt, ...)            
+#define APIDPRINT(_fmt, ...)
 #endif
 
 extern Uint32 __VPU_BUSY_TIMEOUT;
@@ -211,7 +211,7 @@ typedef struct {
     int             chFbcFrameIdx;
     BOOL            interResChange;
     int             frameAllocExt;
-    int             ppuAllocExt;    
+    int             ppuAllocExt;
     int             numFrameBuffers;
     int             numFbsForDecoding;                  /*!<< number of framebuffers used in decoding */
     int             numFbsForWTL;                       /*!<< number of linear framebuffer for displaying when DecInfo::wtlEnable is set to 1 */
@@ -224,14 +224,14 @@ typedef struct {
     int             rotationAngle;
     FrameBuffer     rotatorOutput;
     int             rotatorStride;
-    int             rotatorOutputValid;    
+    int             rotatorOutputValid;
     int             initialInfoObtained;
     int             vc1BframeDisplayValid;
     int             mapType;
     int             tiled2LinearEnable;
-    int             tiled2LinearMode;       
-    int             wtlEnable;              
-    int             wtlMode;                
+    int             tiled2LinearMode;
+    int             wtlEnable;
+    int             wtlMode;
     FrameBufferFormat   wtlFormat;                      /*!<< default value: FORMAT_420 8bit */
     SecAxiInfo          secAxiInfo;
     MaverickCacheConfig cacheConfig;
@@ -239,8 +239,8 @@ typedef struct {
     int seqInitEscape;
 
     // Report Information
-    PhysicalAddress userDataBufAddr;    
-    vpu_buffer_t    vbUserData;    
+    PhysicalAddress userDataBufAddr;
+    vpu_buffer_t    vbUserData;
 
     Uint32          userDataEnable;                    /* User Data Enable Flag
                                                           Non VP TRUE or FALSE
@@ -266,10 +266,10 @@ typedef struct {
     int             thumbnailMode;
     int             seqChangeMask;      // VPU410
     Uint32          prevFrameEndPos;      //!<< VPU410v2: end position of previous frame
-    Int32           targetSubLayerId;       //!<< H.265 temporal scalability 
+    Int32           targetSubLayerId;       //!<< H.265 temporal scalability
 
     int             rdPtrValidFlag;
-    
+
     Int32           instanceQueueCount;
     Int32           totalQueueCount;
     Uint32          firstCycleCheck;
@@ -286,7 +286,7 @@ typedef struct {
     PhysicalAddress     streamRdPtrRegAddr;
     PhysicalAddress     streamWrPtrRegAddr;
     PhysicalAddress     streamBufStartAddr;
-    PhysicalAddress     streamBufEndAddr;    
+    PhysicalAddress     streamBufEndAddr;
     PhysicalAddress     currentPC;
     PhysicalAddress     busyFlagAddr;
     int                 streamBufSize;
@@ -296,9 +296,9 @@ typedef struct {
     int                 userMapEnable;
     FrameBuffer         frameBufPool[MAX_REG_FRAME];
     vpu_buffer_t        vbFrame;
-    vpu_buffer_t        vbPPU;    
+    vpu_buffer_t        vbPPU;
     int                 frameAllocExt;
-    int                 ppuAllocExt;    
+    int                 ppuAllocExt;
     vpu_buffer_t        vbSubSampFrame;         /*!<< 960 only */
     vpu_buffer_t        vbMvcSubSampFrame;      /*!<< 960 only */
     int                 numFrameBuffers;
@@ -332,7 +332,7 @@ typedef struct {
     vpu_buffer_t        vbSubSamBuf;            //!< Sub-sampled buffer for ME (VPU encoder)
     vpu_buffer_t        vbSubSamBufBL;          //!< Sub-sampled buffer for ME (VPU encoder)
 
-    TiledMapConfig      mapCfg;    
+    TiledMapConfig      mapCfg;
     DRAMConfig          dramCfg;                /*!<< 960 */
 
 
@@ -355,7 +355,7 @@ typedef struct CodecInst {
     Int32   instIndex;
     Int32   coreIdx;
     Int32   codecMode;
-    Int32   codecModeAux;    
+    Int32   codecModeAux;
     Int32   productId;
     Int32   loggingEnable;
     Uint32  isDecoder;
@@ -399,7 +399,7 @@ typedef struct
     Int16   bottom;
 } win_t;
 
-typedef struct  
+typedef struct
 {
     Uint8    nal_hrd_param_present_flag;
     Uint8    vcl_hrd_param_present_flag;
@@ -502,11 +502,11 @@ typedef struct
     Uint32   ver_chroma_filter_idc               : 8;
     Uint32   hor_chroma_filter_idc               : 8;
     Uint32   ver_filtering_field_processing_flag : 1;
-    Uint32   target_format_idc                   : 2; 
+    Uint32   target_format_idc                   : 2;
     Uint32   num_vertical_filters                : 3;
     Uint32   num_horizontal_filters              : 3;
-    Uint8    ver_tap_length_minus1[ H265_MAX_NUM_VERTICAL_FILTERS ]; 
-    Uint8    hor_tap_length_minus1[ H265_MAX_NUM_HORIZONTAL_FILTERS ]; 
+    Uint8    ver_tap_length_minus1[ H265_MAX_NUM_VERTICAL_FILTERS ];
+    Uint8    hor_tap_length_minus1[ H265_MAX_NUM_HORIZONTAL_FILTERS ];
     Int32    ver_filter_coeff[ H265_MAX_NUM_VERTICAL_FILTERS ][ H265_MAX_TAP_LENGTH ];
     Int32    hor_filter_coeff[ H265_MAX_NUM_HORIZONTAL_FILTERS ][ H265_MAX_TAP_LENGTH ];
 } h265_chroma_resampling_filter_hint_t;
@@ -566,7 +566,7 @@ typedef struct
     Uint8 film_grain_model_id;
     Uint8 separate_colour_description_present_flag;
     Uint8 film_grain_bit_depth_luma_minus8;
-    Uint8 film_grain_bit_depth_chroma_minus8;	
+    Uint8 film_grain_bit_depth_chroma_minus8;
     Uint8 film_grain_full_range_flag;
     Uint8 film_grain_colour_primaries;
     Uint8 film_grain_transfer_characteristics;
@@ -601,7 +601,7 @@ typedef struct
     Uint32 sigmoid_width;
     Uint16 start_of_coded_interval[H265_MAX_NUM_TONE_VALUE]; // [1 << target_bit_depth] // 10bits
     Uint16 num_pivots; // [(1 << coded_data_bit_depth)?1][(1 << target_bit_depth)-1] // 10bits
-    Uint16 coded_pivot_value[H265_MAX_NUM_TONE_VALUE]; 
+    Uint16 coded_pivot_value[H265_MAX_NUM_TONE_VALUE];
     Uint16 target_pivot_value[H265_MAX_NUM_TONE_VALUE];
     Uint8  camera_iso_speed_idc;
     Uint32 camera_iso_speed_value;
@@ -638,11 +638,11 @@ RetCode CheckInstanceValidity(
     );
 
 Int32 ConfigSecAXIVp(
-    Uint32      coreIdx, 
+    Uint32      coreIdx,
     Int32       codecMode,
-    SecAxiInfo* sa, 
-    Uint32      width, 
-    Uint32      height, 
+    SecAxiInfo* sa,
+    Uint32      width,
+    Uint32      height,
     Uint32      profile,
     Uint32      level
     );
@@ -661,6 +661,8 @@ RetCode CheckEncParam(EncHandle handle, EncParam * param);
 
 RetCode EnterLock(Uint32 coreIdx);
 RetCode LeaveLock(Uint32 coreIdx);
+RetCode EnterLock_noclk(Uint32 coreIdx);
+RetCode LeaveLock_noclk(Uint32 coreIdx);
 RetCode SetClockGate(Uint32 coreIdx, Uint32 on);
 
 void SetPendingInst(Uint32 coreIdx, CodecInst *inst);
@@ -673,7 +675,7 @@ int GetPendingInstIdx(Uint32 coreIdx);
  *
  * \param   width           picture width in pixel.
  * \param   format          YUV format. see FrameBufferFormat structure in vpuapi.h
- * \param   cbcrInterleave  
+ * \param   cbcrInterleave
  * \param   mapType         map type. see TiledMapType in vpuapi.h
  */
 Int32 CalcStride(
@@ -686,22 +688,22 @@ Int32 CalcStride(
     );
 
 Int32 CalcLumaSize(
-    Int32               productId, 
-    Int32               stride, 
-    Int32               height, 
-    FrameBufferFormat   format, 
-    BOOL                cbcrIntl, 
-    TiledMapType        mapType, 
+    Int32               productId,
+    Int32               stride,
+    Int32               height,
+    FrameBufferFormat   format,
+    BOOL                cbcrIntl,
+    TiledMapType        mapType,
     DRAMConfig*         pDramCfg
     );
 
 Int32 CalcChromaSize(
-    Int32               productId, 
-    Int32               stride, 
-    Int32               height, 
-    FrameBufferFormat   format, 
-    BOOL                cbcrIntl, 
-    TiledMapType        mapType, 
+    Int32               productId,
+    Int32               stride,
+    Int32               height,
+    FrameBufferFormat   format,
+    BOOL                cbcrIntl,
+    TiledMapType        mapType,
     DRAMConfig*         pDramCfg
     );
 
@@ -736,8 +738,8 @@ Uint64 GetTimestamp(
 RetCode CalcEncCropInfo(
     CodecInst* instance,
     EncVpParam* param,
-    int rotMode, 
-    int srcWidth, 
+    int rotMode,
+    int srcWidth,
     int srcHeight
     );
 

@@ -45,58 +45,58 @@
 #define MAX(a, b)       (((a) > (b)) ? (a) : (b))
 #endif
 #define MAX_LAVEL_IDX    16
-static const int g_anLevel[MAX_LAVEL_IDX] = 
-{ 
-    10, 11, 11, 12, 13, 
-    //10, 16, 11, 12, 13, 
-    20, 21, 22, 
-    30, 31, 32, 
-    40, 41, 42, 
+static const int g_anLevel[MAX_LAVEL_IDX] =
+{
+    10, 11, 11, 12, 13,
+    //10, 16, 11, 12, 13,
+    20, 21, 22,
+    30, 31, 32,
+    40, 41, 42,
     50, 51
 };
 
-static const int g_anLevelMaxMBPS[MAX_LAVEL_IDX] = 
-{ 
-    1485,   1485,   3000,   6000, 11880, 
-    11880,  19800,  20250, 
-    40500,  108000, 216000, 
-    245760, 245760, 522240, 
+static const int g_anLevelMaxMBPS[MAX_LAVEL_IDX] =
+{
+    1485,   1485,   3000,   6000, 11880,
+    11880,  19800,  20250,
+    40500,  108000, 216000,
+    245760, 245760, 522240,
     589824, 983040
 };
 
-static const int g_anLevelMaxFS[MAX_LAVEL_IDX] = 
-{ 
-    99,    99,   396, 396, 396, 
-    396,   792,  1620, 
-    1620,  3600, 5120, 
-    8192,  8192, 8704, 
+static const int g_anLevelMaxFS[MAX_LAVEL_IDX] =
+{
+    99,    99,   396, 396, 396,
+    396,   792,  1620,
+    1620,  3600, 5120,
+    8192,  8192, 8704,
     22080, 36864
 };
 
-static const int g_anLevelMaxBR[MAX_LAVEL_IDX] = 
-{ 
-    64,     64,   192,  384, 768, 
-    2000,   4000,  4000, 
-    10000,  14000, 20000, 
-    20000,  50000, 50000, 
+static const int g_anLevelMaxBR[MAX_LAVEL_IDX] =
+{
+    64,     64,   192,  384, 768,
+    2000,   4000,  4000,
+    10000,  14000, 20000,
+    20000,  50000, 50000,
     135000, 240000
 };
 
-static const int g_anLevelSliceRate[MAX_LAVEL_IDX] = 
+static const int g_anLevelSliceRate[MAX_LAVEL_IDX] =
 {
     0,  0,  0,  0,  0,
-    0,  0,  0, 
-    22, 60, 60, 
-    60, 24, 24, 
+    0,  0,  0,
+    22, 60, 60,
+    60, 24, 24,
     24, 24
 };
 
-static const int g_anLevelMaxMbs[MAX_LAVEL_IDX] = 
+static const int g_anLevelMaxMbs[MAX_LAVEL_IDX] =
 {
-    28,   28,  56, 56, 56, 
-    56,   79, 113, 
-    113, 169, 202, 
-    256, 256, 263, 
+    28,   28,  56, 56, 56,
+    56,   79, 113,
+    113, 169, 202,
+    256, 256, 263,
     420, 543
 };
 
@@ -126,11 +126,11 @@ RetCode InitCodecInstancePool(Uint32 coreIdx)
             pCodecInst->instIndex = i;
             pCodecInst->inUse = 0;
         }
-        vip->instance_pool_inited = 1;    
-    }    
+        vip->instance_pool_inited = 1;
+    }
     return RETCODE_SUCCESS;
 }
- 
+
 /*
  * GetCodecInstance() obtains a instance.
  * It stores a pointer to the allocated instance in *ppInst
@@ -200,7 +200,7 @@ void FreeCodecInstance(CodecInst * pCodecInst)
     pCodecInst->codecModeAux = -1;
 
     vdi_close_instance(pCodecInst->coreIdx, pCodecInst->instIndex);
-    
+
     osal_free(pCodecInst->CodecInfo);
     pCodecInst->CodecInfo = NULL;
 }
@@ -265,7 +265,7 @@ RetCode CalcEncCropInfo(CodecInst* instance, EncVpParam* param, int rotMode, int
         alignedWidth = (srcWidth + 31)&~31;
         alignedHeight= (srcHeight+ 31)&~31;
     }
-    
+
     pad_right = alignedWidth - srcWidth;
     pad_bot   = alignedHeight - srcHeight;
 
@@ -287,8 +287,8 @@ RetCode CalcEncCropInfo(CodecInst* instance, EncVpParam* param, int rotMode, int
     param->confWinBot   = crop_bot;
     param->confWinRight = crop_right;
 
-     
-    /* prp_mode : 
+
+    /* prp_mode :
     *          | hor_mir | ver_mir |   rot_angle
     *              [3]       [2]         [1:0] = {0= NONE, 1:90, 2:180, 3:270}
     */
@@ -359,8 +359,8 @@ RetCode CheckEncInstanceValidity(EncHandle handle)
         return RETCODE_INVALID_HANDLE;
     }
 
-    if (pCodecInst->codecMode != MP4_ENC && 
-        pCodecInst->codecMode != W_HEVC_ENC && 
+    if (pCodecInst->codecMode != MP4_ENC &&
+        pCodecInst->codecMode != W_HEVC_ENC &&
         pCodecInst->codecMode != W_SVAC_ENC &&
         pCodecInst->codecMode != W_AVC_ENC  &&
         pCodecInst->codecMode != AVC_ENC) {
@@ -410,7 +410,7 @@ RetCode CheckEncParam(EncHandle handle, EncParam * param)
                     return RETCODE_INVALID_PARAM;
             }
             if (pEncInfo->ringBufferEnable == 0) {
-                if (param->picStreamBufferAddr % 16 || param->picStreamBufferSize == 0) 
+                if (param->picStreamBufferAddr % 16 || param->picStreamBufferSize == 0)
                     return RETCODE_INVALID_PARAM;
             }
         }
@@ -430,7 +430,7 @@ RetCode CheckEncParam(EncHandle handle, EncParam * param)
 }
 
 RetCode EnterLock(Uint32 coreIdx)
-{    
+{
     if (vdi_lock(coreIdx) != 0)
         return RETCODE_FAILURE;
     SetClockGate(coreIdx, 1);
@@ -440,10 +440,22 @@ RetCode EnterLock(Uint32 coreIdx)
 RetCode LeaveLock(Uint32 coreIdx)
 {
     SetClockGate(coreIdx, 0);
-    vdi_unlock(coreIdx);    
+    vdi_unlock(coreIdx);
     return RETCODE_SUCCESS;
 }
 
+RetCode EnterLock_noclk(Uint32 coreIdx)
+{
+    if (vdi_lock(coreIdx) != 0)
+        return RETCODE_FAILURE;
+    return RETCODE_SUCCESS;
+}
+
+RetCode LeaveLock_noclk(Uint32 coreIdx)
+{
+    vdi_unlock(coreIdx);
+    return RETCODE_SUCCESS;
+}
 RetCode SetClockGate(Uint32 coreIdx, Uint32 on)
 {
     vpu_instance_pool_t *vip;
@@ -454,7 +466,7 @@ RetCode SetClockGate(Uint32 coreIdx, Uint32 on)
         return RETCODE_INSUFFICIENT_RESOURCE;
     }
 
-    vdi_set_clock_gate(coreIdx, on);    
+    vdi_set_clock_gate(coreIdx, on);
 
     return RETCODE_SUCCESS;
 }
@@ -467,7 +479,7 @@ void SetPendingInst(Uint32 coreIdx, CodecInst *inst)
     if (!vip)
         return;
 
-    vip->pendingInst = inst;        
+    vip->pendingInst = inst;
 	if (inst)
 		vip->pendingInstIdxPlus1 = (inst->instIndex+1);
 	else
@@ -483,7 +495,7 @@ void ClearPendingInst(Uint32 coreIdx)
         return;
 
     if(vip->pendingInst) {
-        vip->pendingInst = 0;    
+        vip->pendingInst = 0;
 		vip->pendingInstIdxPlus1 = 0;
 	}
 }
@@ -528,7 +540,7 @@ RetCode UpdateFrameBufferAddr(
 {
     Uint32      i;
     BOOL        yuv422Interleave = FALSE;
-    BOOL        fieldFrame       = (BOOL)(mapType == LINEAR_FIELD_MAP); 
+    BOOL        fieldFrame       = (BOOL)(mapType == LINEAR_FIELD_MAP);
     BOOL        cbcrInterleave   = (BOOL)(mapType == COMPRESSED_FRAME_MAP || mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL || fbArr[0].cbcrInterleave == TRUE);
     BOOL        reuseFb          = FALSE;
 
@@ -615,7 +627,7 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
         sa->u.vp.useEncRdoEnable   = 0;
         return 0;
     }
-    
+
     sa->bufBase = vb.phys_addr;
     offset      = 0;
     /* Intra Prediction */
@@ -730,7 +742,7 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
                 }
             }
             else {
-              size = VPU_ALIGN32(width)*8;  
+              size = VPU_ALIGN32(width)*8;
             }
             lumaSize = size;
             chromaSize = 0;
@@ -830,9 +842,9 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
             lumaSize   = VPU_ALIGN64(width) * luma;
             chromaSize = VPU_ALIGN64(width) * chroma;
         }
-            
+
         offset    += lumaSize + chromaSize;
-        
+
         if (offset > vb.size) {
             sa->bufSize = 0;
             return 0;
@@ -864,7 +876,7 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
             offset    += (VPU_ALIGN64(width)/64) * 336;
             break;
         }
-        
+
         if (offset > vb.size) {
             sa->bufSize = 0;
             return 0;
@@ -891,11 +903,11 @@ Int32 CalcStride(
     lumaStride = VPU_ALIGN32(width);
 
     if (height > width) {
-        if ((mapType >= TILED_FRAME_V_MAP && mapType <= TILED_MIXED_V_MAP) || 
+        if ((mapType >= TILED_FRAME_V_MAP && mapType <= TILED_MIXED_V_MAP) ||
             mapType == TILED_FRAME_NO_BANK_MAP ||
             mapType == TILED_FIELD_NO_BANK_MAP)
             width = VPU_ALIGN16(height);	// TiledMap constraints
-    } 
+    }
     if (mapType == LINEAR_FRAME_MAP || mapType == LINEAR_FIELD_MAP) {
         Uint32 twice = 0;
 
@@ -913,7 +925,7 @@ Int32 CalcStride(
         case FORMAT_420_P10_32BIT_LSB:
         case FORMAT_420_P10_32BIT_MSB:
         case FORMAT_422_P10_32BIT_MSB:
-        case FORMAT_422_P10_32BIT_LSB: 
+        case FORMAT_422_P10_32BIT_LSB:
             if ( isVP9 == TRUE ) {
                 lumaStride   = VPU_ALIGN32(((width+11)/12)*16);
                 chromaStride = (((width/2)+11)*twice/12)*16;
@@ -971,7 +983,7 @@ Int32 CalcStride(
         case FORMAT_422:
         case FORMAT_YUYV:
         case FORMAT_YVYU:
-        case FORMAT_UYVY: 
+        case FORMAT_UYVY:
         case FORMAT_VYUY:
             break;
         case FORMAT_420_P10_16BIT_LSB:
@@ -981,22 +993,22 @@ Int32 CalcStride(
         case FORMAT_422_P10_16BIT_MSB:
         case FORMAT_422_P10_16BIT_LSB:
         case FORMAT_422_P10_32BIT_MSB:
-        case FORMAT_422_P10_32BIT_LSB: 
+        case FORMAT_422_P10_32BIT_LSB:
         case FORMAT_YUYV_P10_16BIT_MSB:
         case FORMAT_YUYV_P10_16BIT_LSB:
-        case FORMAT_YVYU_P10_16BIT_MSB: 
-        case FORMAT_YVYU_P10_16BIT_LSB: 
-        case FORMAT_YVYU_P10_32BIT_MSB: 
+        case FORMAT_YVYU_P10_16BIT_MSB:
+        case FORMAT_YVYU_P10_16BIT_LSB:
+        case FORMAT_YVYU_P10_32BIT_MSB:
         case FORMAT_YVYU_P10_32BIT_LSB:
         case FORMAT_UYVY_P10_16BIT_MSB:
         case FORMAT_UYVY_P10_16BIT_LSB:
         case FORMAT_VYUY_P10_16BIT_MSB:
-        case FORMAT_VYUY_P10_16BIT_LSB: 
-        case FORMAT_YUYV_P10_32BIT_MSB: 
-        case FORMAT_YUYV_P10_32BIT_LSB: 
-        case FORMAT_UYVY_P10_32BIT_MSB: 
+        case FORMAT_VYUY_P10_16BIT_LSB:
+        case FORMAT_YUYV_P10_32BIT_MSB:
+        case FORMAT_YUYV_P10_32BIT_LSB:
+        case FORMAT_UYVY_P10_32BIT_MSB:
         case FORMAT_UYVY_P10_32BIT_LSB:
-        case FORMAT_VYUY_P10_32BIT_MSB: 
+        case FORMAT_VYUY_P10_32BIT_MSB:
         case FORMAT_VYUY_P10_32BIT_LSB:
             lumaStride = VPU_ALIGN32(VPU_ALIGN16(width)*5)/4;
             lumaStride = VPU_ALIGN32(lumaStride);
@@ -1126,12 +1138,12 @@ int LevelCalculation(int MbNumX, int MbNumY, int frameRateInfo, int interlaceFla
 }
 
 Int32 CalcLumaSize(
-    Int32           productId, 
-    Int32           stride, 
-    Int32           height, 
-    FrameBufferFormat format, 
-    BOOL            cbcrIntl, 
-    TiledMapType    mapType, 
+    Int32           productId,
+    Int32           stride,
+    Int32           height,
+    FrameBufferFormat format,
+    BOOL            cbcrIntl,
+    TiledMapType    mapType,
     DRAMConfig      *pDramCfg
     )
 {
@@ -1191,7 +1203,7 @@ Int32 CalcLumaSize(
     }
     else {
         if (productId == PRODUCT_ID_960) {
-            Int32    VerSizePerRas,Ras1DBit; 
+            Int32    VerSizePerRas,Ras1DBit;
             Int32    ChrSizeYField;
             Int32    ChrFieldRasSize,ChrFrameRasSize,LumFieldRasSize,LumFrameRasSize;
 
@@ -1200,7 +1212,7 @@ Int32 CalcLumaSize(
             if (pDramCfg == NULL)
                 return 0;
             if (mapType == TILED_FRAME_V_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1208,20 +1220,20 @@ Int32 CalcLumaSize(
                     VerSizePerRas = 64;
                     Ras1DBit = 2;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting
                     VerSizePerRas = 64; // Tile (16x2)*(4*2)
                     Ras1DBit = 1;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting
                     VerSizePerRas = 128; // Tile (8x4)*(8x2)
                     Ras1DBit = 1;
-                }                
+                }
                 else
                     return 0;
 
             }
             else if (mapType == TILED_FRAME_H_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1234,7 +1246,7 @@ Int32 CalcLumaSize(
 
             }
             else if (mapType == TILED_FIELD_V_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1242,19 +1254,19 @@ Int32 CalcLumaSize(
                     VerSizePerRas = 64;
                     Ras1DBit = 2;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting
                     VerSizePerRas = 64; // Tile (16x2)*(4*2)
                     Ras1DBit = 1;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting
                     VerSizePerRas = 128; // Tile (8x4)*(8x2)
                     Ras1DBit = 1;
-                }                
+                }
                 else
                     return 0;
-            } 
+            }
             else {         // TILED_FIELD_H_MAP
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1277,17 +1289,17 @@ Int32 CalcLumaSize(
             size_dpb_lum      = unit_size_hor_lum * (unit_size_ver_lum<<field_map);
         }
     }
-   VLOG(INFO, "CalcLumaSize size %d \n", size_dpb_lum);
+    VLOG(INFO, "CalcLumaSize size %d \n", size_dpb_lum);
     return size_dpb_lum;
 }
 
 Int32 CalcChromaSize(
-    Int32               productId, 
-    Int32               stride, 
-    Int32               height, 
-    FrameBufferFormat   format, 
-    BOOL                cbcrIntl, 
-    TiledMapType        mapType, 
+    Int32               productId,
+    Int32               stride,
+    Int32               height,
+    FrameBufferFormat   format,
+    BOOL                cbcrIntl,
+    TiledMapType        mapType,
     DRAMConfig*         pDramCfg
     )
 {
@@ -1360,7 +1372,7 @@ Int32 CalcChromaSize(
     if (mapType == LINEAR_FRAME_MAP || mapType == LINEAR_FIELD_MAP) {
         switch (format) {
         case FORMAT_420:
-            unit_size_hor_chr = stride/2; 
+            unit_size_hor_chr = stride/2;
             unit_size_ver_chr = height/2;
             break;
         case FORMAT_420_P10_16BIT_LSB:
@@ -1401,7 +1413,7 @@ Int32 CalcChromaSize(
         case FORMAT_UYVY_P10_32BIT_LSB:
         case FORMAT_VYUY_P10_32BIT_MSB:
         case FORMAT_VYUY_P10_32BIT_LSB:
-            unit_size_hor_chr = 0; 
+            unit_size_hor_chr = 0;
             unit_size_ver_chr = 0;
             break;
         default:
@@ -1450,7 +1462,7 @@ Int32 CalcChromaSize(
     }
 
     else if (mapType == TILED_FRAME_NO_BANK_MAP || mapType == TILED_FIELD_NO_BANK_MAP) {
-        chr_size_y = (height>>field_map)/chr_hscale; 
+        chr_size_y = (height>>field_map)/chr_hscale;
         chr_size_x = stride/chr_vscale;
 
         unit_size_hor_chr = (chr_size_x > 4096) ? 8192:
@@ -1485,7 +1497,7 @@ Int32 CalcChromaSize(
     }
     else {
         if (productId == PRODUCT_ID_960) {
-            int  VerSizePerRas,Ras1DBit; 
+            int  VerSizePerRas,Ras1DBit;
             int  ChrSizeYField;
             int  divY;
             int  ChrFieldRasSize,ChrFrameRasSize;
@@ -1496,7 +1508,7 @@ Int32 CalcChromaSize(
             if (pDramCfg == NULL)
                 return 0;
             if (mapType == TILED_FRAME_V_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1504,20 +1516,20 @@ Int32 CalcChromaSize(
                     VerSizePerRas = 64;
                     Ras1DBit = 2;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting
                     VerSizePerRas = 64; // Tile (16x2)*(4*2)
                     Ras1DBit = 1;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting
                     VerSizePerRas = 128; // Tile (8x4)*(8x2)
                     Ras1DBit = 1;
-                }                
+                }
                 else
                     return 0;
 
             }
             else if (mapType == TILED_FRAME_H_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1530,7 +1542,7 @@ Int32 CalcChromaSize(
 
             }
             else if (mapType == TILED_FIELD_V_MAP) {
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1538,18 +1550,18 @@ Int32 CalcChromaSize(
                     VerSizePerRas = 64;
                     Ras1DBit = 2;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 3 && pDramCfg->rasBit == 16) {  // BITMAIN setting
                     VerSizePerRas = 64; // Tile (16x2)*(4*2)
                     Ras1DBit = 1;
                 }
-                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting 
+                else if (pDramCfg->casBit == 10 && pDramCfg->bankBit == 4 && pDramCfg->rasBit == 15) {  // BITMAIN setting
                     VerSizePerRas = 128; // Tile (8x4)*(8x2)
                     Ras1DBit = 1;
-                }                 
+                }
                 else
                     return 0;
             } else {         // TILED_FIELD_H_MAP
-                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting 
+                if (pDramCfg->casBit == 9 && pDramCfg->bankBit == 2 && pDramCfg->rasBit == 13) {	// CNN setting
                     VerSizePerRas = 64;
                     Ras1DBit = 3;
                 }
@@ -1566,7 +1578,7 @@ Int32 CalcChromaSize(
 
         }
         else {  // productId != 960
-            chr_size_y = (height>>field_map)/chr_hscale; 
+            chr_size_y = (height>>field_map)/chr_hscale;
             chr_size_x = cbcrIntl == TRUE ? stride : stride/chr_vscale;
 
             unit_size_hor_chr = (chr_size_x> 4096) ? 8192:
@@ -1578,7 +1590,7 @@ Int32 CalcChromaSize(
             size_dpb_chr  = (format==FORMAT_400) ? 0 : unit_size_hor_chr * (unit_size_ver_chr<<field_map);
             size_dpb_chr /= (cbcrIntl == TRUE ? 2 : 1);
         }
-        
+
     }
     VLOG(INFO, "CalcChromaSize size %d \n", size_dpb_chr);
     return size_dpb_chr;
@@ -1590,7 +1602,7 @@ Int32 CalcChromaSize(
 typedef struct  {
 	int core_idx;
 	pthread_t thread_id;
-	int sw_uart_thread_run; 
+	int sw_uart_thread_run;
 } SwUartContext;
 static SwUartContext s_SwUartContext;
 void SwUartHandler(void *context)
@@ -1631,7 +1643,7 @@ void SwUartHandler(void *context)
 				{
 					strncat((char *)uartTx, (const char *)(strRegSwUartTxData + i), 1);
 				}
-			}			
+			}
 		}
 
 	}
@@ -1648,10 +1660,9 @@ int create_sw_uart_thread(unsigned long coreIdx)
 
 	vdi_write_register(coreIdx, VP5_SW_UART_STATUS,  (1<<0)); // enable SW UART. this will be checked by firmware to know SW UART enabled
 
-	
 	s_SwUartContext.core_idx = coreIdx;
 	s_SwUartContext.sw_uart_thread_run = 1;
-	ret = pthread_create(&s_SwUartContext.thread_id, NULL, (void*)SwUartHandler, &s_SwUartContext);				
+	ret = pthread_create(&s_SwUartContext.thread_id, NULL, (void*)SwUartHandler, &s_SwUartContext);
 
 	if (ret != 0)
 	{
@@ -1695,11 +1706,10 @@ void destory_sw_uart_thread(unsigned long coreIdx)
 		if (s_SwUartContext.thread_id)
 		{
 			pthread_join(s_SwUartContext.thread_id, NULL);
-			s_SwUartContext.thread_id = 0;			
+			s_SwUartContext.thread_id = 0;
 		}
 	}
 
 	return ;
 }
 #endif
-

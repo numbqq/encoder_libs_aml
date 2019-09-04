@@ -136,9 +136,9 @@ int VPU_GetProductId(int coreIdx)
         return -1;
 
     EnterLock(coreIdx);
-    if (ProductVpuScan(coreIdx) == FALSE) 
+    if (ProductVpuScan(coreIdx) == FALSE)
         productId = -1;
-    else 
+    else
         productId = ProductVpuGetId(coreIdx);
     LeaveLock((coreIdx));
 
@@ -161,7 +161,7 @@ static RetCode InitializeVPU(Uint32 coreIdx, const Uint16* code, Uint32 size)
     if (vdi_init(coreIdx) < 0)
         return RETCODE_FAILURE;
 
-    EnterLock(coreIdx);    
+    EnterLock(coreIdx);
 
     if (vdi_get_instance_num(coreIdx) > 0) {
         if (ProductVpuScan(coreIdx) == 0) {
@@ -322,15 +322,15 @@ RetCode VPU_HWReset(Uint32 coreIdx)
     if (GetPendingInst(coreIdx))
     {
         SetPendingInst(coreIdx, 0);
-        LeaveLock(coreIdx);    //if vpu is in a lock state. release the state;        
+        LeaveLock(coreIdx);    //if vpu is in a lock state. release the state;
     }
-    return RETCODE_SUCCESS;    
+    return RETCODE_SUCCESS;
 }
 
 /**
 * VPU_SWReset
 * IN
-*    forcedReset : 1 if there is no need to waiting for BUS transaction, 
+*    forcedReset : 1 if there is no need to waiting for BUS transaction,
 *                  0 for otherwise
 * OUT
 *    RetCode : RETCODE_FAILURE if failed to reset,
@@ -358,7 +358,7 @@ RetCode VPU_SWReset(Uint32 coreIdx, SWResetMode resetMode, void *pendingInst)
     else {
         if (pCodecInst) {
             if (pCodecInst->loggingEnable) {
-                vdi_log(pCodecInst->coreIdx, (pCodecInst->productId == PRODUCT_ID_960 || pCodecInst->productId == PRODUCT_ID_980)?0x10:0x10000, 1);			
+                vdi_log(pCodecInst->coreIdx, (pCodecInst->productId == PRODUCT_ID_960 || pCodecInst->productId == PRODUCT_ID_980)?0x10:0x10000, 1);
             }
         }
         else {
@@ -369,7 +369,7 @@ RetCode VPU_SWReset(Uint32 coreIdx, SWResetMode resetMode, void *pendingInst)
 
         if (pCodecInst) {
             if (pCodecInst->loggingEnable) {
-                vdi_log(pCodecInst->coreIdx, (pCodecInst->productId == PRODUCT_ID_960 || pCodecInst->productId == PRODUCT_ID_980)?0x10:0x10000, 0);			
+                vdi_log(pCodecInst->coreIdx, (pCodecInst->productId == PRODUCT_ID_960 || pCodecInst->productId == PRODUCT_ID_980)?0x10:0x10000, 0);
             }
             SetPendingInst(pCodecInst->coreIdx, 0);
             LeaveLock(coreIdx);
@@ -434,7 +434,7 @@ RetCode VPU_EncOpen(EncHandle* pHandle, EncOpenParam * pop)
     EncInfo*    pEncInfo;
     RetCode     ret;
 
-    if ((ret=ProductCheckEncOpenParam(pop)) != RETCODE_SUCCESS) 
+    if ((ret=ProductCheckEncOpenParam(pop)) != RETCODE_SUCCESS)
         return ret;
 
     EnterLock(pop->coreIdx);
@@ -504,21 +504,21 @@ RetCode VPU_EncClose(EncHandle handle)
     if (pEncInfo->vbScratch.size) {
         vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbScratch);
     }
-    
+
     if (pEncInfo->vbWork.size) {
         vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbWork);
     }
 
     if (pEncInfo->vbFrame.size) {
-        if (pEncInfo->frameAllocExt == 0) 
+        if (pEncInfo->frameAllocExt == 0)
             vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbFrame);
-    }    
+    }
 
     if (pCodecInst->codecMode == W_HEVC_ENC || pCodecInst->codecMode == W_SVAC_ENC || pCodecInst->codecMode == W_AVC_ENC) {
         if (pEncInfo->vbSubSamBuf.size)
-            vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbSubSamBuf);   
+            vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbSubSamBuf);
 
-        if (pEncInfo->vbMV.size) 
+        if (pEncInfo->vbMV.size)
             vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbMV);
 
         if (pEncInfo->vbFbcYTbl.size)
@@ -527,12 +527,12 @@ RetCode VPU_EncClose(EncHandle handle)
         if (pEncInfo->vbFbcCTbl.size)
             vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbFbcCTbl);
 
-        if (pEncInfo->vbTemp.size) 
+        if (pEncInfo->vbTemp.size)
             vdi_dettach_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbTemp);
     }
 
     if (pEncInfo->vbPPU.size) {
-        if (pEncInfo->ppuAllocExt == 0) 
+        if (pEncInfo->ppuAllocExt == 0)
             vdi_free_dma_memory(pCodecInst->coreIdx, &pEncInfo->vbPPU);
     }
     if (pEncInfo->vbSubSampFrame.size)
@@ -611,16 +611,16 @@ RetCode VPU_EncRegisterFrameBuffer(EncHandle handle, FrameBuffer* bufArray, int 
     pEncInfo = &pCodecInst->CodecInfo->encInfo;
     openParam = &pEncInfo->openParam;
 
-    if (pEncInfo->stride) 
+    if (pEncInfo->stride)
         return RETCODE_CALLED_BEFORE;
 
-    if (!pEncInfo->initialInfoObtained) 
+    if (!pEncInfo->initialInfoObtained)
         return RETCODE_WRONG_CALL_SEQUENCE;
 
-    if (num < pEncInfo->initialInfo.minFrameBufferCount) 
+    if (num < pEncInfo->initialInfo.minFrameBufferCount)
         return RETCODE_INSUFFICIENT_FRAME_BUFFERS;
 
-    if (stride == 0 || (stride % 8 != 0) || stride < 0) 
+    if (stride == 0 || (stride % 8 != 0) || stride < 0)
         return RETCODE_INVALID_STRIDE;
 
     if (height == 0 || height < 0)
@@ -662,8 +662,8 @@ RetCode VPU_EncRegisterFrameBuffer(EncHandle handle, FrameBuffer* bufArray, int 
             if (bufArray[0].bufCb == (Uint32)-1 && bufArray[0].bufCr == (Uint32)-1) {
                 Uint32 size;
                 pEncInfo->frameAllocExt = TRUE;
-                size = ProductCalculateFrameBufSize(pCodecInst->productId, stride, height, 
-                                                    (TiledMapType)mapType, (FrameBufferFormat)openParam->srcFormat, 
+                size = ProductCalculateFrameBufSize(pCodecInst->productId, stride, height,
+                                                    (TiledMapType)mapType, (FrameBufferFormat)openParam->srcFormat,
                                                     (BOOL)openParam->cbcrInterleave, NULL);
                 if (mapType == LINEAR_FRAME_MAP) {
                     pEncInfo->vbFrame.phys_addr = bufArray[0].bufY;
@@ -738,7 +738,7 @@ RetCode VPU_EncGetBitstreamBuffer( EncHandle handle,
     }
     else {
         if(wrPtr >= rdPtr)
-            room = wrPtr - rdPtr;    
+            room = wrPtr - rdPtr;
         else
             return RETCODE_INVALID_PARAM;
     }
@@ -820,7 +820,7 @@ RetCode VPU_EncUpdateBitstreamBuffer(
 
 RetCode VPU_EncStartOneFrame(
     EncHandle handle,
-    EncParam * param 
+    EncParam * param
     )
 {
     CodecInst*          pCodecInst;
@@ -906,7 +906,7 @@ RetCode VPU_EncStartOneFrame(
 
     if (pAttr->supportCommandQueue == TRUE) {
         SetPendingInst(pCodecInst->coreIdx, NULL);
-        LeaveLock(pCodecInst->coreIdx);
+        LeaveLock_noclk(pCodecInst->coreIdx);
     }
     else {
         SetPendingInst(pCodecInst->coreIdx, pCodecInst);
@@ -940,7 +940,7 @@ RetCode VPU_EncGetOutputInfo(
     pAttr      = &g_VpuCoreAttributes[pCodecInst->coreIdx];
 
     if (pAttr->supportCommandQueue == TRUE) {
-        EnterLock(pCodecInst->coreIdx);
+        EnterLock_noclk(pCodecInst->coreIdx);
     }
     else {
         if (pCodecInst != GetPendingInst(pCodecInst->coreIdx)) {
@@ -1338,7 +1338,7 @@ RetCode VPU_EncIssueSeqInit(EncHandle handle)
 
     if (pAttr->supportCommandQueue == TRUE) {
         SetPendingInst(pCodecInst->coreIdx, NULL);
-        LeaveLock(pCodecInst->coreIdx);
+        LeaveLock_noclk(pCodecInst->coreIdx);
     }
 
     return ret;
@@ -1366,12 +1366,12 @@ RetCode VPU_EncCompleteSeqInit(EncHandle handle, EncInitialInfo * info)
     pAttr = &g_VpuCoreAttributes[pCodecInst->coreIdx];
 
     if (pAttr->supportCommandQueue == TRUE) {
-        EnterLock(pCodecInst->coreIdx);
+        EnterLock_noclk(pCodecInst->coreIdx);
     }
     else {
         if (pCodecInst != GetPendingInst(pCodecInst->coreIdx)) {
             SetPendingInst(pCodecInst->coreIdx, 0);
-            LeaveLock(pCodecInst->coreIdx);    
+            LeaveLock(pCodecInst->coreIdx);
             return RETCODE_WRONG_CALL_SEQUENCE;
         }
     }
@@ -1394,5 +1394,3 @@ RetCode VPU_EncCompleteSeqInit(EncHandle handle, EncInitialInfo * info)
 
     return ret;
 }
-
- 

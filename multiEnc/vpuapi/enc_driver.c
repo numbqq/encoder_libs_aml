@@ -2003,7 +2003,7 @@ RetCode Vp5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam)
             return RETCODE_FAILURE;
     }
 
-    LeaveLock(coreIdx);
+    LeaveLock_noclk(coreIdx);
     return RETCODE_SUCCESS;
 }
 
@@ -2195,6 +2195,7 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
     if (vdi_wait_vpu_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_BUSY_STATUS) == -1) {
         if (instance->loggingEnable)
             vdi_log(coreIdx, VP5_ENC_SET_PARAM, 2);
+        LeaveLock(coreIdx);
         return RETCODE_VPU_RESPONSE_TIMEOUT;
     }
 
@@ -2216,8 +2217,7 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
         else
             return RETCODE_FAILURE;
     }
-
-    LeaveLock(coreIdx);
+    LeaveLock_noclk(coreIdx);
     return RETCODE_SUCCESS;
 }
 

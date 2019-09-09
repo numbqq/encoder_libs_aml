@@ -257,7 +257,47 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t handle,
 int vl_video_encoder_update_qp_hint(vl_codec_handle_t handle,
                             unsigned char *pq_hint_table,
                             int size);
+/**
+ *
+ * vl_video_encoder_change_bitrate
+ * Change the taget bitrate in encoding
+ *@param : handle
+ *@param : bitRate: the new target encode bitrate
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_change_bitrate(vl_codec_handle_t handle,
+                            int bitRate);
 
+/**
+ *
+ * vl_video_encoder_change_qp
+ * Change the QP setings in the encoding
+ *
+ *@param : handle
+ *@param : minQpI  the new min QP for I frame
+ *@param : maxQpI  the new max QP for I frame
+ *@param : maxDeltaQp  the new max QP differneces in a frame
+ *@param : minQpP  the new min QP for P frame
+ *@param : maxQpP  the new max QP for P frame
+ *@param : minQpB  the new min QP for B frame
+ *@param : maxQpB  the new max QP for B frame
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_change_qp(vl_codec_handle_t handle,
+                                int minQpI, int maxQpI, int maxDeltaQp,
+                                int minQpP, int maxQpP,
+                                int minQpB, int maxQpB);
+/*
+ * vl_video_encoder_change_gop
+ * Change the Gop period settings
+ *
+ *@param : handle
+ *@param : intraQP  the new init QP for the I frame
+ *@param : GOPPeriod the new GOP period
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_change_gop(vl_codec_handle_t handle,
+                                int intraQP, int GOPPeriod);
 
 /**
  * destroy encoder

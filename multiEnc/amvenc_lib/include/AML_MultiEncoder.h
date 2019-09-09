@@ -137,6 +137,7 @@ typedef struct EncInitParams_s {
   uint32 lambda_map_enable; /* enable lambda map */
   uint32 mode_map_enable; /* enable mode map*/
   uint32 weight_pred_enable; /* enable weighted pred */
+  uint32 param_change_enable; /* enable on the fly change parameters*/
 
   int qp_mode;
   int maxQP;
@@ -145,8 +146,6 @@ typedef struct EncInitParams_s {
   int initQP_P;         /* initial QP P frame*/
   int initQP_B;         /* initial QP B frame */
   int maxDeltaQP;            /* max QP delta*/
-  int maxQP_I;            /* max QP*/
-  int minQP_I;            /* min QP*/
   int maxQP_P;          /* max QP P frame */
   int minQP_P;          /* min QP P frame */
   int maxQP_B;          /* max QP B frame*/
@@ -166,6 +165,14 @@ extern AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t handle,
 extern AMVEnc_Status AML_MultiEncUpdateRoi(amv_enc_handle_t handle,
                                 unsigned char* buffer,
                                 int size);
+extern AMVEnc_Status AML_MultiEncChangeBitRate(amv_enc_handle_t ctx_handle,
+                                int BitRate);
+extern AMVEnc_Status AML_MultiEncChangeQPMinMax(amv_enc_handle_t ctx_handle,
+                                int minQpI, int maxQpI, int maxDeltaQp,
+                                int minQpP, int maxQpP,
+                                int minQpB, int maxQpB);
+extern AMVEnc_Status AML_MultiEncChangeIntraPeriod(amv_enc_handle_t ctx_handle,
+                                int IntraQP, int IntraPeriod);
 extern AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t handle);
 
 #endif

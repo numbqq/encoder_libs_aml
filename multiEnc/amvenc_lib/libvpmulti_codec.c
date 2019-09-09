@@ -128,6 +128,8 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.encode_once = 1;
 
     if (encode_info.enc_feature_opts & 0x1) handle->mEncParams.roi_enable = 1;
+    if (encode_info.enc_feature_opts & 0x2)
+        handle->mEncParams.param_change_enable = 1;
 
   if (encode_info.img_format == IMG_FMT_NV12) {
     VLOG(INFO, "img_format is IMG_FMT_NV12 \n");
@@ -297,6 +299,9 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       return result;
     }
   }
+
+  if (type == FRAME_TYPE_I || type == FRAME_TYPE_IDR)
+    handle->mKeyFrameRequested = true;
 
   if (handle->mNumInputFrames >= 0) {
     AMVMultiEncFrameIO videoInput, videoRet;
@@ -474,6 +479,80 @@ int vl_video_encoder_update_qp_hint(vl_codec_handle_t codec_handle,
     ret = AML_MultiEncUpdateRoi(handle->am_enc_handle, pq_hint_table, size);
     if (ret != AMVENC_SUCCESS)
         return -3;
+    return 0;
+}
+
+
+int vl_video_encoder_change_bitrate(vl_codec_handle_t codec_handle,
+                            int bitRate)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.param_change_enable == 0) //no change enabled
+        return -2;
+    ret = AML_MultiEncChangeBitRate(handle->am_enc_handle, bitRate);
+    if (ret != AMVENC_SUCCESS)
+        return -3;
+    return 0;
+}
+
+int vl_video_encoder_change_qp(vl_codec_handle_t codec_handle,
+                                int minQpI, int maxQpI, int maxDeltaQp,
+                                int minQpP, int maxQpP,
+                                int minQpB, int maxQpB)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.param_change_enable == 0) //no change enabled
+        return -2;
+
+    if (minQpI < 0 || minQpI > 51 || maxQpI < 0 || maxQpI > 51 ||
+        maxDeltaQp < 0 || maxDeltaQp > 51 || minQpP < 0 || minQpP > 51 ||
+        maxQpP < 0 || maxQpP > 51 || minQpB < 0 || minQpB > 51 ||
+        maxQpB < 0 || maxQpB > 51) {
+        VLOG(ERR,"qp min or qp max out of range [0, 51]\n");
+        return -3;
+    }
+    if (minQpI >= maxQpI || minQpP >= maxQpP || minQpB >= maxQpB) {
+        VLOG(ERR,"qp min  or qp_max out of range [min, max]\n");
+        return -4;
+    }
+
+    ret = AML_MultiEncChangeQPMinMax(handle->am_enc_handle,
+             minQpI, maxQpI, maxDeltaQp, minQpP, maxQpP, minQpB, maxQpB);
+    if (ret != AMVENC_SUCCESS)
+        return -5;
+    return 0;
+}
+
+int vl_video_encoder_change_gop(vl_codec_handle_t codec_handle,
+                                int IntraQP, int IntraPeriod)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.param_change_enable == 0) //no change enabled
+        return -2;
+    if (IntraQP < 0 || IntraQP > 51 ) {
+           VLOG(ERR, "QP value out of range [0, 51]\n");
+        return -3;
+    }
+    if (IntraPeriod <= 1 ) {
+           VLOG(ERR, "Invalid Intra Period %d\n", IntraPeriod);
+        return -4;
+    }
+    ret = AML_MultiEncChangeIntraPeriod(handle->am_enc_handle,
+              IntraQP, IntraPeriod);
+    if (ret != AMVENC_SUCCESS)
+        return -5;
     return 0;
 }
 

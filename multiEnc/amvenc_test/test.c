@@ -51,6 +51,34 @@
 
 #define INIT_RETRY 100
 
+
+#define FORCE_PICTURE_TYPE	0x1
+#define CHANGE_TARGET_RATE	0x2
+#define CHANGE_MIN_MAX_QP	0x4
+#define CHANGE_GOP_PERIOD	0x8
+
+typedef struct {
+	int FrameNum; //change frame number
+	int enable_option;
+	//FORCE_PICTURE_TYPE
+	int picType; //vl_frame_type_t
+	//CHANGE_TARGET_RATE
+	int bitRate;
+	//CHANGE_MIN_MAX_QP
+	int minQpI;
+	int maxQpI;
+	int maxDeltaQp;
+	int minQpP;
+	int maxQpP;
+	int minQpB;
+	int maxQpB;
+	//CHANGE_GOP_PERIOD
+	int intraQP;
+	int GOPPeriod;
+} CfgChangeParam;
+
+static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update);
+
 int main(int argc, const char *argv[])
 {
 	int width, height, gop, framerate, bitrate, num;
@@ -58,10 +86,15 @@ int main(int argc, const char *argv[])
 	int outfd = -1;
 	FILE *fp = NULL;
 	FILE *fp_roi = NULL;
+	FILE *fp_cfg = NULL;
 	int datalen = 0;
 	int retry_cnt = 0;
 	int roi_enabled = 0;
+	int cfg_upd_enabled = 0, has_cfg_update = 0;
+	int cfg_option = 0, frame_num = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
+	CfgChangeParam cfgChange;
+	vl_frame_type_t enc_frame_type;
 
 	unsigned char *vaddr = NULL;
 	vl_codec_handle_t handle_enc = 0;
@@ -69,6 +102,7 @@ int main(int argc, const char *argv[])
 	vl_buffer_info_t ret_buf;
 	vl_codec_id_t codec_id;
 	encoding_metadata_t encoding_metadata;
+
 
 	int tmp_idr;
 	int fd = -1;
@@ -83,7 +117,7 @@ int main(int argc, const char *argv[])
 		printf("Amlogic Encoder API \n");
 		printf(" usage: aml_enc_test "
 		       "[srcfile][outfile][width][height][gop][framerate][bitrate][num][fmt]["
-		       "buf type][num_planes][codec_id] [roifile]\n");
+		       "buf type][num_planes][codec_id] [roifile] [cfg_opt] [cfg_file] \n");
 		printf("  options  \t:\n");
 		printf("  srcfile  \t: yuv data url in your root fs\n");
 		printf("  outfile  \t: stream url in your root fs\n");
@@ -97,7 +131,9 @@ int main(int argc, const char *argv[])
 		printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
 		printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 		printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
-		printf("  roifile \t: roi info url in your root fs optional if no present roi disable \n");
+		printf("  roifile  \t: optional, roi info url in your root fs, if no present roi disable \n");
+		printf("  cfg_opt  \t: optional, cfg update file option 0: roifile as cfg_file (no roi), 1:cfg_file follow \n");
+		printf("  cfg_file \t: optional, cfg update info url in your root fs\n");
 		return -1;
 	} else
 	{
@@ -193,8 +229,28 @@ int main(int argc, const char *argv[])
 	else
 		printf("codec is H264\n");
 	if (argc > 13) {
-		printf("roi_url is\t: %s ;\n", argv[13]);
-		roi_enabled = 1;
+		if (argc > 14)
+		{
+			cfg_option = atoi(argv[14]);
+			if (cfg_option == 1 && argc > 15)
+			{
+				printf("cfg_upd_url is\t: %s ;\n", argv[15]);
+				cfg_upd_enabled = 1;
+				printf("roi_url is\t: %s ;\n", argv[13]);
+				roi_enabled = 1;
+			} else if (cfg_option == 0) {
+				printf("cfg_upd_url is\t: %s ;\n", argv[13]);
+				cfg_upd_enabled = 1;
+			} else {
+				printf("unknown options opt %d argc %d\n",
+					cfg_option ,argc);
+				printf("roi_url is\t: %s ;\n", argv[13]);
+				roi_enabled = 1;
+			}
+		} else {
+			printf("roi_url is\t: %s ;\n", argv[13]);
+			roi_enabled = 1;
+		}
 	}
 
 
@@ -233,6 +289,7 @@ int main(int argc, const char *argv[])
 	encode_info.frame_rate = framerate;
 	encode_info.gop = gop;
 	encode_info.img_format = fmt;
+	encode_info.qp_mode = qp_mode;
 	if (roi_enabled) {
 		encode_info.enc_feature_opts |= 0x1;
 		roi_size = ((width+15)/16)*((height+15)/16);
@@ -241,6 +298,10 @@ int main(int argc, const char *argv[])
 			printf("Can not allocat roi_buffer\n");
 			goto exit;
 		}
+	}
+	if (cfg_upd_enabled) {
+		encode_info.enc_feature_opts |= 0x2;
+		memset(&cfgChange, 0, sizeof(CfgChangeParam));
 	}
 
 	if (inbuf_info.buf_type == DMA_TYPE)
@@ -397,7 +458,18 @@ int main(int argc, const char *argv[])
 			goto exit;
 		}
 	}
-
+	if (cfg_upd_enabled) {
+		if (cfg_option == 0)
+			fp_cfg = fopen((argv[13]), "r");
+		else
+			fp_cfg = fopen((argv[15]), "r");
+		if (fp_cfg == NULL)
+		{
+			printf("open cfg file error!\n");
+			goto exit;
+		}
+		has_cfg_update = ParseCfgUpdateFile(fp_cfg, &cfgChange);
+	}
 	outfd = open((argv[2]), O_CREAT | O_RDWR | O_TRUNC, 0644);
 	if (outfd < 0)
 	{
@@ -492,8 +564,67 @@ retry:
 				printf("update qp hint failed.\n");
 			}
 		}
+		enc_frame_type = FRAME_TYPE_AUTO;
+		if (cfg_upd_enabled && has_cfg_update) {
+			if (cfgChange.FrameNum == frame_num) { // apply updates
+				if (cfgChange.enable_option
+				    & FORCE_PICTURE_TYPE)
+				{
+					if (cfgChange.picType == FRAME_TYPE_IDR
+					    || cfgChange.picType
+						== FRAME_TYPE_I)
+					{
+						enc_frame_type = FRAME_TYPE_I;
+						printf("force I frame on %d \n",
+						    frame_num);
+					}
+				}
+				if (cfgChange.enable_option
+				    & CHANGE_TARGET_RATE)
+				{
+					vl_video_encoder_change_bitrate(
+					    handle_enc,
+					    cfgChange.bitRate);
+					printf("Change bitrate to %d on %d \n",
+					    cfgChange.bitRate, frame_num);
+				}
+				if (cfgChange.enable_option
+				    & CHANGE_MIN_MAX_QP)
+				{
+					vl_video_encoder_change_qp(
+					    handle_enc,
+					    cfgChange.minQpI,cfgChange.maxQpI,
+					    cfgChange.maxDeltaQp,
+					    cfgChange.minQpP,cfgChange.maxQpP,
+					    cfgChange.minQpB,cfgChange.maxQpB);
+					printf("Change QP table on %d QPs: ",
+					    frame_num);
+					printf("%d %d %d %d %d %d %d\n",
+					    cfgChange.minQpI,cfgChange.maxQpI,
+					    cfgChange.maxDeltaQp,
+					    cfgChange.minQpP,cfgChange.maxQpP,
+					    cfgChange.minQpB,cfgChange.maxQpB);
+				}
+				if (cfgChange.enable_option
+				    & CHANGE_GOP_PERIOD)
+				{
+					vl_video_encoder_change_gop(
+					    handle_enc,
+					    cfgChange.intraQP,
+					    cfgChange.GOPPeriod);
+					printf("Change gop on %d QP %d %d\n",
+					    frame_num, cfgChange.intraQP,
+					    cfgChange.GOPPeriod);
+				}
+			}
+			if (cfgChange.FrameNum <= frame_num) {
+				has_cfg_update =
+				    ParseCfgUpdateFile(fp_cfg, &cfgChange);
+			}
+		}
+
 		encoding_metadata =
-		    vl_multi_encoder_encode(handle_enc, FRAME_TYPE_AUTO,
+		    vl_multi_encoder_encode(handle_enc, enc_frame_type,
 					    outbuffer, &inbuf_info, &ret_buf);
 
 		if (encoding_metadata.is_valid)
@@ -506,6 +637,7 @@ retry:
 			       encoding_metadata.encoded_data_length_in_bytes);
 		}
 		num--;
+		frame_num++;
 	}
 
 exit:
@@ -521,6 +653,9 @@ exit:
 
 	if (fp_roi)
 		fclose(fp_roi);
+
+	if (fp_cfg)
+		fclose(fp_cfg);
 
 	if (outbuffer != NULL)
 		free(outbuffer);
@@ -548,4 +683,122 @@ exit:
 	printf("Encode End!\n");
 
 	return 0;
+}
+
+
+static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
+{
+	int parsed_num = 0, frameIdx = 0;
+	char* token = NULL;
+	static char lineStr[256] = {0, };
+	char valueStr[256] = {0, };
+	int has_update = 0;
+
+	while (1) {
+		if (lineStr[0] == 0x0) { //need a new line;
+			if (fgets(lineStr, 256, fp) == NULL ) {
+				if (cfg_update->enable_option && has_update)
+					return 1;
+				else
+					return 0;
+			}
+		}
+		if ((lineStr[0] == '#')
+		    ||(lineStr[0] == ';')||(lineStr[0] == ':'))
+		{ // skip comments
+			lineStr[0] = 0x0;
+			continue;
+		}
+		// keep the original
+		memcpy(valueStr, lineStr, strlen(lineStr));
+		//frame number is separated by ' ' or ':'
+		token = strtok(valueStr, ": ");
+		if (token == NULL) {
+			lineStr[0] = 0x0;
+			continue;
+		}
+		frameIdx = atoi(token);
+		if (frameIdx <0 || frameIdx < cfg_update->FrameNum) {
+			// invid number
+			lineStr[0] = 0x0;
+			continue;
+		}
+		else if (frameIdx > cfg_update->FrameNum && has_update)
+		{// done the currrent frame;
+			if (cfg_update->enable_option)
+				return 1;
+			else
+				return 0;
+		} else if (has_update ==0) {// clear the options
+			cfg_update->FrameNum = frameIdx;
+			cfg_update->enable_option = 0;
+			has_update = 1;
+		}
+
+		token = strtok(NULL, " :"); // check the operation code
+		while (token && strlen(token) == 1
+		    && strncmp(token, " ", 1) == 0)
+			token = strtok(NULL, " :"); // skip spaces
+		if (token == NULL) { // no operate code
+			lineStr[0] = 0x0;
+			continue;
+		}
+		if (strcasecmp("ForceType",token) == 0) {
+			// force picture type
+			token = strtok(NULL, ":\r\n");
+			while (token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+			token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				cfg_update->picType = atoi(token);
+				cfg_update->enable_option |=
+				    FORCE_PICTURE_TYPE;
+			}
+		} else if (strcasecmp("ChangeBitRate",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				cfg_update->bitRate = atoi(token);
+				cfg_update->enable_option |=
+				    CHANGE_TARGET_RATE;
+			}
+		} else if (strcasecmp("ChangeMinMaxQP",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while (token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				parsed_num = sscanf(token,
+				    "%d %d %d %d %d %d %d",
+				    &cfg_update->minQpI, &cfg_update->maxQpI,
+				    &cfg_update->maxDeltaQp,
+				    &cfg_update->minQpP, &cfg_update->maxQpP,
+				    &cfg_update->minQpB, &cfg_update->maxQpB);
+				if (parsed_num == 7)
+					cfg_update->enable_option |=
+					    CHANGE_MIN_MAX_QP;
+			}
+		} else if (strcasecmp("ChangePeriodGOP",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				parsed_num = sscanf(token, "%d %d",
+					&cfg_update->intraQP,
+					&cfg_update->GOPPeriod);
+				if (parsed_num == 2)
+					cfg_update->enable_option |=
+					    CHANGE_GOP_PERIOD;
+			}
+		}
+		lineStr[0] = 0x0;
+		continue;
+	}
 }

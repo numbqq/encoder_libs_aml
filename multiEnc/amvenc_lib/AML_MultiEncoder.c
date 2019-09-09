@@ -340,7 +340,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   /*basic settings */
   if (InitParam->stream_type == AMV_AVC)
     pEncOP->bitstreamFormat = STD_AVC;
-  else if(InitParam->stream_type == AMV_HEVC)
+  else if (InitParam->stream_type == AMV_HEVC)
     pEncOP->bitstreamFormat = STD_HEVC;
   else {
     VLOG(ERR, "[ERROR] Not supported format (%d)\n", InitParam->stream_type);
@@ -392,9 +392,9 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   }
 
   /* for CMD_ENC_SEQ_INTRA_PARAM */
-  param->decodingRefreshType = 1; //pCfg->vpCfg.decodingRefreshType;
+  param->decodingRefreshType = 0; //pCfg->vpCfg.decodingRefreshType;
   param->intraPeriod = InitParam->idr_period;//pCfg->vpCfg.intraPeriod;
-  if(InitParam->idr_period == 0) { // only one I then all P
+  if (InitParam->idr_period == 0) { // only one I then all P
     param->gopPresetIdx = PRESET_IDX_IPP;
     param->intraPeriod = 0xffff;
   } else if (InitParam ->idr_period == 1) {
@@ -433,7 +433,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   /* for CMD_ENC_SEQ_INTRA_REFRESH_PARAM */
   param->intraRefreshMode = 0; //pCfg->vpCfg.intraRefreshMode;
   param->intraRefreshArg = 0; //pCfg->vpCfg.intraRefreshArg;
-  param->useRecommendEncParam = 1; //pCfg->vpCfg.useRecommendEncParam;
+  param->useRecommendEncParam = 0; //pCfg->vpCfg.useRecommendEncParam;
 
   /* for CMD_ENC_PARAM */
   param->scalingListEnable = 0; //pCfg->vpCfg.scalingListEnable;
@@ -1506,8 +1506,13 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   param->forcePicQpI			             = 0;
   param->forcePicQpP			             = 0;
   param->forcePicQpB			             = 0;
-  param->forcePicTypeEnable	             = 0;
-  param->forcePicType			             = 0;
+  if (ctx->op_flag & AMVEncFrameIO_FORCE_IDR_FLAG) {
+    param->forcePicTypeEnable = 1;
+    param->forcePicType = 0; //  0 for I frame. 5 for IDR
+  } else {
+    param->forcePicTypeEnable = 0;
+    param->forcePicType = 0;
+  }
 
     // FW will encode header data implicitly when changing the header syntaxes
   param->codeOption.implicitHeaderEncode    = 1;
@@ -1599,6 +1604,86 @@ AMVEnc_Status AML_MultiEncUpdateRoi(amv_enc_handle_t ctx_handle,
   memcpy(ctx->CustomRoiMapBuf, buffer, required_size);
   ctx->CustomUpdateID ++;
   if (ctx->CustomUpdateID > 256) ctx->CustomUpdateID = 1;
+  return AMVENC_SUCCESS;
+}
+
+AMVEnc_Status AML_MultiEncChangeBitRate(amv_enc_handle_t ctx_handle,
+                                int BitRate)
+{
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  EncChangeParam *ChgParam;
+
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.param_change_enable == 0)
+    return AMVENC_FAIL;
+  VLOG(INFO, "Change bit rate to %d Count %d\n", BitRate, ctx->changedCount);
+
+  ChgParam = &ctx->changeParam;
+
+  ChgParam->bitRate = BitRate;
+  ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_RC_TARGET_RATE;
+  ctx->param_change_flag ++;
+
+  return AMVENC_SUCCESS;
+}
+
+AMVEnc_Status AML_MultiEncChangeQPMinMax(amv_enc_handle_t ctx_handle,
+                                int minQpI, int maxQpI, int maxDeltaQp,
+                                int minQpP, int maxQpP,
+                                int minQpB, int maxQpB)
+{
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  EncChangeParam *ChgParam;
+
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.param_change_enable == 0)
+    return AMVENC_FAIL;
+
+  VLOG(INFO, "Change MinMax QP Count %d to I:%d-%d delta %d P:%d-%d B:%d-%d\n",
+                ctx->changedCount, minQpI, maxQpI, maxDeltaQp,
+                minQpP, maxQpP, minQpB, maxQpB);
+
+  ChgParam = &ctx->changeParam;
+
+  ChgParam->minQpI = minQpI;
+  ChgParam->maxQpI = maxQpI;
+  ChgParam->maxDeltaQp = maxDeltaQp;
+  ChgParam->minQpP = minQpP;
+  ChgParam->maxQpP = maxQpP;
+  ChgParam->minQpB = minQpB;
+  ChgParam->maxQpB = maxQpB;
+  ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP;
+  ctx->param_change_flag ++;
+
+  return AMVENC_SUCCESS;
+}
+
+AMVEnc_Status AML_MultiEncChangeIntraPeriod(amv_enc_handle_t ctx_handle,
+                                int IntraQP, int IntraPeriod)
+{
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  EncChangeParam *ChgParam;
+
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.param_change_enable == 0)
+    return AMVENC_FAIL;
+
+  VLOG(INFO, "Change IntraPeriod to %d, intraQP %d, count %d\n",
+                IntraPeriod, IntraQP, ctx->changedCount);
+
+  ChgParam = &ctx->changeParam;
+
+  ChgParam->intraQP = IntraQP;
+  ChgParam->intraPeriod = IntraPeriod;
+  ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_INTRA_PARAM;
+  ctx->param_change_flag ++;
+
   return AMVENC_SUCCESS;
 }
 
@@ -1737,8 +1822,22 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
 
 retry_point:
     if(ctx ->param_change_flag) {
-        VPU_EncGiveCommand(ctx->enchandle, ENC_SET_PARA_CHANGE, &ctx->changeParam);
-        ctx ->param_change_flag = 0;
+        result = VPU_EncGiveCommand(ctx->enchandle, ENC_SET_PARA_CHANGE, &ctx->changeParam);
+        if (result == RETCODE_SUCCESS) {
+            VLOG(INFO, "ENC_SET_PARA_CHANGE queue success\n");
+            osal_memset(&ctx->changeParam, 0x00, sizeof(EncChangeParam));
+            ctx->param_change_flag = 0;
+            ctx->changedCount ++;
+        }
+        else if (result == RETCODE_QUEUEING_FAILURE) { // Just retry
+            VLOG(INFO, "ENC_SET_PARA_CHANGE Queue Full\n");
+            goto retry_point;
+        }
+        else { // Error
+            VLOG(ERR, "ENC_SET_PARA_CHANGE failed Error code is 0x%x \n", result);
+            return AMVENC_FAIL;
+        }
+
     }
         encParam        = &ctx->encParam;
 
@@ -1763,7 +1862,7 @@ retry_point:
             return AMVENC_FAIL;
         }
 
-
+retry_pointB:
   while (retry_cnt++ < 100) {
     if ((intStatus=HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_TIMEOUT) {
         VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
@@ -1809,8 +1908,9 @@ retry_point:
    }
 
     if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_CHANGE_PARAM) {
-        VLOG(TRACE, "CHANGE PARAMETER!\n");
-        goto retry_point; //return TRUE; /* Try again */
+        VLOG(INFO, "CHANGE PARAMETER!\n");
+        retry_cnt =0;
+        goto retry_pointB; //return TRUE; /* Try again */
     }
     else {
         // out put frame info
@@ -1830,7 +1930,7 @@ retry_point:
     VLOG(INFO, "encOutputInfo.encSrcIdx %d  reconFrameIndex %d \n",
                 encOutputInfo.encSrcIdx, encOutputInfo.reconFrameIndex);
     if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_CHANGE_PARAM) {
-        VLOG(TRACE, "CHANGE PARAMETER!\n");
+        VLOG(ERR, "CHANGE PARAMETER!\n");
  //       return TRUE; /* Try again */
     }
     if ( encOutputInfo.encSrcIdx >= 0) {

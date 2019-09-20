@@ -859,7 +859,7 @@ RetCode VPU_EncStartOneFrame(
     if (pSrcFrame && pSrcFrame->dma_buf_planes) { // use dma_buf
         vpu_dma_buf_info_t dma_info;
         int i;
-        if (pSrcFrame->dma_buf_planes > 2)
+        if (pSrcFrame->dma_buf_planes > 3)
             return RETCODE_INVALID_FRAME_BUFFER;
         osal_memset(&dma_info, 0x00, sizeof(vpu_dma_buf_info_t));
         dma_info.num_planes = pSrcFrame->dma_buf_planes;
@@ -871,6 +871,15 @@ RetCode VPU_EncStartOneFrame(
         if (vdi_config_dma(pCodecInst->coreIdx, &dma_info) !=0)
                 return RETCODE_INVALID_FRAME_BUFFER;
         pSrcFrame -> bufY = dma_info.phys_addr[0];
+        if (dma_info.num_planes == 1 && pEncInfo->openParam.packedFormat == 0)
+        { // only one buffer plane cb/cr from the same buffer  but no packed
+              pSrcFrame -> bufCb = (PhysicalAddress) (pSrcFrame -> bufY +
+                        pSrcFrame -> height*pSrcFrame -> stride);
+              if (pSrcFrame->cbcrInterleave == 0) { //
+                  pSrcFrame->bufCr = (PhysicalAddress) (pSrcFrame -> bufCb +
+                            pSrcFrame -> height*pSrcFrame -> stride/4);
+              }
+        }
         if (dma_info.num_planes >1 )
                 pSrcFrame -> bufCb = dma_info.phys_addr[1];
         if (dma_info.num_planes > 2)

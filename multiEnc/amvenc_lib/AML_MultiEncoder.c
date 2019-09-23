@@ -392,7 +392,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   }
 
   /* for CMD_ENC_SEQ_INTRA_PARAM */
-  param->decodingRefreshType = 0; //pCfg->vpCfg.decodingRefreshType;
+  param->decodingRefreshType = 1; //pCfg->vpCfg.decodingRefreshType;
   param->intraPeriod = InitParam->idr_period;//pCfg->vpCfg.intraPeriod;
   if (InitParam->idr_period == 0) { // only one I then all P
     param->gopPresetIdx = PRESET_IDX_IPP;

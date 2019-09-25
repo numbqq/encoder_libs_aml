@@ -77,6 +77,10 @@ typedef enum AMVGOPModeOPT_S {
   GOP_ALL_I,
   GOP_IP,
   GOP_IBBBP,
+  GOP_IP_SVC1,
+  GOP_IP_SVC2,
+  GOP_IP_SVC3,
+  GOP_IP_SVC4,
   GOP_MAX_OPT,
 } AMVGOPModeOPT;
 

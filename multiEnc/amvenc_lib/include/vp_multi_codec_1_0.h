@@ -119,6 +119,13 @@ typedef struct vl_encode_info {
   int qp_mode; /* 1: use customer QP range, 0:use default QP range */
   int enc_feature_opts; /* option features flag settings.*/
                         /* See above for fields definition in detail */
+                       /* bit 0: qp hint(roi) 0:disable (default) 1: enable */
+                       /* bit 1: param_change 0:disable (default) 1: enable */
+                       /* bit 2 to 6: gop_opt:0 (default), 1:I only 2:IP, */
+                       /*                     3: IBBBP, 4: IP_SVC1, 5:IP_SVC2 */
+                       /*                     6: IP_SVC3, 7: IP_SVC4 */
+                       /*                     see define of AMVGOPModeOPT */
+                       /* bit 7:LTR control   0:disable (default) 1: enable*/
 } vl_encode_info_t;
 
 /* dma buffer info*/

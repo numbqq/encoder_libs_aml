@@ -134,6 +134,10 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
       handle->mEncParams.param_change_enable = 1;
     if (encode_info.enc_feature_opts & ENABLE_LONG_TERM_REF)
       handle->mEncParams.longterm_ref_enable = 1;
+    if (encode_info.enc_feature_opts & 0x7c) {
+        handle->mEncParams.GopPreset = (AMVGOPModeOPT)
+                ((encode_info.enc_feature_opts >>2) & 0x1f);
+    }
 
   if (encode_info.img_format == IMG_FMT_NV12) {
     VLOG(INFO, "img_format is IMG_FMT_NV12 \n");

@@ -150,6 +150,32 @@ typedef enum {
     ENCODER_STATE_ENCODING,
 } EncoderState;
 
+static CustomGopPicParam AML_svc1[2] = {
+{PIC_TYPE_P, 1, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 2, 0, 1, 0,-1, 0},
+};
+
+static CustomGopPicParam AML_svc2[3] = {
+{PIC_TYPE_P, 1, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 2, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 3, 0, 1, 0,-1, 0},
+};
+
+static CustomGopPicParam AML_svc3[4] = {
+{PIC_TYPE_P, 1, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 2, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 3, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 4, 0, 1, 0,-1, 0},
+};
+
+static CustomGopPicParam AML_svc4[5] = {
+{PIC_TYPE_P, 1, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 2, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 3, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 4, 1, 1, 0,-1, 1},
+{PIC_TYPE_P, 5, 0, 1, 0,-1, 0},
+};
+
 typedef struct AMVEncContext_s {
   uint32 magic_num;
   uint32 instance_id;
@@ -335,7 +361,8 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
 
 static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 {
-    int i;
+  int i;
+  CustomGopPicParam *GopParam;
   EncVpParam *param = &pEncOP->EncStdParam.vpParam;
   /*basic settings */
   if (InitParam->stream_type == AMV_AVC)
@@ -385,6 +412,26 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   }
   else if (InitParam->GopPreset == GOP_IBBBP) {
     param->gopPresetIdx = PRESET_IDX_IBBBP;
+  }
+  else if (InitParam->GopPreset == GOP_IP_SVC1) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 2;
+    GopParam = AML_svc1;
+  }
+  else if (InitParam->GopPreset == GOP_IP_SVC2) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 3;
+    GopParam = AML_svc2;
+  }
+  else if (InitParam->GopPreset == GOP_IP_SVC3) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 4;
+    GopParam = AML_svc3;
+  }
+  else if (InitParam->GopPreset == GOP_IP_SVC4) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 5;
+    GopParam = AML_svc4;
   }
   else {
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
@@ -482,20 +529,32 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->hvsMaxDeltaQp = 10;
   }
 
-#if 0
+  if (param->gopPresetIdx == PRESET_IDX_CUSTOM_GOP) {
     /* for CMD_ENC_CUSTOM_GOP_PARAM */
-    param->gopParam.customGopSize     = pCfg->vpCfg.gopParam.customGopSize;
+    if (param->intraPeriod % param->gopParam.customGopSize) {
+        VLOG(ERR, "[ERROR] Gop length %d have to be multiple of  %d\n",
+             param->intraPeriod, param->gopParam.customGopSize);
+        return FALSE;
+    }
 
     for (i= 0; i<param->gopParam.customGopSize; i++) {
-        param->gopParam.picParam[i].picType      = pCfg->vpCfg.gopParam.picParam[i].picType;
-        param->gopParam.picParam[i].pocOffset    = pCfg->vpCfg.gopParam.picParam[i].pocOffset;
-        param->gopParam.picParam[i].picQp        = pCfg->vpCfg.gopParam.picParam[i].picQp;
-        param->gopParam.picParam[i].refPocL0     = pCfg->vpCfg.gopParam.picParam[i].refPocL0;
-        param->gopParam.picParam[i].refPocL1     = pCfg->vpCfg.gopParam.picParam[i].refPocL1;
-        param->gopParam.picParam[i].temporalId   = pCfg->vpCfg.gopParam.picParam[i].temporalId;
-        param->gopParam.picParam[i].numRefPicL0  = pCfg->vpCfg.gopParam.picParam[i].numRefPicL0;
+        param->gopParam.picParam[i].picType = GopParam->picType;
+        param->gopParam.picParam[i].pocOffset = GopParam->pocOffset;
+        param->gopParam.picParam[i].picQp = GopParam->picQp + param->intraQP;
+        if (param->gopParam.picParam[i].picQp > 63)
+            param->gopParam.picParam[i].picQp = 63;
+        param->gopParam.picParam[i].refPocL0 = GopParam->refPocL0;
+        param->gopParam.picParam[i].refPocL1 = GopParam->refPocL1;
+        param->gopParam.picParam[i].temporalId = GopParam->temporalId;
+        param->gopParam.picParam[i].numRefPicL0 = GopParam->numRefPicL0;
+        GopParam++;
+        VLOG(INFO, "CustGop%d type %d offset %d, Qp %d, ref %d, %d, temp %d refn %d \n",
+        i, param->gopParam.picParam[i].picType, param->gopParam.picParam[i].pocOffset,
+        param->gopParam.picParam[i].picQp, param->gopParam.picParam[i].refPocL0,
+        param->gopParam.picParam[i].refPocL1, param->gopParam.picParam[i].temporalId,
+        param->gopParam.picParam[i].numRefPicL0);
     }
-#endif
+  }
   param->roiEnable = InitParam->roi_enable; //pCfg->vpCfg.roiEnable;
   // VPS & VUI
   param->numUnitsInTick = 1000;//pCfg->vpCfg.numUnitsInTick;
@@ -1120,7 +1179,8 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   ctx->frame_rate = encParam->frame_rate;
   ctx->mPrependSPSPPSToIDRFrames = encParam->prepend_spspps_to_idr_frames;
   ctx->mNumPlanes = 0;
-  SetupEncoderOpenParam(&(ctx->encOpenParam), encParam);
+  if (SetupEncoderOpenParam(&(ctx->encOpenParam), encParam) == FALSE)
+        goto fail_exit;
   coreIdx = ctx->encOpenParam.coreIdx;
   retCode = VPU_Init(coreIdx);
   if (retCode != RETCODE_SUCCESS && retCode != RETCODE_CALLED_BEFORE) {
@@ -1856,7 +1916,9 @@ retry_point:
     if(ctx ->param_change_flag) {
         result = VPU_EncGiveCommand(ctx->enchandle, ENC_SET_PARA_CHANGE, &ctx->changeParam);
         if (result == RETCODE_SUCCESS) {
-            VLOG(INFO, "ENC_SET_PARA_CHANGE queue success\n");
+            VLOG(INFO, "ENC_SET_PARA_CHANGE queue success option 0x%x\n",
+                        ctx->changeParam.enable_option);
+
             osal_memset(&ctx->changeParam, 0x00, sizeof(EncChangeParam));
             ctx->param_change_flag = 0;
             ctx->changedCount ++;
@@ -1989,37 +2051,30 @@ retry_pointB:
         idx = ctx->encMEMSrcFrmIdxArr[encOutputInfo.encSrcIdx];
         ctx->encodedSrcFrmIdxArr[idx] = 0;
         ctx->fullInterrupt  = FALSE;
-    // copy frames
-    if (encOutputInfo.bitstreamBuffer !=
-        ctx->bsBuffer[idx].phys_addr) {
-        VLOG(ERR, "BS buffer no match!! expect %lx acutual %x size %d\n",
-                ctx->bsBuffer[idx].phys_addr,
-                encOutputInfo.bitstreamBuffer, encOutputInfo.bitstreamSize);
-     }
+        // copy frames
 
-  VLOG(DEBUG, "Enc bitstream size %d pic_type %d \n", encOutputInfo.bitstreamSize, encOutputInfo.picType);
-     *buf_nal_size = encOutputInfo.bitstreamSize;
-  // cache invalid to read out by CPU
-  //vdi_invalitate_memory(ctx->encOpenParam.coreIdx,
-  //              &ctx->bsBuffer[encOutputInfo.encSrcIdx]);
-  vdi_read_memory(ctx->encOpenParam.coreIdx,
-        encOutputInfo.bitstreamBuffer, buffer, encOutputInfo.bitstreamSize,
-        ctx->encOpenParam.streamEndian);
+        VLOG(DEBUG, "Enc bitstream size %d pic_type %d avgQP %d\n",
+             encOutputInfo.bitstreamSize, encOutputInfo.picType,
+             encOutputInfo.avgCtuQp);
+        *buf_nal_size = encOutputInfo.bitstreamSize;
+        vdi_read_memory(ctx->encOpenParam.coreIdx,
+                        encOutputInfo.bitstreamBuffer,
+                        buffer, encOutputInfo.bitstreamSize,
+                        ctx->encOpenParam.streamEndian);
 
-    *Retframe= ctx->FrameIO[idx];
-    Retframe->encoded_frame_type = encOutputInfo.picType;
-    Retframe->enc_average_qp = encOutputInfo.avgCtuQp;
-    Retframe->enc_intra_blocks = encOutputInfo.numOfIntra;
-    Retframe->enc_merged_blocks = encOutputInfo.numOfMerge;
-    Retframe->enc_skipped_blocks = encOutputInfo.numOfSkipBlock;
+        *Retframe= ctx->FrameIO[idx];
+        Retframe->encoded_frame_type = encOutputInfo.picType;
+        Retframe->enc_average_qp = encOutputInfo.avgCtuQp;
+        Retframe->enc_intra_blocks = encOutputInfo.numOfIntra;
+        Retframe->enc_merged_blocks = encOutputInfo.numOfMerge;
+        Retframe->enc_skipped_blocks = encOutputInfo.numOfSkipBlock;
 
-    } else if( encOutputInfo.encSrcIdx == 0xfffffffe)
-        {
+    } else if ( encOutputInfo.encSrcIdx == 0xfffffffe) {
         VLOG(INFO, "delay frame delay %d \n", ctx->frame_delay);
         ctx->frame_delay ++;
         *buf_nal_size = 0;
         Retframe ->YCbCr[0] = 0;
-    } else if(encOutputInfo.encSrcIdx == 0xfffffffb)  {
+    } else if (encOutputInfo.encSrcIdx == 0xfffffffb)  {
         VLOG(INFO, "non-reference picture !! \n");
         *buf_nal_size = 0;
         Retframe->YCbCr[0] = 0;

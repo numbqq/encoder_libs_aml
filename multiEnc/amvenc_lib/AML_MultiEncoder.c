@@ -2006,6 +2006,7 @@ AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
     ctx_handle, total_encode_time, total_encode_frames);
 #endif
 
+    if (ctx->frameIdx) {
 flush_retry_point:
         encParam        = &ctx->encParam;
         encParam->srcEndFlag = 1;  // flush out frame
@@ -2024,9 +2025,9 @@ flush_retry_point:
         }
         else { // Error
             VLOG(ERR, "VPU_EncStartOneFrame failed Error code is 0x%x \n", result);
-            return AMVENC_FAIL;
+            //return AMVENC_FAIL;
         }
-
+    }
     while (VPU_EncClose(ctx->enchandle) == RETCODE_VPU_STILL_RUNNING) {
         if ((intStatus = HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_TIMEOUT) {
             HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);

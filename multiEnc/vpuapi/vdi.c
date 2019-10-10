@@ -178,13 +178,12 @@ int vdi_init(u32 core_idx)
     if (vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL) {
         vdi_init_flag[core_idx] = INIT_VDI_STAT_INIT;
         memset(&s_vdi_info[core_idx], 0x00, sizeof(s_vdi_info));
-
+        s_vdi_info[core_idx].vpu_fd = -1;
     }
 
     vdi = &s_vdi_info[core_idx];
 
-    if (vdi->vpu_fd != -1 && vdi->vpu_fd != 0x00
-        && vdi_init_flag[core_idx] == INIT_VDI_STAT_DONE)
+    if (vdi->vpu_fd != -1 && vdi_init_flag[core_idx] == INIT_VDI_STAT_DONE)
     {
         VLOG(ERR, "[VDI] opend already.\n");
         vdi->task_num++;
@@ -303,7 +302,8 @@ int vdi_set_bit_firmware_to_pm(u32 core_idx, const u16 *code)
 
     vdi = &s_vdi_info[core_idx];
 
-    if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return 0;
 
     bit_firmware_info.size = sizeof(vpu_bit_firmware_info_t);
@@ -332,7 +332,8 @@ int vdi_get_task_num(unsigned long core_idx)
 	vdi_info_t *vdi;
 	vdi = &s_vdi_info[core_idx];
 
-	if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+	if (!vdi || vdi->vpu_fd == -1 ||
+	    vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
 		return -1;
 
 	return vdi->task_num;
@@ -350,7 +351,8 @@ int vdi_release(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return 0;
 
     if (vdi_lock(core_idx) < 0)
@@ -397,13 +399,14 @@ int vdi_release(u32 core_idx)
 
     vdi->task_num--;
 
-    if (vdi->vpu_fd != -1 && vdi->vpu_fd != 0x00)
+    if (vdi->vpu_fd != -1 && vdi_init_flag[core_idx] != INIT_VDI_STAT_NULL)
     {
         close(vdi->vpu_fd);
         vdi->vpu_fd = -1;
 
     }
 
+    vdi_init_flag[core_idx] = INIT_VDI_STAT_NULL;
     memset(vdi, 0x00, sizeof(vdi_info_t));
     pthread_mutex_unlock(&vid_mutex);
 
@@ -419,7 +422,8 @@ int vdi_get_common_memory(u32 core_idx, vpu_buffer_t *vb)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd==0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memcpy(vb, &vdi->vpu_common_memory, sizeof(vpu_buffer_t));
@@ -436,7 +440,8 @@ int vdi_allocate_common_memory(u32 core_idx)
     if (core_idx >= MAX_NUM_VPU_CORE)
         return -1;
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd==0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -498,7 +503,8 @@ vpu_instance_pool_t *vdi_get_instance_pool(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00 )
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return NULL;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -548,7 +554,8 @@ int vdi_open_instance(u32 core_idx, u32 inst_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     inst_info.core_idx = core_idx;
@@ -573,7 +580,8 @@ int vdi_close_instance(u32 core_idx, u32 inst_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     inst_info.core_idx = core_idx;
@@ -597,7 +605,8 @@ u32 vdi_get_instance_num(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     return vdi->pvip->vpu_instance_num;
@@ -612,7 +621,8 @@ int vdi_hw_reset(u32 core_idx) // DEVICE_ADDR_SW_RESET
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     return ioctl(vdi->vpu_fd, VDI_IOCTL_RESET, 0);
@@ -632,7 +642,8 @@ int vdi_lock(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 #if defined(ANDROID) || !defined(PTHREAD_MUTEX_ROBUST_NP)
 	restore_mutex_in_dead((MUTEX_HANDLE *)vdi->vpu_mutex);
@@ -656,7 +667,8 @@ void vdi_unlock(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return;
 
     pthread_mutex_unlock((MUTEX_HANDLE *)vdi->vpu_mutex);//lint !e455
@@ -675,7 +687,8 @@ int vdi_disp_lock(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 #if defined(ANDROID) || !defined(PTHREAD_MUTEX_ROBUST_NP)
     restore_mutex_in_dead((MUTEX_HANDLE *)vdi->vpu_disp_mutex);
@@ -700,7 +713,8 @@ void vdi_disp_unlock(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return;
 
     pthread_mutex_unlock((MUTEX_HANDLE *)vdi->vpu_disp_mutex);//lint !e455
@@ -716,7 +730,8 @@ void vdi_write_register(u32 core_idx, unsigned int addr, unsigned int data)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return;
 
 
@@ -738,7 +753,8 @@ unsigned int vdi_read_register(u32 core_idx, unsigned int addr)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return (unsigned int)-1;
 
 
@@ -812,7 +828,8 @@ int vdi_clear_memory(u32 core_idx, PhysicalAddress addr, int len, int endian)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -864,7 +881,8 @@ int vdi_set_memory(u32 core_idx, PhysicalAddress addr, int len, int endian, Uint
 
     vdi = &s_vdi_info[core_idx];
 
-    if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -917,7 +935,8 @@ int vdi_write_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, in
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -963,7 +982,8 @@ int vdi_read_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -1006,7 +1026,8 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int in
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -1055,7 +1076,8 @@ unsigned long vdi_get_dma_memory_free_size(u32 coreIdx)
 
     vdi = &s_vdi_info[coreIdx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[coreIdx] == INIT_VDI_STAT_NULL)
         return (unsigned long)-1;
     if (ioctl(vdi->vpu_fd, VDI_IOCTL_GET_FREE_MEM_SIZE, &size) < 0) {
         VLOG(ERR, "[VDI] fail VDI_IOCTL_GET_FREE_MEM_SIZE size=%d\n", size);
@@ -1079,7 +1101,8 @@ int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -1131,7 +1154,8 @@ int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vb || !vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vb || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     if (vb->size == 0)
@@ -1167,7 +1191,8 @@ void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int instI
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vb || !vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vb || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return;
 
     if (vb->size == 0)
@@ -1214,7 +1239,8 @@ int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vb || !vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vb || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
@@ -1248,7 +1274,8 @@ int vdi_flush_memory(u32 core_idx, vpu_buffer_t* vb)
         return -1;
 
     vdi = &s_vdi_info[core_idx];
-    if(!vb || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vb || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
     memset(&vdb, 0x00, sizeof(vpu_buffer_t));
 
@@ -1275,7 +1302,8 @@ int vdi_invalidate_memory(u32 core_idx, vpu_buffer_t *vb)
         return -1;
 
     vdi = &s_vdi_info[core_idx];
-    if(!vb || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vb || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
          return -1;
 
     memset(&vdb, 0x00, sizeof(vpu_buffer_t));
@@ -1302,7 +1330,8 @@ int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info)
         return -1;
 
     vdi = &s_vdi_info[core_idx];
-    if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
    VLOG(INFO, "[VDI] CONFIG_DMA plane %d fd(%d, %d, %d)\n",
@@ -1322,7 +1351,8 @@ int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t *info)
         return -1;
 
     vdi = &s_vdi_info[core_idx];
-    if (!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     ret = ioctl(vdi->vpu_fd, VDI_IOCTL_UNMAP_DMA, (void*)info);
@@ -1339,7 +1369,8 @@ int vdi_set_clock_gate(u32 core_idx, int enable)
     if (core_idx >= MAX_NUM_VPU_CORE)
         return -1;
     vdi = &s_vdi_info[core_idx];
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     vdi->clock_state = enable;
@@ -1360,7 +1391,8 @@ int vdi_get_clock_gate(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     ret = vdi->clock_state;
@@ -1502,7 +1534,8 @@ int vdi_wait_interrupt(u32 coreIdx, unsigned int instIdx, int timeout)
 
 	vdi = &s_vdi_info[coreIdx];
 
-	if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+	if (!vdi || vdi->vpu_fd == -1 ||
+	    vdi_init_flag[coreIdx] == INIT_VDI_STAT_NULL)
 		return -1;
 	intr_info.timeout     = timeout;
 	intr_info.intr_reason = 0;
@@ -1528,7 +1561,8 @@ int vdi_get_system_endian(u32 core_idx)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
@@ -1549,7 +1583,8 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || !vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
@@ -1631,7 +1666,8 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
 
     vdi = &s_vdi_info[core_idx];
 
-    if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
         return -1;
 
     if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {

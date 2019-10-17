@@ -40,16 +40,11 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* @param options   It can be multiples of the above options. 
- */
-extern void InitializeDebugEnv(
-    Uint32 options
-    );
+extern void InitializeDebugEnv(Uint32 options);
+extern void ReleaseDebugEnv(void);
+extern void ExecuteDebugger(void);
 
-extern void ReleaseDebugEnv(
-    void
-    );
-
+void ChekcAndPrintDebugInfo(VpuHandle handle, BOOL isEnc, RetCode result);
 void PrintEncVpuStatus(
     EncHandle   handle
     );
@@ -79,7 +74,7 @@ Uint32 ReadRegVCE(
 
 RetCode PrintVpuProductInfo(
     Uint32      core_idx,
-    ProductInfo *productInfo
+    VpuAttr*    productInfo
     );
 
 void DumpCodeBuffer(
@@ -96,13 +91,35 @@ Uint32 SetEncoderTimeout(
     int height
     );
 
+void print_busy_timeout_status(
+    Uint32 coreIdx,
+    Uint32 product_code,
+    Uint32 pc
+    );
+
+void vp5xx_vcpu_status (
+    unsigned long coreIdx
+    );
+
 void vdi_print_vpu_status(
     unsigned long coreIdx
     );
 
+void vp5xx_bpu_status(
+    Uint32 coreIdx
+    );
+
+void vdi_print_vcore_status(
+    Uint32 coreIdx
+    );
+
+void vdi_print_vpu_status_enc(
+    unsigned long coreIdx
+    );
+
 void vdi_log(
-    unsigned long coreIdx, 
-    int cmd, 
+    unsigned long coreIdx,
+    int cmd,
     int step
     );
 

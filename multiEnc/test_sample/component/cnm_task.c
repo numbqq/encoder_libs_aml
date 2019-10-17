@@ -164,8 +164,6 @@ CNMTaskWaitState CNMTaskWait(CNMTask task)
         }
 
         if (ret == 0) doneCount++;
-        else if (ret == 2) 
-            return CNM_TASK_ERROR;
     }
 
     return (doneCount == ctx->numComponents) ? CNM_TASK_DONE : CNM_TASK_RUNNING;

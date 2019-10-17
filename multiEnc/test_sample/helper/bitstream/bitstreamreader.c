@@ -50,18 +50,17 @@ BitstreamReader BitstreamReader_Create(
     )
 {
     AbstractBitstreamReader* reader;
-    osal_file_t *fp;
+    osal_file_t *fp=NULL;
 
-    if ( path == NULL) {
-        VLOG(ERR, "%s:%d path is NULL\n", __FUNCTION__, __LINE__);
-        return NULL;
+    if ( path[0] != 0) {
+        if ((fp=osal_fopen(path, "wb")) == NULL) {
+            VLOG(ERR, "%s:%d failed to open bin file: %s\n", __FUNCTION__, __LINE__, path);
+            return FALSE;
+        }
+        VLOG(INFO, "output bin file: %s\n", path);
     }
-
-    if ((fp=osal_fopen(path, "wb")) == NULL) {
-        VLOG(ERR, "%s:%d failed to open bin file: %s\n", __FUNCTION__, __LINE__, path);
-        return FALSE;
-    }
-    VLOG(INFO, "output bin file: %s\n", path);
+    else
+        VLOG(ERR, "%s:%d Bitstream File path is NULL : no save\n", __FUNCTION__, __LINE__);
 
     reader = (AbstractBitstreamReader*)osal_malloc(sizeof(AbstractBitstreamReader));
 
@@ -127,8 +126,7 @@ BOOL BitstreamReader_Act(
 
         if (absReader->type == BUFFER_MODE_TYPE_RINGBUFFER) {
             if ((paRdPtr+loadSize) > paBsBufEnd) {
-                Uint32   room;
-                room = paBsBufEnd - paRdPtr;
+                Uint32   room = paBsBufEnd - paRdPtr;
                 vdi_read_memory(coreIdx, paRdPtr, buf, room,  absReader->endian);
                 vdi_read_memory(coreIdx, paBsBufStart, buf+room, (loadSize-room), absReader->endian);
             } 
@@ -151,6 +149,7 @@ BOOL BitstreamReader_Act(
                 success = FALSE;
             }
         }
+
         osal_free(buf);
 
         ret = VPU_EncUpdateBitstreamBuffer(*handle, loadSize);

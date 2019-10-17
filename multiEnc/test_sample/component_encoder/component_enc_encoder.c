@@ -44,12 +44,14 @@
 #define max(a,b)            (((a) > (b)) ? (a) : (b))
 #endif
 
+
 typedef enum {
     ENC_INT_STATUS_NONE,        // Interrupt not asserted yet
     ENC_INT_STATUS_FULL,        // Need more buffer
     ENC_INT_STATUS_DONE,        // Interrupt asserted
     ENC_INT_STATUS_LOW_LATENCY,
     ENC_INT_STATUS_TIMEOUT,     // Interrupt not asserted during given time.
+    ENC_INT_STATUS_SRC_RELEASED,
 } ENC_INT_STATUS;
 
 typedef enum {
@@ -65,10 +67,11 @@ typedef struct {
     TestEncConfig               testEncConfig;
     EncOpenParam                encOpenParam;
     ParamEncNeedFrameBufferNum  fbCount;
+    Uint32                      fbCountValid;
     Uint32                      frameIdx;
     vpu_buffer_t                vbCustomLambda;
     vpu_buffer_t                vbScalingList;
-    Uint32                      customLambda[NUM_CUSTOM_LAMBDA]; 
+    Uint32                      customLambda[NUM_CUSTOM_LAMBDA];
     UserScalingList             scalingList;
     vpu_buffer_t                vbCustomMap[MAX_REG_FRAME];
     EncoderState                state;
@@ -82,6 +85,7 @@ typedef struct {
     Uint32                      changedCount;
     Uint64                      startTimeout;
     Uint32                      cyclePerTick;
+    vpu_buffer_t                *bsBuffer[20];
 } EncoderContext;
 
 static BOOL FindEsBuffer(EncoderContext* ctx, PhysicalAddress addr, vpu_buffer_t* bs)
@@ -98,7 +102,7 @@ static BOOL FindEsBuffer(EncoderContext* ctx, PhysicalAddress addr, vpu_buffer_t
     return FALSE;
 }
 
-static void SetEncPicParam(ComponentImpl* com, PortContainerYuv* in, EncParam* encParam) 
+static void SetEncPicParam(ComponentImpl* com, PortContainerYuv* in, EncParam* encParam)
 {
     EncoderContext* ctx           = (EncoderContext*)com->context;
     TestEncConfig   testEncConfig = ctx->testEncConfig;
@@ -130,11 +134,16 @@ static void SetEncPicParam(ComponentImpl* com, PortContainerYuv* in, EncParam* e
     encParam->forcePicTypeEnable	             = 0;
     encParam->forcePicType			             = 0;
 
+    if (testEncConfig.forceIdrPicIdx == frameIdx) {
+        encParam->forcePicTypeEnable = 1;
+        encParam->forcePicType = 3;    // IDR
+    }
+
     // FW will encode header data implicitly when changing the header syntaxes
     encParam->codeOption.implicitHeaderEncode    = 1;
     encParam->codeOption.encodeAUD               = testEncConfig.encAUD;
-    encParam->codeOption.encodeEOS               = 0;
-    encParam->codeOption.encodeEOB               = 0;
+    encParam->codeOption.encodeEOS               = testEncConfig.encEOS;
+    encParam->codeOption.encodeEOB               = testEncConfig.encEOB;
 
     // set custom map param
     if (productId != PRODUCT_ID_521)
@@ -146,9 +155,9 @@ static void SetEncPicParam(ComponentImpl* com, PortContainerYuv* in, EncParam* e
 
     if (in->prevMapReuse == FALSE) {
         // packaging roi/lambda/mode data to custom map buffer.
-        if (encParam->customMapOpt.customRoiMapEnable  || encParam->customMapOpt.customLambdaMapEnable || 
+        if (encParam->customMapOpt.customRoiMapEnable  || encParam->customMapOpt.customLambdaMapEnable ||
             encParam->customMapOpt.customModeMapEnable || encParam->customMapOpt.customCoefDropEnable) {
-                SetMapData(testEncConfig.coreIdx, testEncConfig, ctx->encOpenParam, encParam, srcFbWidth, srcFbHeight, ctx->vbCustomMap[encParam->srcIdx].phys_addr);       
+                SetMapData(testEncConfig.coreIdx, testEncConfig, ctx->encOpenParam, encParam, srcFbWidth, srcFbHeight, ctx->vbCustomMap[encParam->srcIdx].phys_addr);
         }
 
         // host should set proper value.
@@ -198,33 +207,33 @@ static BOOL RegisterFrameBuffers(ComponentImpl* com)
     if (ComponentParamReturnTest(ret, &success) == FALSE) return success;
 
     pReconFb      = paramFb.reconFb;
-    reconFbStride = paramFb.reconFbStride;
-    reconFbHeight = paramFb.reconFbHeight;
+    reconFbStride = paramFb.reconFbAllocInfo.stride;
+    reconFbHeight = paramFb.reconFbAllocInfo.height;
     result = VPU_EncRegisterFrameBuffer(ctx->handle, pReconFb, ctx->fbCount.reconFbNum, reconFbStride, reconFbHeight, COMPRESSED_FRAME_MAP);
     if (result != RETCODE_SUCCESS) {
         VLOG(ERR, "%s:%d Failed to VPU_EncRegisterFrameBuffer(%d)\n", __FUNCTION__, __LINE__, result);
+        ChekcAndPrintDebugInfo(ctx->handle, TRUE, result);
         return FALSE;
     }
     ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_REGISTER_FB, NULL);
 
     pSrcFb         = paramFb.srcFb;
     srcFbAllocInfo = paramFb.srcFbAllocInfo;
-    if (VPU_EncAllocateFrameBuffer(ctx->handle, srcFbAllocInfo, pSrcFb) != RETCODE_SUCCESS) {
+    result = VPU_EncAllocateFrameBuffer(ctx->handle, srcFbAllocInfo, pSrcFb);
+    if (result != RETCODE_SUCCESS) {
         VLOG(ERR, "VPU_EncAllocateFrameBuffer fail to allocate source frame buffer\n");
+        ChekcAndPrintDebugInfo(ctx->handle, TRUE, result);
         return FALSE;
     }
 
     if (ctx->testEncConfig.roi_enable || ctx->testEncConfig.lambda_map_enable || ctx->testEncConfig.mode_map_flag) {
-        vdi_lock(ctx->testEncConfig.coreIdx);
         for (idx = 0; idx < ctx->fbCount.srcFbNum; idx++) {
             ctx->vbCustomMap[idx].size = (ctx->encOpenParam.bitstreamFormat == STD_AVC) ? MAX_MB_NUM : MAX_CTU_NUM * 8;
-            if (vdi_allocate_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomMap[idx]) < 0) {
-                vdi_unlock(ctx->testEncConfig.coreIdx);
+            if (vdi_allocate_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomMap[idx], ENC_ETC, ctx->handle->instIndex) < 0) {
                 VLOG(ERR, "fail to allocate ROI buffer\n");
                 return FALSE;
             }
         }
-        vdi_unlock(ctx->testEncConfig.coreIdx);
     }
 
     ctx->stateDoing = FALSE;
@@ -232,12 +241,14 @@ static BOOL RegisterFrameBuffers(ComponentImpl* com)
     return TRUE;
 }
 
-static CNMComponentParamRet GetParameterEncoder(ComponentImpl* from, ComponentImpl* com, GetParameterCMD commandType, void* data) 
+static CNMComponentParamRet GetParameterEncoder(ComponentImpl* from, ComponentImpl* com, GetParameterCMD commandType, void* data)
 {
     EncoderContext*             ctx = (EncoderContext*)com->context;
     BOOL                        result  = TRUE;
     ParamEncNeedFrameBufferNum* fbCount;
     PortContainerYuv*           container;
+    ParamVpuStatus*             status;
+    QueueStatusInfo             cqInfo;
 
     switch(commandType) {
     case GET_PARAM_COM_IS_CONTAINER_CONUSUMED:
@@ -252,7 +263,7 @@ static CNMComponentParamRet GetParameterEncoder(ComponentImpl* from, ComponentIm
         *(EncHandle*)data = ctx->handle;
         break;
     case GET_PARAM_ENC_FRAME_BUF_NUM:
-        if (ctx->fbCount.srcFbNum == 0) return CNM_COMPONENT_PARAM_NOT_READY;
+        if (ctx->fbCountValid == FALSE) return CNM_COMPONENT_PARAM_NOT_READY;
         fbCount = (ParamEncNeedFrameBufferNum*)data;
         fbCount->reconFbNum = ctx->fbCount.reconFbNum;
         fbCount->srcFbNum   = ctx->fbCount.srcFbNum;
@@ -260,6 +271,12 @@ static CNMComponentParamRet GetParameterEncoder(ComponentImpl* from, ComponentIm
     case GET_PARAM_ENC_FRAME_BUF_REGISTERED:
         if (ctx->state <= ENCODER_STATE_REGISTER_FB) return CNM_COMPONENT_PARAM_NOT_READY;
         *(BOOL*)data = TRUE;
+        break;
+    case GET_PARAM_VPU_STATUS:
+        if (ctx->state != ENCODER_STATE_ENCODING) return CNM_COMPONENT_PARAM_NOT_READY;
+        VPU_EncGiveCommand(ctx->handle, ENC_GET_QUEUE_STATUS, &cqInfo);
+        status = (ParamVpuStatus*)data;
+        status->cq = cqInfo;
         break;
     default:
         result = FALSE;
@@ -269,11 +286,14 @@ static CNMComponentParamRet GetParameterEncoder(ComponentImpl* from, ComponentIm
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
-static CNMComponentParamRet SetParameterEncoder(ComponentImpl* from, ComponentImpl* com, SetParameterCMD commandType, void* data) 
+static CNMComponentParamRet SetParameterEncoder(ComponentImpl* from, ComponentImpl* com, SetParameterCMD commandType, void* data)
 {
     BOOL result = TRUE;
 
-    switch(commandType) {
+    switch (commandType) {
+    case SET_PARAM_COM_PAUSE:
+        com->pause   = *(BOOL*)data;
+        break;
     default:
         VLOG(ERR, "Unknown SetParameterCMD Type : %d\n", commandType);
         result = FALSE;
@@ -297,11 +317,11 @@ static ENC_INT_STATUS HandlingInterruptFlag(ComponentImpl* com)
     }
     do {
         interruptFlag = VPU_WaitInterruptEx(handle, interruptWaitTime);
-        if (interruptFlag == -1) {
+        if (INTERRUPT_TIMEOUT_VALUE == interruptFlag) {
             Uint64   currentTimeout = osal_gettime();
 
             if ((currentTimeout - ctx->startTimeout) > interruptTimeout) {
-                VLOG(ERR, "<%s:%d> startTimeout(%lld) currentTime(%lld) diff(%d)\n", 
+                VLOG(ERR, "<%s:%d> startTimeout(%lld) currentTime(%lld) diff(%d)\n",
                     __FUNCTION__, __LINE__, ctx->startTimeout, currentTimeout, (Uint32)(currentTimeout - ctx->startTimeout));
                 CNMErrorSet(CNM_ERROR_HANGUP);
                 status = ENC_INT_STATUS_TIMEOUT;
@@ -317,32 +337,37 @@ static ENC_INT_STATUS HandlingInterruptFlag(ComponentImpl* com)
         if (interruptFlag > 0) {
             VPU_ClearInterruptEx(handle, interruptFlag);
             ctx->startTimeout = 0ULL;
-        }
 
-        if (interruptFlag & (1<<INT_VP5_ENC_SET_PARAM)) {
-            status = ENC_INT_STATUS_DONE;
-            break;
-        }
+            if (interruptFlag & (1<<INT_VP5_ENC_SET_PARAM)) {
+                status = ENC_INT_STATUS_DONE;
+                break;
+            }
 
-        if (interruptFlag & (1<<INT_VP5_ENC_PIC)) {
-            status = ENC_INT_STATUS_DONE;
-            break;
-        }
+            if (interruptFlag & (1<<INT_VP5_ENC_PIC)) {
+                status = ENC_INT_STATUS_DONE;
+                break;
+            }
 
-        if (interruptFlag & (1<<INT_VP5_BSBUF_FULL)) {
-            status = ENC_INT_STATUS_FULL;
-            break;
-        }
+            if (interruptFlag & (1<<INT_VP5_BSBUF_FULL)) {
+                status = ENC_INT_STATUS_FULL;
+                break;
+            }
 
-        if (interruptFlag & (1<<INT_VP5_ENC_LOW_LATENCY)) {
-            status = ENC_INT_STATUS_LOW_LATENCY;
+            if (interruptFlag & (1<<INT_VP5_ENC_LOW_LATENCY)) {
+                status = ENC_INT_STATUS_LOW_LATENCY;
+            }
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+            if (interruptFlag & (1 << INT_VP5_ENC_SRC_RELEASE)) {
+                status = ENC_INT_STATUS_SRC_RELEASED;
+            }
+#endif
         }
     } while (FALSE);
 
     return status;
 }
 
-static BOOL SetSequenceInfo(ComponentImpl* com) 
+static BOOL SetSequenceInfo(ComponentImpl* com)
 {
     EncoderContext* ctx = (EncoderContext*)com->context;
     EncHandle       handle  = ctx->handle;
@@ -351,6 +376,7 @@ static BOOL SetSequenceInfo(ComponentImpl* com)
     EncInitialInfo* initialInfo = &ctx->initialInfo;
     CNMComListenerEncCompleteSeq lsnpCompleteSeq   = {0};
 
+
     if (ctx->stateDoing == FALSE) {
         do {
             ret = VPU_EncIssueSeqInit(handle);
@@ -358,6 +384,7 @@ static BOOL SetSequenceInfo(ComponentImpl* com)
 
         if (ret != RETCODE_SUCCESS) {
             VLOG(ERR, "%s:%d Failed to VPU_EncIssueSeqInit() ret(%d)\n", __FUNCTION__, __LINE__, ret);
+            ChekcAndPrintDebugInfo(ctx->handle, TRUE, ret);
             return FALSE;
         }
         ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_ISSUE_SEQ, NULL);
@@ -385,6 +412,7 @@ static BOOL SetSequenceInfo(ComponentImpl* com)
     if ((ret=VPU_EncCompleteSeqInit(handle, initialInfo)) != RETCODE_SUCCESS) {
         VLOG(ERR, "%s:%d FAILED TO ENC_PIC_HDR: ret(%d), SEQERR(%08x)\n",
             __FUNCTION__, __LINE__, ret, initialInfo->seqInitErrReason);
+        ChekcAndPrintDebugInfo(ctx->handle, TRUE, ret);
         return FALSE;
     }
 
@@ -394,11 +422,12 @@ static BOOL SetSequenceInfo(ComponentImpl* com)
     ctx->fbCount.reconFbNum = initialInfo->minFrameBufferCount;
     ctx->fbCount.srcFbNum   = initialInfo->minSrcFrameCount + COMMAND_QUEUE_DEPTH + EXTRA_SRC_BUFFER_NUM;
 
-
     if ( ctx->encOpenParam.sourceBufCount > ctx->fbCount.srcFbNum)
         ctx->fbCount.srcFbNum = ctx->encOpenParam.sourceBufCount;
 
-    VLOG(INFO, "[ENCODER] Required  reconFbCount=%d, srcFbCount=%d, outNum=%d, %dx%d\n", 
+    ctx->fbCountValid = TRUE;
+
+    VLOG(INFO, "[ENCODER] Required  reconFbCount=%d, srcFbCount=%d, outNum=%d, %dx%d\n",
         ctx->fbCount.reconFbNum, ctx->fbCount.srcFbNum, ctx->testEncConfig.outNum, ctx->encOpenParam.picWidth, ctx->encOpenParam.picHeight);
     ctx->stateDoing = FALSE;
 
@@ -429,7 +458,7 @@ static BOOL EncodeHeader(ComponentImpl* com)
     }
 
     while(1) {
-        ret = VPU_EncGiveCommand(handle, ENC_PUT_VIDEO_HEADER, &encHeaderParam); 
+        ret = VPU_EncGiveCommand(handle, ENC_PUT_VIDEO_HEADER, &encHeaderParam);
         if ( ret != RETCODE_QUEUEING_FAILURE )
             break;
 #if defined(HAPS_SIM) || defined(CNM_SIM_DPI_INTERFACE)
@@ -455,9 +484,14 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
     RetCode                 result;
     CNMComListenerHandlingInt lsnpHandlingInt   = {0};
     CNMComListenerEncDone   lsnpPicDone     = {0};
+    CNMComListenerDecReadyOneFrame  lsnpReadyOneFrame = {0,};
     ENC_QUERY_WRPTR_SEL     encWrPtrSel     = GET_ENC_PIC_DONE_WRPTR;
+    QueueStatusInfo         qStatus;
+    int i=0;
 
-    ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_READY_ONE_FRAME, NULL);
+    lsnpReadyOneFrame.handle = ctx->handle;
+    ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_READY_ONE_FRAME, &lsnpReadyOneFrame);
+
 
     ctx->stateDoing = TRUE;
     if (out) {
@@ -466,7 +500,6 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
             out->buf.phys_addr = 0;
             out->buf.size      = 0;
         }
-        out->reuse = TRUE;  // For reusing it when no output
         if (encParam->srcEndFlag == TRUE) {
             doEncode = (BOOL)(Queue_Get_Cnt(ctx->encOutQ) > 0);
         }
@@ -477,11 +510,15 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
             doEncode = TRUE;
             in->prevMapReuse = TRUE;
         }
-        else {
-            in->reuse = TRUE;
-        }
     }
 
+    if (TRUE == com->pause)
+        doEncode = FALSE;
+
+    VPU_EncGiveCommand(ctx->handle, ENC_GET_QUEUE_STATUS, &qStatus);
+    if (COMMAND_QUEUE_DEPTH == qStatus.instanceQueueCount) {
+        doEncode = FALSE;
+    }
 
     if ((ctx->testEncConfig.numChangeParam > ctx->changedCount) &&
         (ctx->testEncConfig.changeParam[ctx->changedCount].setParaChgFrmNum == ctx->frameIdx)) {
@@ -496,35 +533,45 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
         }
         else if (result == RETCODE_QUEUEING_FAILURE) { // Just retry
             VLOG(INFO, "ENC_SET_PARA_CHANGE Queue Full\n");
-            if (in) in->reuse = TRUE;
             doEncode  = FALSE;
         }
         else { // Error
             VLOG(ERR, "VPU_EncGiveCommand[ENC_SET_PARA_CHANGE] failed Error code is 0x%x \n", result);
+            ChekcAndPrintDebugInfo(ctx->handle, TRUE, result);
             return FALSE;
         }
+    }
+
+    /* The simple load balancer : To use this function, call InitLoadBalancer() before decoding process. */
+    if (TRUE == doEncode) {
+        if (in) in->reuse = TRUE;
+        doEncode = LoadBalancerGetMyTurn(ctx->handle->instIndex);
     }
 
     if (doEncode == TRUE) {
         CNMComListenerEncStartOneFrame lsn;
         result = VPU_EncStartOneFrame(ctx->handle, encParam);
         if (result == RETCODE_SUCCESS) {
-            if (in)  in->prevMapReuse = FALSE;
+            /* The simple load balancer : pass its turn */
+            LoadBalancerSetNextTurn();
+
+            if (in) in->prevMapReuse = FALSE;
             Queue_Dequeue(ctx->encOutQ);
             ctx->frameIdx++;
+            if (in) in->reuse = FALSE;
+            if (out) out->reuse = FALSE;
         }
         else if (result == RETCODE_QUEUEING_FAILURE) { // Just retry
-            QueueStatusInfo qStatus;
-            if (in)  in->reuse  = TRUE;
-            if (out) out->reuse = TRUE;
             // Just retry
             VPU_EncGiveCommand(ctx->handle, ENC_GET_QUEUE_STATUS, (void*)&qStatus);
             if (qStatus.instanceQueueCount == 0) {
-                return TRUE;
+                VLOG(ERR, "<%s:%d> The queue is empty but it can't add a command\n", __FUNCTION__, __LINE__);
+                return FALSE;
             }
         }
-        else { // Error 
+        else { // Error
             VLOG(ERR, "VPU_EncStartOneFrame failed Error code is 0x%x \n", result);
+            ChekcAndPrintDebugInfo(ctx->handle, TRUE, result);
             CNMErrorSet(CNM_ERROR_HANGUP);
             HandleEncoderError(ctx->handle, ctx->frameIdx, NULL);
             return FALSE;
@@ -532,6 +579,15 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
         lsn.handle = ctx->handle;
         lsn.result = result;
         ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_START_ONE_FRAME, (void*)&lsn);
+#ifdef SUPPORT_TESTCASE_CQ_16
+        if (lsn.result == COMMAND_QUEUE_NOT_FULL) {
+            if (out) {
+                out->size  = 0;
+                out->reuse = FALSE;
+            }
+            return TRUE; /* Try again */
+        }
+#endif
     }
 
     if ((intStatus=HandlingInterruptFlag(com)) == ENC_INT_STATUS_TIMEOUT) {
@@ -548,26 +604,51 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
         encWrPtrSel = (intStatus==ENC_INT_STATUS_FULL) ? GET_ENC_BSBUF_FULL_WRPTR : GET_ENC_LOW_LATENCY_WRPTR;
         VPU_EncGiveCommand(ctx->handle, ENC_WRPTR_SEL, &encWrPtrSel);
         VPU_EncGetBitstreamBuffer(ctx->handle, &paRdPtr, &paWrPtr, &size);
-        VLOG(TRACE, "<%s:%d> INT_BSBUF_FULL %0x, %0x\n", __FUNCTION__, __LINE__, paRdPtr, paWrPtr);
+        VLOG(TRACE, "<%s:%d> INT_BSBUF_FULL inst=%d, %p, %p\n", __FUNCTION__, __LINE__, ctx->handle->instIndex, paRdPtr, paWrPtr);
+
+
+        osal_msleep(10000);
 
         lsnpFull.handle = ctx->handle;
-        lsnpFull.rdPtr  = paRdPtr;
-        lsnpFull.wrPtr  = paWrPtr;
-        lsnpFull.size   = size;
         ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FULL_INTERRUPT, (void*)&lsnpFull);
 
         if ( out ) {
-            if (FindEsBuffer(ctx, paRdPtr, &out->buf) == FALSE) {
-                VLOG(ERR, "%s:%d Failed to find buffer(%0x)\n", __FUNCTION__, __LINE__, paRdPtr);
-                return FALSE;
+            if (ctx->encOpenParam.ringBufferEnable ==  TRUE) {
+                out->buf.phys_addr = paRdPtr;
+                out->buf.size = size;
+                out->size  = size;
+                out->reuse = FALSE;
+                out->streamBufFull = TRUE;
+                out->rdPtr = paRdPtr;
+                out->wrPtr = paWrPtr;
+                out->paBsBufStart = ctx->encOpenParam.bitstreamBuffer;
+                out->paBsBufEnd = ctx->encOpenParam.bitstreamBuffer + ctx->encOpenParam.bitstreamBufferSize;
             }
-            out->size  = size;
-            out->reuse = FALSE;
-            out->streamBufFull = TRUE;
+            else {
+                if (FindEsBuffer(ctx, paRdPtr, &out->buf) == FALSE) {
+                    VLOG(ERR, "%s:%d Failed to find buffer(%p)\n", __FUNCTION__, __LINE__, paRdPtr);
+                    return FALSE;
+                }
+                out->size  = size;
+                out->reuse = FALSE;
+                out->streamBufFull = TRUE;
+            }
         }
         ctx->fullInterrupt = TRUE;
         return TRUE;
     }
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+    else if (intStatus == ENC_INT_STATUS_SRC_RELEASED) {
+        Uint32 srcBufFlag = 0;
+        VPU_EncGiveCommand(ctx->handle, ENC_GET_SRC_BUF_FLAG, &srcBufFlag);
+        for (i = 0; i < ctx->fbCount.srcFbNum; i++) {
+            if ( (srcBufFlag >> i) & 0x01) {
+                ctx->encodedSrcFrmIdxArr[i] = 1;
+            }
+        }
+        return TRUE;
+    }
+#endif
     else if (intStatus == ENC_INT_STATUS_NONE) {
         if (out) {
             out->size  = 0;
@@ -588,7 +669,8 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
     }
     else if (encOutputInfo.result != RETCODE_SUCCESS) {
         /* ERROR */
-        VLOG(ERR, "Failed to encode error = %d\n", encOutputInfo.result);
+        VLOG(ERR, "Failed to encode error = %d, %x\n", encOutputInfo.result, encOutputInfo.errorReason);
+        ChekcAndPrintDebugInfo(ctx->handle, TRUE, encOutputInfo.result);
         HandleEncoderError(ctx->handle, encOutputInfo.encPicCnt, &encOutputInfo);
         VPU_SWReset(ctx->testEncConfig.coreIdx, SW_RESET_SAFETY, ctx->handle);
         return FALSE;
@@ -611,19 +693,28 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
     if ( encOutputInfo.result != RETCODE_SUCCESS )
         return FALSE;
 
-    if ( encOutputInfo.encSrcIdx >= 0) {
-        ctx->encodedSrcFrmIdxArr[encOutputInfo.encSrcIdx] = 1;
+    for (i = 0; i < ctx->fbCount.srcFbNum; i++) {
+        if ( (encOutputInfo.releaseSrcFlag >> i) & 0x01) {
+            ctx->encodedSrcFrmIdxArr[i] = 1;
+        }
     }
 
     ctx->fullInterrupt      = FALSE;
 
     if ( out ) {
-        if (FindEsBuffer(ctx, encOutputInfo.bitstreamBuffer, &out->buf) == FALSE) {
-            VLOG(ERR, "%s:%d Failed to find buffer(%0x)\n", __FUNCTION__, __LINE__, encOutputInfo.bitstreamBuffer);
-            return FALSE;
+        if (ctx->encOpenParam.ringBufferEnable ==  TRUE) {
+            out->buf.phys_addr = encOutputInfo.rdPtr;
+            out->size  = encOutputInfo.bitstreamSize;
+            out->reuse = (BOOL)(out->size == 0);
         }
-        out->size  = encOutputInfo.bitstreamSize;
-        out->reuse = (BOOL)(out->size == 0);
+        else {
+            if (FindEsBuffer(ctx, encOutputInfo.bitstreamBuffer, &out->buf) == FALSE) {
+                VLOG(ERR, "%s:%d Failed to find buffer(%p)\n", __FUNCTION__, __LINE__, encOutputInfo.bitstreamBuffer);
+                return FALSE;
+            }
+            out->size  = encOutputInfo.bitstreamSize;
+            out->reuse = (BOOL)(out->size == 0);
+        }
     }
 
     // Finished encoding a frame
@@ -632,50 +723,59 @@ static BOOL Encode(ComponentImpl* com, PortContainerYuv* in, PortContainerES* ou
             VLOG(ERR, "outnum(%d) != encoded cnt(%d)\n", ctx->testEncConfig.outNum, encOutputInfo.encPicCnt);
             return FALSE;
         }
-        if(out) out->last  = TRUE;  // Send finish signal
-        if(out) out->reuse = FALSE; 
+        if (out) out->last  = TRUE;  // Send finish signal
+        if (out) out->reuse = FALSE;
         ctx->stateDoing    = FALSE;
         com->terminate     = TRUE;
+        //to read remain data
+        if (ctx->encOpenParam.ringBufferEnable ==  TRUE && ctx->encOpenParam.ringBufferWrapEnable == FALSE) {
+            if (out) out->rdPtr = encOutputInfo.rdPtr;
+            if (out) out->wrPtr = encOutputInfo.wrPtr;
+            if (out) out->size = encOutputInfo.wrPtr - encOutputInfo.rdPtr;
+        }
     }
+
 
     return TRUE;
 }
 
-static BOOL AllocateCustomBuffer(ComponentImpl* com) 
+static BOOL AllocateCustomBuffer(EncHandle handle, ComponentImpl* com)
 {
     EncoderContext* ctx       = (EncoderContext*)com->context;
     TestEncConfig testEncConfig = ctx->testEncConfig;
+    EncInfo*        pEncInfo;
+    EncOpenParam*   pOpenParam;
+    EncVpParam*   pParam;
+
+    pEncInfo    = &handle->CodecInfo->encInfo;
+    pOpenParam  = &pEncInfo->openParam;
+    pParam      = &pOpenParam->EncStdParam.vpParam;
 
     /* Allocate Buffer and Set Data */
-    if (ctx->encOpenParam.EncStdParam.vpParam.scalingListEnable) {
+    if (pParam->scalingListEnable) {
         ctx->vbScalingList.size = 0x1000;
-        vdi_lock(testEncConfig.coreIdx);
-        if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbScalingList) < 0) {
-            vdi_unlock(testEncConfig.coreIdx);
+        if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbScalingList, ENC_ETC, ctx->handle->instIndex) < 0) {
             VLOG(ERR, "fail to allocate scaling list buffer\n");
             return FALSE;
         }
-        vdi_unlock(testEncConfig.coreIdx);
-        ctx->encOpenParam.EncStdParam.vpParam.userScalingListAddr = ctx->vbScalingList.phys_addr;
+        pParam->userScalingListAddr = ctx->vbScalingList.phys_addr;
 
         parse_user_scaling_list(&ctx->scalingList, testEncConfig.scaling_list_file, testEncConfig.stdMode);
         vdi_write_memory(testEncConfig.coreIdx, ctx->vbScalingList.phys_addr, (unsigned char*)&ctx->scalingList, ctx->vbScalingList.size, VDI_LITTLE_ENDIAN);
     }
 
-    if (ctx->encOpenParam.EncStdParam.vpParam.customLambdaEnable) {
+    if (pParam->customLambdaEnable) {
         ctx->vbCustomLambda.size = 0x200;
-        vdi_lock(testEncConfig.coreIdx);
-        if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbCustomLambda) < 0) {
-            vdi_unlock(testEncConfig.coreIdx);
+        if (vdi_allocate_dma_memory(testEncConfig.coreIdx, &ctx->vbCustomLambda, ENC_ETC, ctx->handle->instIndex) < 0) {
             VLOG(ERR, "fail to allocate Lambda map buffer\n");
             return FALSE;
         }
-        vdi_unlock(testEncConfig.coreIdx);
-        ctx->encOpenParam.EncStdParam.vpParam.customLambdaAddr = ctx->vbCustomLambda.phys_addr;
+        pParam->customLambdaAddr = ctx->vbCustomLambda.phys_addr;
 
         parse_custom_lambda(ctx->customLambda, testEncConfig.custom_lambda_file);
         vdi_write_memory(testEncConfig.coreIdx, ctx->vbCustomLambda.phys_addr, (unsigned char*)&ctx->customLambda[0], ctx->vbCustomLambda.size, VDI_LITTLE_ENDIAN);
     }
+
 
     return TRUE;
 }
@@ -693,8 +793,6 @@ static BOOL OpenEncoder(ComponentImpl* com)
     ctx->encOpenParam.bitstreamBuffer     = ctx->bsBuf.bs[0].phys_addr;
     ctx->encOpenParam.bitstreamBufferSize = ctx->bsBuf.bs[0].size;
 
-    if (AllocateCustomBuffer(com) == FALSE) return FALSE;
-
     if ((result = VPU_EncOpen(&ctx->handle, &ctx->encOpenParam)) != RETCODE_SUCCESS) {
         VLOG(ERR, "VPU_EncOpen failed Error code is 0x%x \n", result);
         if ( result == RETCODE_VPU_RESPONSE_TIMEOUT ) {
@@ -703,6 +801,10 @@ static BOOL OpenEncoder(ComponentImpl* com)
         CNMAppStop();
         return FALSE;
     }
+    //VPU_EncGiveCommand(ctx->handle, ENABLE_LOGGING, 0);
+    LoadBalancerAddInstance(ctx->handle->instIndex);
+
+    if (AllocateCustomBuffer(ctx->handle, com) == FALSE) return FALSE;
     lspn.handle = ctx->handle;
     ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_OPEN, (void*)&lspn);
 
@@ -719,20 +821,16 @@ static BOOL OpenEncoder(ComponentImpl* com)
     secAxiUse.u.vp.useEncLfEnable  = (ctx->testEncConfig.secondaryAXI & 0x2) ? TRUE : FALSE;  //USE_LF_INTERNAL_BUF
     VPU_EncGiveCommand(ctx->handle, SET_SEC_AXI, &secAxiUse);
     VPU_EncGiveCommand(ctx->handle, SET_CYCLE_PER_TICK,   (void*)&ctx->cyclePerTick);
+
     ctx->stateDoing = FALSE;
 
     return TRUE;
 }
 
-static BOOL ExecuteEncoder(ComponentImpl* com, PortContainer* in, PortContainer* out) 
+static BOOL ExecuteEncoder(ComponentImpl* com, PortContainer* in, PortContainer* out)
 {
     EncoderContext* ctx             = (EncoderContext*)com->context;
     BOOL            ret;
-
-    if (ctx->state != ENCODER_STATE_ENCODING) {
-        if (in)  in->reuse  = TRUE;
-        if (out) out->reuse = TRUE;
-    }
 
     switch (ctx->state) {
     case ENCODER_STATE_OPEN:
@@ -782,9 +880,23 @@ static BOOL PrepareEncoder(ComponentImpl* com, BOOL* done)
     ret = ComponentGetParameter(com, com->sinkPort.connectedComponent, GET_PARAM_READER_BITSTREAM_BUF, &ctx->bsBuf);
     if (ComponentParamReturnTest(ret, &success) == FALSE) return success;
 
-    ctx->encOutQ = Queue_Create(ctx->bsBuf.num, sizeof(vpu_buffer_t));
-    for (i=0; i<ctx->bsBuf.num; i++) {
-        Queue_Enqueue(ctx->encOutQ, (void*)&ctx->bsBuf.bs[i]);
+    if (ctx->encOpenParam.ringBufferEnable ==  TRUE) {
+        ctx->encOutQ = Queue_Create(com->numSinkPortQueue, sizeof(vpu_buffer_t));
+        for (i=0; i<com->numSinkPortQueue; i++) {
+            if ( i < ctx->bsBuf.num) {
+                ctx->bsBuffer[i] = &ctx->bsBuf.bs[i]; }
+            else {
+                ctx->bsBuffer[i] = osal_malloc(sizeof(vpu_buffer_t));
+                osal_memcpy(ctx->bsBuffer[i], ctx->bsBuffer[0], sizeof(vpu_buffer_t));
+            }
+
+            Queue_Enqueue(ctx->encOutQ, (void*)&ctx->bsBuffer[i]);//same addr enqueue
+        }
+    } else {
+        ctx->encOutQ = Queue_Create(ctx->bsBuf.num, sizeof(vpu_buffer_t));
+        for (i=0; i<ctx->bsBuf.num; i++) {
+            Queue_Enqueue(ctx->encOutQ, (void*)&ctx->bsBuf.bs[i]);
+        }
     }
 
     /* Open Data File*/
@@ -859,12 +971,18 @@ static void ReleaseEncoder(ComponentImpl* com)
     // Nothing to do
 }
 
-static BOOL DestroyEncoder(ComponentImpl* com) 
+static BOOL DestroyEncoder(ComponentImpl* com)
 {
     EncoderContext* ctx = (EncoderContext*)com->context;
     Uint32          i   = 0;
     BOOL            success = TRUE;
     ENC_INT_STATUS  intStatus;
+
+    if ( NULL == ctx )
+        return FALSE;
+    if ( ctx && ctx->handle) {
+        LoadBalancerRemoveInstance(ctx->handle->instIndex);
+    }
 
     while (VPU_EncClose(ctx->handle) == RETCODE_VPU_STILL_RUNNING) {
         if ((intStatus = HandlingInterruptFlag(com)) == ENC_INT_STATUS_TIMEOUT) {
@@ -885,16 +1003,14 @@ static BOOL DestroyEncoder(ComponentImpl* com)
 
     ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_CLOSE, NULL);
 
-    vdi_lock(ctx->testEncConfig.coreIdx);
     for (i = 0; i < ctx->fbCount.srcFbNum; i++) {
         if (ctx->vbCustomMap[i].size)
-            vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomMap[i]);
+            vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomMap[i], ENC_ETC, ctx->handle->instIndex);
     }
     if (ctx->vbCustomLambda.size)
-        vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomLambda);
+        vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbCustomLambda, ENC_ETC, ctx->handle->instIndex);
     if (ctx->vbScalingList.size)
-        vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbScalingList);
-    vdi_unlock(ctx->testEncConfig.coreIdx);
+        vdi_free_dma_memory(ctx->testEncConfig.coreIdx, &ctx->vbScalingList, ENC_ETC, ctx->handle->instIndex);
 
     if (ctx->testEncConfig.roi_file)
         osal_fclose(ctx->testEncConfig.roi_file);
@@ -918,13 +1034,13 @@ static BOOL DestroyEncoder(ComponentImpl* com)
     return success;
 }
 
-static Component CreateEncoder(ComponentImpl* com, CNMComponentConfig* componentParam) 
+static Component CreateEncoder(ComponentImpl* com, CNMComponentConfig* componentParam)
 {
-    EncoderContext* ctx; 
+    EncoderContext* ctx;
     RetCode         retCode;
     Uint32          coreIdx      = componentParam->testEncConfig.coreIdx;
     Uint32          i;
-    ProductInfo     productInfo;
+    VpuAttr         productInfo;
 #if 0
     Uint16*         firmware     = (Uint16*)componentParam->bitcode;
     Uint32          firmwareSize = componentParam->sizeOfBitcode;
@@ -955,7 +1071,7 @@ static Component CreateEncoder(ComponentImpl* com, CNMComponentConfig* component
         return FALSE;
     }
     ctx->cyclePerTick = 32768;
-    if ( ((productInfo.stdDef1>>27)&1) == 1 )
+    if (TRUE == productInfo.supportNewTimer)
         ctx->cyclePerTick = 256;
 
     ctx->handle                      = NULL;
@@ -972,7 +1088,11 @@ static Component CreateEncoder(ComponentImpl* com, CNMComponentConfig* component
     osal_memset(&ctx->scalingList,     0x00, sizeof(UserScalingList));
     osal_memset(&ctx->customLambda[0], 0x00, sizeof(ctx->customLambda));
     osal_memset(ctx->vbCustomMap,      0x00, sizeof(ctx->vbCustomMap));
-    com->numSinkPortQueue = componentParam->encOpenParam.streamBufCount;
+    if (ctx->encOpenParam.ringBufferEnable)
+        com->numSinkPortQueue = 10;
+    else
+        com->numSinkPortQueue = componentParam->encOpenParam.streamBufCount;
+
 
     return (Component)com;
 }

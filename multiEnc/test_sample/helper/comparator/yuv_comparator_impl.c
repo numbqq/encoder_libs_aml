@@ -53,10 +53,11 @@ typedef struct {
     FrameBufferFormat format;
     char        *path;
     Uint32      isVp9;
-} yuvCompContext;
+    Uint8*      lastYuv;
+} YuvCompContext;
 
 static Uint32 Calculate(
-    yuvCompContext*    ctx
+    YuvCompContext*    ctx
     )
 {
     Uint32      lumaSize   = 0;
@@ -187,7 +188,7 @@ BOOL YUVComparator_Create(
     char*           path
     )
 {
-    yuvCompContext*        ctx;
+    YuvCompContext*        ctx;
     osal_file_t*    fp;
 
     if ((fp=osal_fopen(path, "rb")) == NULL) {
@@ -195,13 +196,15 @@ BOOL YUVComparator_Create(
         return FALSE;
     }
 
-    if ((ctx=(yuvCompContext*)osal_malloc(sizeof(yuvCompContext))) == NULL) {
+    if ((ctx=(YuvCompContext*)osal_malloc(sizeof(YuvCompContext))) == NULL) {
         osal_fclose(fp);
         return FALSE;
     }
+    osal_memset((void*)ctx, 0x00, sizeof(YuvCompContext));
 
     ctx->fp        = fp;
     ctx->path      = path;
+    ctx->lastYuv   = NULL;
     impl->context  = ctx;
     impl->eof      = FALSE;
 
@@ -212,9 +215,11 @@ BOOL YUVComparator_Destroy(
     ComparatorImpl*  impl
     )
 {
-    yuvCompContext*    ctx = (yuvCompContext*)impl->context;
+    YuvCompContext*    ctx = (YuvCompContext*)impl->context;
 
     osal_fclose(ctx->fp);
+    if (ctx->lastYuv)
+        osal_free(ctx->lastYuv);
     osal_free(ctx);
 
     return TRUE;
@@ -223,14 +228,14 @@ BOOL YUVComparator_Destroy(
 BOOL YUVComparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
     )
 {
     Uint8*      pYuv = NULL;
-    yuvCompContext*    ctx = (yuvCompContext*)impl->context;
+    YuvCompContext*    ctx = (YuvCompContext*)impl->context;
     BOOL        match = FALSE;
 
-    if ( data == (void *)COMPARATOR_SKIP ) {
+    if (data == (void *)COMPARATOR_SKIP) {
         int fpos;
         fpos = osal_ftell(ctx->fp);
         osal_fseek(ctx->fp, fpos+size, SEEK_SET);
@@ -241,8 +246,20 @@ BOOL YUVComparator_Compare(
         return TRUE;
     }
 
-    pYuv = (Uint8*)osal_malloc(size);
-    osal_fread(pYuv, 1, size, ctx->fp);
+    if (impl->usePrevDataOneTime == TRUE) {
+        pYuv = ctx->lastYuv;
+        impl->usePrevDataOneTime = FALSE;
+    }
+    else {
+        if (ctx->lastYuv) {
+            osal_free(ctx->lastYuv);
+            ctx->lastYuv = NULL;
+        }
+
+        pYuv = (Uint8*)osal_malloc(size);
+        osal_fread(pYuv, 1, size, ctx->fp);
+        ctx->lastYuv = pYuv;
+    }
 
     if (IsEndOfFile(ctx->fp) == TRUE)
         impl->eof = TRUE;
@@ -274,7 +291,6 @@ BOOL YUVComparator_Compare(
         osal_fwrite(data, 1, size, fpOutput);
         osal_fclose(fpOutput);
     }
-    osal_free(pYuv);
 
     return match;
 }
@@ -286,7 +302,7 @@ BOOL YUVComparator_Configure(
     )
 {
     PictureInfo*        yuv = NULL;
-    yuvCompContext*            ctx = (yuvCompContext*)impl->context;
+    YuvCompContext*            ctx = (YuvCompContext*)impl->context;
     BOOL                ret = TRUE;
 
     switch (type) {
@@ -310,7 +326,7 @@ BOOL YUVComparator_Rewind(
     ComparatorImpl*     impl
     )
 {
-    yuvCompContext*    ctx = (yuvCompContext*)impl->context;
+    YuvCompContext*    ctx = (YuvCompContext*)impl->context;
     Int32       ret;
 
     if ((ret=osal_fseek(ctx->fp, 0, SEEK_SET)) != 0) {

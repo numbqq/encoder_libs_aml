@@ -46,17 +46,9 @@ static void HandleEncHandlingIntEvent(Component com, CNMComListenerHandlingInt* 
 
 static void HandleEncFullEvent(Component com, CNMComListenerEncFull* param, EncListenerContext* ctx)
 {
-    Uint8* buf = (Uint8*)osal_malloc(param->size);
-
-    vdi_read_memory(ctx->coreIdx, param->rdPtr, buf, param->size, ctx->streamEndian);
-    if (Comparator_Act(ctx->es, buf, param->size) == FALSE) {
-        VLOG(ERR, "%s:%d Bitstream Mismatch\n", __FUNCTION__, __LINE__);
-        CNMAppStop();
-    }
-    osal_free(buf);
 }
 
-static void HandleEncGetEncCloseEvent(Component com, CNMComListenerEncClose* param, EncListenerContext* ctx)
+void HandleEncGetEncCloseEvent(Component com, CNMComListenerEncClose* param, EncListenerContext* ctx)
 {
     if (ctx->pfCtx != NULL) {
         PFMonitorRelease(ctx->pfCtx);
@@ -80,47 +72,16 @@ void HandleEncCompleteSeqEvent(Component com, CNMComListenerEncCompleteSeq* para
 void HandleEncGetOutputEvent(Component com, CNMComListenerEncDone* param, EncListenerContext* ctx)
 {
     EncOutputInfo* output = param->output;
-    EncHandle      handle = param->handle;
+    if (output->reconFrameIndex == RECON_IDX_FLAG_ENC_END)
+        return;
 
-    if (output->reconFrameIndex == RECON_IDX_FLAG_ENC_END) return;
 
     if (ctx->pfCtx != NULL) {
-        PFMonitorUpdate(ctx->coreIdx, ctx->pfCtx, output->frameCycle, output->encPrepareEndTick - output->encPrepareStartTick, 
+        PFMonitorUpdate(ctx->coreIdx, ctx->pfCtx, output->frameCycle, output->encPrepareEndTick - output->encPrepareStartTick,
             output->encProcessingEndTick - output->encProcessingStartTick, output->encEncodeEndTick- output->encEncodeStartTick);
     }
     if (ctx->bwCtx != NULL) {
         BWMonitorUpdatePrint(ctx->bwCtx, output->picType);
-    }
-
-    if (output->bitstreamSize > 0) {
-        if (ctx->es != NULL) {
-            Uint8*          buf      = NULL;
-            Int32           compSize = output->bitstreamSize; 
-            PhysicalAddress addr;
-
-            if (param->fullInterrupted == TRUE) {
-                PhysicalAddress rd, wr;
-                int             room;
-                VPU_EncGetBitstreamBuffer(param->handle, &rd, &wr, &room);
-                compSize = room;
-                addr     = rd;
-            }
-            else {
-                addr     = output->bitstreamBuffer;
-                compSize = output->bitstreamSize;
-            }
-
-            buf = (Uint8*)osal_malloc(compSize);
-            vdi_read_memory(ctx->coreIdx, addr, buf, compSize, ctx->streamEndian);
-
-            if ( ctx->es != NULL ) {
-                if ((ctx->match=Comparator_Act(ctx->es, buf, compSize)) == FALSE) {
-                    VLOG(ERR, "<%s:%d> INSTANCE #%d Bitstream Mismatch\n", __FUNCTION__, __LINE__, handle->instIndex);
-                }
-            }
-            osal_free(buf);
-        }
-
     }
 
     if (ctx->headerEncDone[param->handle->instIndex] == FALSE) {
@@ -130,9 +91,12 @@ void HandleEncGetOutputEvent(Component com, CNMComListenerEncDone* param, EncLis
     if (ctx->match == FALSE) CNMAppStop();
 }
 
-void EncoderListener(Component com, Uint32 event, void* data, void* context)
+void EncoderListener(Component com, Uint64 event, void* data, void* context)
 {
-    int key=0;
+    int         productId;
+    EncHandle   handle;
+    int         key=0;
+
     if (osal_kbhit()) {
         key = osal_getch();
         osal_flush_ch();
@@ -161,7 +125,11 @@ void EncoderListener(Component com, Uint32 event, void* data, void* context)
         HandleEncHandlingIntEvent(com, (CNMComListenerHandlingInt*)data, (EncListenerContext*)context);
         break;
     case COMPONENT_EVENT_ENC_GET_OUTPUT_INFO:
-        HandleEncGetOutputEvent(com, (CNMComListenerEncDone*)data, (EncListenerContext*)context);
+        handle = ((CNMComListenerEncDone*)data)->handle;
+        productId = VPU_GetProductId(VPU_HANDLE_CORE_INDEX(handle));
+        if (TRUE == PRODUCT_ID_VP_SERIES(productId)) {
+            HandleEncGetOutputEvent(com, (CNMComListenerEncDone*)data, (EncListenerContext*)context);
+        }
         break;
     case COMPONENT_EVENT_ENC_ENCODED_ALL:
         break;
@@ -196,6 +164,8 @@ BOOL SetupEncListenerContext(EncListenerContext* ctx, CNMComponentConfig* config
     ctx->bandwidth     = encConfig->bandwidth;
     ctx->pfClock       = encConfig->pfClock;
     osal_memcpy(ctx->cfgFileName, encConfig->cfgFileName, sizeof(ctx->cfgFileName));
+    ctx->ringBufferEnable     = encConfig->ringBufferEnable;
+    ctx->ringBufferWrapEnable = encConfig->ringBufferWrapEnable;
 
     return TRUE;
 }

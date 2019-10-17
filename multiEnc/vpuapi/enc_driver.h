@@ -93,57 +93,59 @@ extern RetCode Vp5VpuInit(
     );
 
 extern RetCode Vp5VpuSleepWake(
-    Uint32 coreIdx, 
+    Uint32 coreIdx,
     int iSleepWake,
-    const Uint16* code, 
+    const Uint16* code,
     Uint32 size,
     BOOL reset
     );
 
 extern RetCode Vp5VpuReset(
-    Uint32 coreIdx, 
+    Uint32 coreIdx,
     SWResetMode resetMode
     );
 
 extern RetCode Vp5VpuReInit(
-    Uint32 coreIdx, 
-    void* firmware, 
+    Uint32 coreIdx,
+    void* firmware,
     Uint32 size
     );
 
 extern Int32 Vp5VpuWaitInterrupt(
-    CodecInst*  instance, 
+    CodecInst*  instance,
     Int32       timeout,
     BOOL        pending
     );
 
 extern RetCode Vp5VpuClearInterrupt(
-    Uint32 coreIdx, 
+    Uint32 coreIdx,
     Uint32 flags
-    );
-
-extern RetCode Vp5VpuGetProductInfo(
-    Uint32          coreIdx, 
-    ProductInfo*    productInfo
     );
 
 extern RetCode Vp5VpuGetBwReport(
     CodecInst*  instance,
-    VPUBWData*  bwMon 
+    VPUBWData*  bwMon
+    );
+
+
+extern RetCode Vp5VpuGetDebugInfo(
+    CodecInst* instance,
+    VPUDebugInfo* info
     );
 
 /***< VP5 Encoder >******/
 RetCode Vp5VpuEncUpdateBS(
-    CodecInst* instance
+    CodecInst* instance,
+    BOOL updateNewBsbuf
     );
 
-RetCode Vp5VpuEncGetRdWrPtr(CodecInst* instance, 
-    PhysicalAddress *rdPtr, 
+RetCode Vp5VpuEncGetRdWrPtr(CodecInst* instance,
+    PhysicalAddress *rdPtr,
     PhysicalAddress *wrPtr
     );
 
 extern RetCode Vp5VpuBuildUpEncParam(
-    CodecInst* instance, 
+    CodecInst* instance,
     EncOpenParam* param
     );
 
@@ -152,14 +154,15 @@ extern RetCode Vp5VpuEncInitSeq(
     );
 
 extern RetCode Vp5VpuEncGetSeqInfo(
-    CodecInst* instance, 
+    CodecInst* instance,
     EncInitialInfo* info
     );
 
+
 extern RetCode Vp5VpuEncRegisterFramebuffer(
-    CodecInst* inst, 
-    FrameBuffer* fbArr, 
-    TiledMapType mapType, 
+    CodecInst* inst,
+    FrameBuffer* fbArr,
+    TiledMapType mapType,
     Uint32 count
     );
 
@@ -178,16 +181,16 @@ extern RetCode Vp5VpuEncGetResult(
     );
 
 extern RetCode Vp5VpuEncGetHeader(
-    EncHandle instance, 
+    EncHandle instance,
     EncHeaderParam * encHeaderParam
     );
 
 extern RetCode Vp5VpuEncFiniSeq(
-    CodecInst*  instance 
+    CodecInst*  instance
     );
 
 extern RetCode Vp5VpuEncParaChange(
-    EncHandle instance, 
+    EncHandle instance,
     EncChangeParam* param
     );
 
@@ -202,6 +205,12 @@ extern RetCode CheckEncRcParamValid(
 extern RetCode CheckEncCustomGopParamValid(
     EncOpenParam* pop
     );
+
+extern RetCode Vp5VpuGetSrcBufFlag(
+    CodecInst* instance,
+    Uint32* flag
+    );
+
 
 #ifdef __cplusplus
 }

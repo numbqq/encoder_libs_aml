@@ -54,7 +54,7 @@
 
 #define API_VERSION_MAJOR       5
 #define API_VERSION_MINOR       5
-#define API_VERSION_PATCH       51
+#define API_VERSION_PATCH       59
 #define API_VERSION             ((API_VERSION_MAJOR<<16) | (API_VERSION_MINOR<<8) | API_VERSION_PATCH)
 
 #if defined(PLATFORM_NON_OS) || defined (ANDROID) || defined(MFHMFT_EXPORTS) || defined(PLATFORM_QNX) || defined(CNM_SIM_PLATFORM)
@@ -70,8 +70,8 @@
 #define SUPPORT_MULTI_INST_INTR
 #endif
 
-// do not define BIT_CODE_FILE_PATH in case of multiple product support. 
-#define CORE_6_BIT_CODE_FILE_PATH   "chagall.bin" 
+// do not define BIT_CODE_FILE_PATH in case of multiple product support.
+#define CORE_6_BIT_CODE_FILE_PATH   "chagall.bin"
 
 //------------------------------------------------------------------------------
 // OMX
@@ -96,5 +96,5 @@
 //#define SUPPORT_SW_UART
 //#define SUPPORT_SW_UART_V2	// VP511 or VP521 or VP521C
 #endif /* __CONFIG_H__ */
- 
+
 

@@ -120,13 +120,18 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     if ( param->internalBitDepth == 8 )
         pEncOP->outputFormat  = FORMAT_420;
 
-    if (param->internalBitDepth > 8) 
+    if (param->internalBitDepth > 8)
         param->profile   = HEVC_PROFILE_MAIN10;
     else
         param->profile   = HEVC_PROFILE_MAIN;
 
-    if(pCfg->vpCfg.enStillPicture)
-        param->profile   = HEVC_PROFILE_STILLPICTURE;
+    if (pCfg->vpCfg.enStillPicture) {
+        if (param->internalBitDepth > 8)
+            param->profile   = HEVC_PROFILE_MAIN10_STILLPICTURE;
+        else
+            param->profile   = HEVC_PROFILE_STILLPICTURE;
+        param->enStillPicture = 1;
+    }
 
     param->losslessEnable   = pCfg->vpCfg.losslessEnable;
     param->constIntraPredFlag = pCfg->vpCfg.constIntraPredFlag;
@@ -143,6 +148,7 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     param->decodingRefreshType = pCfg->vpCfg.decodingRefreshType;
     param->intraPeriod      = pCfg->vpCfg.intraPeriod;
     param->intraQP          = pCfg->vpCfg.intraQP;
+        param->forcedIdrHeaderEnable = pCfg->vpCfg.forcedIdrHeaderEnable;
 
     /* for CMD_ENC_SEQ_CONF_WIN_TOP_BOT/LEFT_RIGHT */
     param->confWinTop    = pCfg->vpCfg.confWinTop;
@@ -200,7 +206,6 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
         param->fixedBitRatio[i] = pCfg->vpCfg.fixedBitRatio[i];
     }
 
-    // for VP520
     param->minQpI           = pCfg->vpCfg.minQp;
     param->minQpP           = pCfg->vpCfg.minQp;
     param->minQpB           = pCfg->vpCfg.minQp;
@@ -208,7 +213,7 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     param->maxQpP           = pCfg->vpCfg.maxQp;
     param->maxQpB           = pCfg->vpCfg.maxQp;
 
-    param->maxDeltaQp        = pCfg->vpCfg.maxDeltaQp;
+    param->hvsMaxDeltaQp    = pCfg->vpCfg.maxDeltaQp;
     pEncOP->bitRate          = bitrate;
     pEncOP->bitRateBL        = bitrateBL;
 
@@ -231,7 +236,6 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     param->numUnitsInTick       = pCfg->vpCfg.numUnitsInTick;
     param->timeScale            = pCfg->vpCfg.timeScale;
     param->numTicksPocDiffOne   = pCfg->vpCfg.numTicksPocDiffOne;
-
     param->chromaCbQpOffset = pCfg->vpCfg.chromaCbQpOffset;
     param->chromaCrQpOffset = pCfg->vpCfg.chromaCrQpOffset;
     param->initialRcQp      = pCfg->vpCfg.initialRcQp;
@@ -287,8 +291,13 @@ int setVpEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
     param->cu32MergeDeltaRate          = pCfg->vpCfg.cu32MergeDeltaRate;
     param->coefClearDisable            = pCfg->vpCfg.coefClearDisable;
 
+
+    param->rcWeightParam                = pCfg->vpCfg.rcWeightParam;
+    param->rcWeightBuf                  = pCfg->vpCfg.rcWeightBuf;
+
     param->s2fmeDisable                = pCfg->vpCfg.s2fmeDisable;
     // for H.264 on VP
+    param->avcIdrPeriod         = pCfg->vpCfg.idrPeriod;
     param->rdoSkip              = pCfg->vpCfg.rdoSkip;
     param->lambdaScalingEnable  = pCfg->vpCfg.lambdaScalingEnable;
     param->transform8x8Enable   = pCfg->vpCfg.transform8x8;
@@ -418,6 +427,7 @@ Int32 GetEncOpenParamDefault(EncOpenParam *pEncOP, TestEncConfig *pEncConfig)
         param->decodingRefreshType = 1;
         param->intraPeriod         = 28;
         param->intraQP             = 0;
+        param->forcedIdrHeaderEnable = 0;
 
         /* for CMD_ENC_SEQ_CONF_WIN_TOP_BOT/LEFT_RIGHT */
         param->confWinTop    = 0;
@@ -475,7 +485,7 @@ Int32 GetEncOpenParamDefault(EncOpenParam *pEncOP, TestEncConfig *pEncConfig)
         param->minQpB            = 8;
         param->maxQpB            = 51;
 
-        param->maxDeltaQp        = 10;
+        param->hvsMaxDeltaQp     = 10;
 
         /* for CMD_ENC_CUSTOM_GOP_PARAM */
         param->gopParam.customGopSize     = 0;
@@ -543,7 +553,10 @@ Int32 GetEncOpenParamDefault(EncOpenParam *pEncOP, TestEncConfig *pEncConfig)
         param->cu32MergeDeltaRate          = 0;
         param->coefClearDisable            = 0;
 
+        param->rcWeightParam                = 2;
+        param->rcWeightBuf                  = 128;
         // for H.264 encoder
+        param->avcIdrPeriod                 = 0;
         param->rdoSkip                      = 1;
         param->lambdaScalingEnable          = 1;
 
@@ -599,27 +612,27 @@ Int32 GetEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
 
     if ( PRODUCT_ID_VP_SERIES(productId) == TRUE ) {
         // for VP
-        switch(bitFormat) 
+        switch (bitFormat)
         {
         case STD_HEVC:
         case STD_AVC:
             if (parseVpEncCfgFile(pCfg, pEncConfig->cfgFileName, bitFormat) == 0)
                 return 0;
             if (pEncCfg)
-                strcpy(pEncConfig->yuvFileName, pCfg->SrcFileName);			
+                strcpy(pEncConfig->yuvFileName, pCfg->SrcFileName);
             else
-                sprintf(pEncConfig->yuvFileName,  "%s%s", yuvDir, pCfg->SrcFileName);
+                sprintf(pEncConfig->yuvFileName,  "%s/%s", yuvDir, pCfg->SrcFileName);
+
             if (pEncConfig->bitstreamFileName[0] == 0 && pCfg->BitStreamFileName[0] != 0)
                 sprintf(pEncConfig->bitstreamFileName, "%s", pCfg->BitStreamFileName);
-
-            if ( pEncConfig->bitstreamFileName[0] == 0 )
+            else if ( pEncConfig->bitstreamFileName[0] == 0 )
                 sprintf(pEncConfig->bitstreamFileName, "%s", "output_stream.265");
 
             if (pCfg->vpCfg.roiEnable) {
                 strcpy(pEncConfig->roi_file_name, pCfg->vpCfg.roiFileName);
                 if (!strcmp(pCfg->vpCfg.roiQpMapFile, "0") || pCfg->vpCfg.roiQpMapFile[0] == 0) {
                     //invalid value exist or not exist
-                } 
+                }
                 else {
                     //valid value exist
                     strcpy(pEncConfig->roi_file_name, pCfg->vpCfg.roiQpMapFile);
@@ -627,10 +640,6 @@ Int32 GetEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
             }
 
             pEncConfig->roi_enable  = pCfg->vpCfg.roiEnable;
-
-
-
-
             pEncConfig->encAUD  = pCfg->vpCfg.encAUD;
             pEncConfig->encEOS  = pCfg->vpCfg.encEOS;
             pEncConfig->encEOB  = pCfg->vpCfg.encEOB;
@@ -641,7 +650,7 @@ Int32 GetEncOpenParam(EncOpenParam *pEncOP, TestEncConfig *pEncConfig, ENC_CFG *
             pEncConfig->lambda_map_enable   = pCfg->vpCfg.customLambdaMapEnable;
             pEncConfig->mode_map_flag       = pCfg->vpCfg.customModeMapFlag;
             pEncConfig->wp_param_flag       = pCfg->vpCfg.weightPredEnable;
-
+            pEncConfig->forceIdrPicIdx      = pCfg->vpCfg.forceIdrPicIdx;
             if (pCfg->vpCfg.scalingListEnable)
                 strcpy(pEncConfig->scaling_list_fileName, pCfg->vpCfg.scalingListFileName);
 

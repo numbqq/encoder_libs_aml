@@ -36,7 +36,6 @@
 
 STATIC CNMAppContext appCtx;
 Int32 CnmErrorStatus = 0;
-
 void CNMAppInit(void)
 {
     osal_memset((void*)&appCtx, 0x00, sizeof(CNMAppContext));
@@ -60,33 +59,29 @@ BOOL CNMAppRun(void)
 {
     CNMTask             task;
     Uint32              i;
-    BOOL                terminate = FALSE;
     BOOL                success;
-    Uint32              waitingTasks = appCtx.numTasks;
-    CNMTaskWaitState    state;
+    Uint32              runningTask;
 
-    while (terminate == FALSE) {
-        terminate = TRUE;
-        for (i=0; i<appCtx.numTasks; i++) {
-            task = (CNMTask)appCtx.taskList[i];
-            if (CNMTaskRun((CNMTask)task) == FALSE) break;
-            terminate &= CNMTaskIsTerminated(task);
-        }
-        if (supportThread == TRUE) break;
+    success     = TRUE;
+    runningTask = appCtx.numTasks;
+    for (i=0; i<appCtx.numTasks; i++) {
+        task=(CNMTask)appCtx.taskList[i];
+        CNMTaskRun((CNMTask)task);
     }
 
-    success = TRUE;
-    while (waitingTasks > 0) {
+    while (0 < runningTask) {
         for (i=0; i<appCtx.numTasks; i++) {
-            task = appCtx.taskList[i];
-            if (task == NULL) continue;
+            if (NULL == (task=(CNMTask)appCtx.taskList[i])) continue;
 
-            state = CNMTaskWait(task);
-            if (state != CNM_TASK_RUNNING) {
-                waitingTasks--;
+            if (FALSE == supportThread) {
+                if (FALSE == CNMTaskRun((CNMTask)task)) break;
+            }
+
+            if (CNM_TASK_RUNNING != CNMTaskWait(task)) {
                 success &= CNMTaskStop(task);
                 CNMTaskDestroy(task);
                 appCtx.taskList[i] = NULL;
+                runningTask--;
             }
         }
     }
@@ -95,7 +90,7 @@ BOOL CNMAppRun(void)
 
     osal_close_keyboard();
 
-    return success;
+    return (0 == CnmErrorStatus) ? success : FALSE;
 }
 
 void CNMAppStop(void)

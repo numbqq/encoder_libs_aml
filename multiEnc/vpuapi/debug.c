@@ -54,16 +54,20 @@
 
 enum { False, True };
 
-void InitializeDebugEnv(
-    Uint32  options
-    )
+void ExecuteDebugger(void)
 {
-    UNREFERENCED_PARAMETER(options);
+    VLOG(INFO, "Starting the debugger....\n");
 }
 
-void ReleaseDebugEnv(
-    void
-    )
+void InitializeDebugEnv(Uint32  option)
+{
+    switch (option) {
+        case CNMQC_ENV_GDBSERVER: ExecuteDebugger(); break;
+        default: break;
+    }
+}
+
+void ReleaseDebugEnv(void)
 {
 }
 
@@ -89,12 +93,12 @@ Int32 checkLineFeedInHelp(
 
 #define API_VERSION_MAJOR       5
 #define API_VERSION_MINOR       5
-#define API_VERSION_PATCH       51
+#define API_VERSION_PATCH       59
 #define API_VERSION             ((API_VERSION_MAJOR<<16) | (API_VERSION_MINOR<<8) | API_VERSION_PATCH)
 
 RetCode PrintVpuProductInfo(
-    Uint32      coreIdx,
-    ProductInfo *productInfo
+    Uint32   coreIdx,
+    VpuAttr* productInfo
     )
 {
     BOOL verbose = FALSE;
@@ -113,14 +117,12 @@ RetCode PrintVpuProductInfo(
     {
         VLOG(INFO, "productId       : %08x\n", productInfo->productId);
         VLOG(INFO, "fwVersion       : %08x(r%d)\n", productInfo->fwVersion, productInfo->fwVersion);
-        VLOG(INFO, "productName     : %c%c%c%c%04x\n",
-            productInfo->productName>>24, productInfo->productName>>16, productInfo->productName>>8, productInfo->productName,
-            productInfo->productVersion);
+        VLOG(INFO, "productName     : %s%4x\n", productInfo->productName, productInfo->productVersion);
         if ( verbose == TRUE )
         {
-            Uint32 stdDef0          = productInfo->stdDef0;
-            Uint32 stdDef1          = productInfo->stdDef1;
-            Uint32 confFeature      = productInfo->confFeature;
+            Uint32 stdDef0          = productInfo->hwConfigDef0;
+            Uint32 stdDef1          = productInfo->hwConfigDef1;
+            Uint32 confFeature      = productInfo->hwConfigFeature;
             BOOL supportDownScaler  = FALSE;
             BOOL supportAfbce       = FALSE;
             char ch_ox[2]           = {'X', 'O'};
@@ -155,6 +157,16 @@ RetCode PrintVpuProductInfo(
             VLOG(INFO, "BW OPT            : %d\n", (stdDef1>>15)&1);
             VLOG(INFO, "==========================\n");
             VLOG(INFO, "confFeature       : %08x\n", confFeature);
+            if ( productInfo->hwConfigRev > 167455 ) {//20190321
+                VLOG(INFO, "AVC  ENC MAIN10   : %d\n", (confFeature>>11)&1);
+                VLOG(INFO, "AVC  ENC MAIN     : %d\n", (confFeature>>10)&1);
+                VLOG(INFO, "AVC  DEC MAIN10   : %d\n", (confFeature>>9)&1);
+                VLOG(INFO, "AVC  DEC MAIN     : %d\n", (confFeature>>8)&1);
+            }
+            else {
+                VLOG(INFO, "AVC  ENC          : %d\n", (confFeature>>9)&1);
+                VLOG(INFO, "AVC  DEC          : %d\n", (confFeature>>8)&1);
+            }
             VLOG(INFO, "VP9  ENC Profile2 : %d\n", (confFeature>>7)&1);
             VLOG(INFO, "VP9  ENC Profile0 : %d\n", (confFeature>>6)&1);
             VLOG(INFO, "VP9  DEC Profile2 : %d\n", (confFeature>>5)&1);
@@ -164,8 +176,8 @@ RetCode PrintVpuProductInfo(
             VLOG(INFO, "HEVC DEC MAIN10   : %d\n", (confFeature>>1)&1);
             VLOG(INFO, "HEVC DEC MAIN     : %d\n", (confFeature>>0)&1);
             VLOG(INFO, "==========================\n");
-            VLOG(INFO, "configDate        : %d\n", productInfo->configDate);
-            VLOG(INFO, "HW version        : r%d\n", productInfo->configRevision);
+            VLOG(INFO, "configDate        : %d\n", productInfo->hwConfigDate);
+            VLOG(INFO, "HW version        : r%d\n", productInfo->hwConfigRev);
 
             supportDownScaler = (BOOL)((stdDef0>>7)&1);
             supportAfbce      = (BOOL)((stdDef0>>15)&1);
@@ -174,35 +186,51 @@ RetCode PrintVpuProductInfo(
             VLOG (INFO, "VPU CONF| SCALER | AFBCE  |\n");
             VLOG (INFO, "        |   %c    |    %c   |\n", ch_ox[supportDownScaler], ch_ox[supportAfbce]);
             VLOG (INFO, "------------------------------------\n");
-            for (coreIdx=0 ; coreIdx<MAX_NUM_VCORE ; coreIdx++) {
-                if (productInfo->configVcore[coreIdx]) {
-                    Uint32 std_vp9, std_hevc, std_avs2;
-                    if ( coreIdx == 0)
-                        VLOG (INFO, "        |  HEVC  |   VP9  |  AVS2  |\n");
-                    std_vp9  = (productInfo->configVcore[coreIdx] & 0x4) ? 1 : 0;
-                    std_hevc = (productInfo->configVcore[coreIdx] & 0x1) ? 1 : 0;
-                    std_avs2 = (productInfo->configVcore[coreIdx] & 0x8) ? 1 : 0;
-                    VLOG (INFO, " VCore%d |    %c   |    %c   |    %c   |\n",
-                        coreIdx, ch_ox[std_hevc], ch_ox[std_vp9], ch_ox[std_avs2]);
-                    if ( coreIdx == (MAX_NUM_VCORE-1))
-                        VLOG (INFO, "------------------------------------\n");
-                }
-            }
         }
         else {
             VLOG(INFO, "==========================\n");
-            VLOG(INFO, "stdDef0          : %08x\n", productInfo->stdDef0);
-            VLOG(INFO, "stdDef1          : %08x\n", productInfo->stdDef1);
-            VLOG(INFO, "confFeature      : %08x\n", productInfo->confFeature);
-            VLOG(INFO, "configDate       : %08x\n", productInfo->configDate);
-            VLOG(INFO, "configRevision   : %08x\n", productInfo->configRevision);
-            VLOG(INFO, "configType       : %08x\n", productInfo->configType);
+            VLOG(INFO, "stdDef0          : %08x\n", productInfo->hwConfigDef0);
+            VLOG(INFO, "stdDef1          : %08x\n", productInfo->hwConfigDef1);
+            VLOG(INFO, "confFeature      : %08x\n", productInfo->hwConfigFeature);
+            VLOG(INFO, "configDate       : %08x\n", productInfo->hwConfigDate);
+            VLOG(INFO, "configRevision   : %08x\n", productInfo->hwConfigRev);
+            VLOG(INFO, "configType       : %08x\n", productInfo->hwConfigType);
             VLOG(INFO, "==========================\n");
         }
     }
     return ret;
 }
 
+#define FIO_DBG_IRB_ADDR    0x8074
+#define FIO_DBG_IRB_DATA    0x8078
+#define FIO_DBG_IRB_STATUS  0x807C
+void vdi_irb_write_register(
+    unsigned long coreIdx,
+    unsigned int  vcore_idx,
+    unsigned int  irb_addr,
+    unsigned int  irb_data)
+{
+    vdi_fio_write_register(coreIdx, FIO_DBG_IRB_DATA + 0x1000*vcore_idx, irb_data);
+    vdi_fio_write_register(coreIdx, FIO_DBG_IRB_ADDR + 0x1000*vcore_idx, irb_addr);
+}
+
+unsigned int vdi_irb_read_register(
+    unsigned long coreIdx,
+    unsigned int  vcore_idx,
+    unsigned int  irb_addr
+    )
+{
+    unsigned int irb_rdata = 0;
+
+    unsigned int irb_rd_cmd = 0;
+
+    irb_rd_cmd = (1<<20)| (1<<16) | irb_addr; // {dbgMode, Read, Addr}
+    vdi_fio_write_register(coreIdx, FIO_DBG_IRB_ADDR + 0x1000*vcore_idx, irb_rd_cmd);
+    while ((vdi_fio_read_register(coreIdx, FIO_DBG_IRB_STATUS + 0x1000*vcore_idx) & 0x1) == 0);
+
+    irb_rdata = vdi_fio_read_register(coreIdx, FIO_DBG_IRB_DATA + 0x1000*vcore_idx);
+    return irb_rdata;
+}
 Uint32 ReadRegVCE(
     Uint32 coreIdx,
     Uint32 vce_core_idx,
@@ -365,291 +393,11 @@ void PrintEncVpuStatus(
     )
 {
     Int32       coreIdx;
-    Int32       productId;
-
     coreIdx   = handle->coreIdx;
-    productId = handle->productId;
 
     SetClockGate(coreIdx, 1);
     vdi_print_vpu_status(coreIdx);
-
-    if ( productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521)
-    {
-        Uint32    reg_val, num;
-        int       vce_enc_debug[12] = {0, };
-        int       set_mode;
-        int       vcore_num, vcore_idx;
-        int i;
-        Uint32    vcpu_reg[31]= {0,};
-
-        VLOG(ERR,"-------------------------------------------------------------------------------\n");
-        VLOG(ERR,"------                            VCPU STATUS(ENC)                        -----\n");
-        VLOG(ERR,"-------------------------------------------------------------------------------\n");
-        VLOG(ERR,"BS_OPT: 0x%08x\n", VpuReadReg(coreIdx, VP5_BS_OPTION));
-
-        // --------- VCPU register Dump
-        VLOG(ERR,"[+] VCPU REG Dump\n");
-        for (i = 0; i < 25; i++) {
-            VpuWriteReg (coreIdx, VP5_VPU_PDBG_IDX_REG, (1<<9) | (i & 0xff));
-            vcpu_reg[i] = VpuReadReg (coreIdx, VP5_VPU_PDBG_RDATA_REG);
-
-            if (i < 16) {
-                VLOG(ERR,"0x%08x\t",  vcpu_reg[i]);
-                if ((i % 4) == 3) VLOG(ERR,"\n");
-            }
-            else {
-                switch (i) {
-                case 16: VLOG(ERR,"CR0: 0x%08x\t", vcpu_reg[i]); break;
-                case 17: VLOG(ERR,"CR1: 0x%08x\n", vcpu_reg[i]); break;
-                case 18: VLOG(ERR,"ML:  0x%08x\t", vcpu_reg[i]); break;
-                case 19: VLOG(ERR,"MH:  0x%08x\n", vcpu_reg[i]); break;
-                case 21: VLOG(ERR,"LR:  0x%08x\n", vcpu_reg[i]); break;
-                case 22: VLOG(ERR,"PC:  0x%08x\n", vcpu_reg[i]);break;
-                case 23: VLOG(ERR,"SR:  0x%08x\n", vcpu_reg[i]);break;
-                case 24: VLOG(ERR,"SSP: 0x%08x\n", vcpu_reg[i]);break;
-                }
-            }
-        }
-        {
-//#define VP5_RET_ENC_DEBUG_START                  (VP5_REG_BASE + 0x180)
-//#define VP5_RET_ENC_DEBUG_END                    (VP5_REG_BASE + 0x1B4)
-            for(i=0; i < 14; i++)
-                VLOG(ERR, "debug[%d] [%x]\r\n", i, VpuReadReg(coreIdx, (VP5_REG_BASE + 0x180)+ (i*4)));
-        }
-
-        VLOG(ERR,"[+] VCPU DMA Dump\n");
-        for(i = 0x2000; i < 0x2018; i += 16) {
-            VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
-        }
-        VLOG(ERR,"[-] VCPU DMA Dump\n");
-
-        VLOG(ERR,"[+] VCPU HOST REG Dump\n");
-        for(i = 0x3000; i < 0x30fc; i += 16) {
-            VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
-        }
-        VLOG(ERR,"[-] VCPU HOST REG Dump\n");
-
-        VLOG(ERR,"[+] VCPU ENT ENC REG Dump\n");
-        for(i = 0x6800; i < 0x7000; i += 16) {
-            VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
-        }
-        VLOG(ERR,"[-] VCPU ENT ENC REG Dump\n");
-
-        VLOG(ERR,"[+] VCPU HOST MEM Dump\n");
-        for(i = 0x7000; i < 0x70fc; i += 16) {
-            VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
-        }
-        VLOG(ERR,"[-] VCPU SPP Dump\n");
-
-        VLOG(ERR,"vce run flag = %d\n", VpuReadReg(coreIdx, 0x1E8));
-        // --------- BIT register Dump
-        VLOG(ERR,"[+] BPU REG Dump\n");
-        for (i=0;i < 30; i++)
-        {
-            Uint32 temp;
-            temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x18));
-            VLOG(ERR,"BITPC = 0x%08x\n", temp);
-            if ( temp == 0xffffffff)
-                break;
-        }
-
-        // --------- BIT HEVC Status Dump
-        VLOG(ERR,"==================================\n");
-        VLOG(ERR,"[-] BPU REG Dump\n");
-        VLOG(ERR,"==================================\n");
-        {
-            Uint32 temp;
-            temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x1E8));
-            VLOG(ERR,"DBG_INFO_1= 0x%08x\n", temp);
-            temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x1EC));
-            VLOG(ERR,"DBG_INFO_2= 0x%08x\n", temp);
-        }
-
-        VLOG(ERR,"DBG_FIFO_VALID		[%08x]\n",vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x6C)));
-
-        //SDMA debug information
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20) | (1<<16)| 0x13c);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0);
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SDMA_DBG_INFO		[%08x]\n", reg_val);
-        VLOG(ERR,"\t- [   28] need_more_update  : 0x%x \n", (reg_val>>28)&0x1 );
-        VLOG(ERR,"\t- [27:25] tr_init_fsm       : 0x%x \n", (reg_val>>25)&0x7 );
-        VLOG(ERR,"\t- [24:18] remain_trans_size : 0x%x \n", (reg_val>>18)&0x7F);
-        VLOG(ERR,"\t- [17:13] wdata_out_cnt     : 0x%x \n", (reg_val>>13)&0x1F);
-        VLOG(ERR,"\t- [12:10] wdma_wd_fsm       : 0x%x \n", (reg_val>>10)&0x1F);
-        VLOG(ERR,"\t- [ 9: 7] wdma_wa_fsm       : 0x%x ", (reg_val>> 7)&0x7 );
-        if (((reg_val>>7) &0x7) == 3){
-            VLOG(ERR,"-->WDMA_WAIT_ADDR  \n");
-        } else {
-            VLOG(ERR,"\n");
-        }
-        VLOG(ERR,"\t- [ 6: 5] sdma_init_fsm     : 0x%x \n", (reg_val>> 5)&0x3 );
-        VLOG(ERR,"\t- [ 4: 1] save_fsm          : 0x%x \n", (reg_val>> 1)&0xF );
-        VLOG(ERR,"\t- [    0] unalign_written   : 0x%x \n", (reg_val>> 0)&0x1 );
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16)| 0x13b);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0);
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SDMA_NAL_MEM_INF	[%08x]\n", reg_val);
-        VLOG(ERR,"\t- [ 7: 1] nal_mem_empty_room : 0x%x \n", (reg_val>> 1)&0x3F);
-        VLOG(ERR,"\t- [    0] ge_wnbuf_size      : 0x%x \n", (reg_val>> 0)&0x1 );
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x131);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0);
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SDMA_IRQ		[%08x]: [1]sdma_irq : 0x%x, [2]enable_sdma_irq : 0x%x\n",reg_val, (reg_val >> 1)&0x1,(reg_val &0x1));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x134);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0);
-        VLOG(ERR,"SDMA_BS_BASE_ADDR [%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x135);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0);
-        VLOG(ERR,"SDMA_NAL_STR_ADDR [%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x136);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"SDMA_IRQ_ADDR     [%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x137);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"SDMA_BS_END_ADDR	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x13A);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"SDMA_CUR_ADDR		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x139);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SDMA_STATUS			[%08x]\n",reg_val);
-        VLOG(ERR,"\t- [2] all_wresp_done : 0x%x \n", (reg_val>> 2)&0x1);
-        VLOG(ERR,"\t- [1] sdma_init_busy : 0x%x \n", (reg_val>> 1)&0x1 );
-        VLOG(ERR,"\t- [0] save_busy      : 0x%x \n", (reg_val>> 0)&0x1 );
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x164);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SHU_DBG				[%08x] : shu_unaligned_num (0x%x)\n",reg_val, reg_val);
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x169);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"SHU_NBUF_WPTR		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x16A);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"SHU_NBUF_RPTR		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x16C);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78));
-        VLOG(ERR,"SHU_NBUF_INFO		[%08x]\n",reg_val);
-        VLOG(ERR,"\t- [5:1] nbuf_remain_byte : 0x%x \n", (reg_val>> 1)&0x1F);
-        VLOG(ERR,"\t- [  0] nbuf_wptr_wrap   : 0x%x \n", (reg_val>> 0)&0x1 );
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x184);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"CTU_LAST_ENC_POS	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x187);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"CTU_POS_IN_PIC		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x110);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"MIB_EXTADDR			[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x111);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"MIB_INTADDR			[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x113);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"MIB_CMD				[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        vdi_fio_write_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x74),(1<<20)| (1<<16) | 0x114);
-        while((vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x7c))& 0x1) ==0 );
-        VLOG(ERR,"MIB_BUSY			[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x78)));
-
-        VLOG(ERR,"DBG_BPU_ENC_NB0		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x40)));
-        VLOG(ERR,"DBG_BPU_CTU_CTRL0	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x44)));
-        VLOG(ERR,"DBG_BPU_CAB_FSM0	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x48)));
-        VLOG(ERR,"DBG_BPU_BIN_GEN0	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x4C)));
-        VLOG(ERR,"DBG_BPU_CAB_MBAE0	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x50)));
-        VLOG(ERR,"DBG_BPU_BUS_BUSY	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x68)));
-        VLOG(ERR,"DBG_FIFO_VALID		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x6C)));
-        VLOG(ERR,"DBG_BPU_CTU_CTRL1	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x54)));
-        VLOG(ERR,"DBG_BPU_CTU_CTRL2	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x58)));
-        VLOG(ERR,"DBG_BPU_CTU_CTRL3	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x5C)));
-
-        for (i=0x80; i<0xA0; i+=4) {
-            reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + i));
-            num     = (i - 0x80)/2;
-            VLOG(ERR,"DBG_BIT_STACK		[%08x] : Stack%02d (0x%04x), Stack%02d(0x%04x) \n",reg_val, num, reg_val>>16, num+1, reg_val & 0xffff);
-        }
-
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xA0));
-        VLOG(ERR,"DGB_BIT_CORE_INFO	[%08x] : pc_ctrl_id (0x%04x), pfu_reg_pc(0x%04x)\n",reg_val,reg_val>>16, reg_val & 0xffff);
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xA4));
-        VLOG(ERR,"DGB_BIT_CORE_INFO	[%08x] : ACC0 (0x%08x)\n",reg_val, reg_val);
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xA8));
-        VLOG(ERR,"DGB_BIT_CORE_INFO	[%08x] : ACC1 (0x%08x)\n",reg_val, reg_val);
-
-        reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xAC));
-        VLOG(ERR,"DGB_BIT_CORE_INFO	[%08x] : pfu_ibuff_id(0x%04x), pfu_ibuff_op(0x%04x)\n",reg_val,reg_val>>16, reg_val & 0xffff);
-
-        for (num=0; num<5; num+=1) {
-            reg_val = vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xB0));
-            VLOG(ERR,"DGB_BIT_CORE_INFO	[%08x] : core_pram_rd_en(0x%04x), core_pram_rd_addr(0x%04x)\n",reg_val,reg_val>>16, reg_val & 0xffff);
-        }
-
-        VLOG(ERR,"SAO_LUMA_OFFSET	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xB4)));
-        VLOG(ERR,"SAO_CB_OFFSET	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xB8)));
-        VLOG(ERR,"SAO_CR_OFFSET	[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0xBC)));
-
-        VLOG(ERR,"GDI_NO_MORE_REQ		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x8f0)));
-        VLOG(ERR,"GDI_EMPTY_FLAG		[%08x]\n",vdi_fio_read_register(coreIdx,(VP5_REG_BASE + 0x8000 + 0x8f4)));
-
-        VLOG(ERR,"VP5_CODE VCE DUMP\n");
-
-        vce_enc_debug[0] = 0x0ba0;//MODE SEL //parameter VCE_ENC_DEBUG0            = 9'h1A0;
-        vce_enc_debug[1] = 0x0ba4;
-        vce_enc_debug[2] = 0x0ba8;
-        vce_enc_debug[3] = 0x0bac;
-        vce_enc_debug[4] = 0x0bb0;
-        vce_enc_debug[5] = 0x0bb4;
-        vce_enc_debug[6] = 0x0bb8;
-        vce_enc_debug[7] = 0x0bbc;
-        vce_enc_debug[8] = 0x0bc0;
-        vce_enc_debug[9] = 0x0bc4;
-        set_mode         = 0x0ba0;
-        vcore_num        = 1;
-
-        for (vcore_idx = 0; vcore_idx < vcore_num ; vcore_idx++) {
-            VLOG(ERR,"==========================================\n");
-            VLOG(ERR,"[+] VCE REG Dump VCORE_IDX : %d\n",vcore_idx);
-            VLOG(ERR,"==========================================\n");
-            DisplayVceEncReadVCE             (coreIdx, vcore_idx);
-            DisplayVceEncDebugCommon521      (coreIdx, vcore_idx, set_mode, vce_enc_debug[0], vce_enc_debug[1], vce_enc_debug[2]);
-            DisplayVceEncDebugMode2          (coreIdx, vcore_idx, set_mode, vce_enc_debug);
-        }
-    }
+    vdi_print_vpu_status_enc(coreIdx);
     SetClockGate(coreIdx, 0);
 }
 
@@ -707,13 +455,12 @@ void vdi_make_log(unsigned long coreIdx, const char *str, int step)
 
     val = VpuReadReg(coreIdx, VP5_CMD_INSTANCE_INFO);
     val &= 0xffff;
-    if (step == 1) {
+    if (step == 1)
         VLOG(INFO, "\n**%s start(%d)\n", str, val);
-    } else if (step == 2) {
+    else if (step == 2)
         VLOG(INFO, "\n**%s timeout(%d)\n", str, val);
-    } else {
+    else
         VLOG(INFO, "\n**%s end(%d)\n", str, val);
-    }
 }
 
 void vdi_log(unsigned long coreIdx, int cmd, int step)
@@ -795,13 +542,31 @@ void vdi_log(unsigned long coreIdx, int cmd, int step)
     }
 }
 
-static void vp5xx_vcore_status(
+void print_busy_timeout_status(Uint32 coreIdx, Uint32 product_code, Uint32 pc)
+{
+    if (PRODUCT_CODE_VP_SERIES(product_code)) {
+        vp5xx_vcpu_status(coreIdx);
+    } else {
+        Uint32 idx;
+        for (idx=0; idx<20; idx++) {
+            VLOG(ERR, "[VDI] vdi_wait_vpu_busy timeout, PC=0x%lx\n", vdi_read_register(coreIdx, pc));
+        }
+    }
+}
+
+void vp5xx_vcore_status(
     Uint32 coreIdx
     )
 {
     Uint32 i;
+    Uint32 temp;
 
     VLOG(INFO,"[+] BPU REG Dump\n");
+    for (i=0;i < 20; i++) {
+        temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x18));
+        VLOG(ERR,"BITPC = 0x%08x\n", temp);
+    }
+
     for(i = 0x8000; i < 0x80FC; i += 16) {
         VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
             vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
@@ -811,8 +576,15 @@ static void vp5xx_vcore_status(
     }
     VLOG(INFO,"[-] BPU REG Dump\n");
 
+    VLOG(INFO,"[+] MIB REG Dump\n");
+    for (i=0x110 ; i < 0x118 ; i++) {
+        temp  = vdi_irb_read_register(coreIdx, 0, i);
+        VLOG(ERR,"MIB 0x%08x Core0=0x%08x\n", i, temp);
+    }
+    VLOG(INFO,"[-] MIB REG Dump\n");
+
     // --------- VCE register Dump
-    VLOG(INFO,"[+] VCE REG Dump\n");
+    VLOG(INFO,"[+] VCE REG Dump Core0\n");
     for (i=0x000; i<0x1fc; i+=16) {
         VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", i,
             ReadRegVCE(coreIdx, 0, (i+0x00)),
@@ -823,61 +595,196 @@ static void vp5xx_vcore_status(
     VLOG(INFO,"[-] VCE REG Dump\n");
 }
 
+
+void vp5xx_bpu_status(
+    Uint32 coreIdx
+    )
+{
+    Uint32 i;
+    Uint32 temp;
+
+    VLOG(INFO,"[+] BPU REG Dump\n");
+    for (i=0;i < 20; i++) {
+        temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x18));
+        VLOG(ERR,"BITPC = 0x%08x\n", temp);
+    }
+
+    temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x30));
+    VLOG(ERR,"BIT_BUSY Core0=0x%08x \n", temp);
+
+    for (i=0; i < 8; i += 4 ) {
+        temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x80 + i));
+        VLOG(ERR,"stack[%d] Core0=0x%08x\n", temp);
+    }
+
+
+    VLOG(INFO,"[-] BPU REG Dump\n");
+
+    VLOG(INFO,"[+] MIB REG Dump\n");
+    for (i=0x110 ; i < 0x118 ; i++) {
+        temp  = vdi_irb_read_register(coreIdx, 0, i);
+        VLOG(ERR,"MIB 0x%08x Core0=0x%08x\n", i, temp);
+    }
+    VLOG(INFO,"[-] MIB REG Dump\n");
+
+    // --------- VCE register Dump
+    VLOG(INFO,"[+] VCE REG Dump Core0\n");
+    for (i=0x000; i<0x1fc; i+=16) {
+        VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", i,
+            ReadRegVCE(coreIdx, 0, (i+0x00)),
+            ReadRegVCE(coreIdx, 0, (i+0x04)),
+            ReadRegVCE(coreIdx, 0, (i+0x08)),
+            ReadRegVCE(coreIdx, 0, (i+0x0c)));
+    }
+    VLOG(INFO,"[-] VCE REG Dump\n");
+}
+
+
+
+void vdi_print_vpu_status_enc(unsigned long coreIdx)
+{
+    int       vce_enc_debug[12] = {0, };
+    int       set_mode;
+    int       vcore_num, vcore_idx;
+    int i;
+
+    VLOG(INFO,"-------------------------------------------------------------------------------\n");
+    VLOG(INFO,"------                           Encoder only                                                         -----\n");
+    VLOG(INFO,"-------------------------------------------------------------------------------\n");
+    VLOG(ERR,"BS_OPT: 0x%08x\n", VpuReadReg(coreIdx, VP5_BS_OPTION));
+
+    VLOG(ERR,"[+] VCPU DMA Dump\n");
+    for (i = 0x2000; i < 0x2018; i += 16) {
+        VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
+    }
+    VLOG(ERR,"[-] VCPU DMA Dump\n");
+
+    VLOG(ERR,"[+] VCPU HOST REG Dump\n");
+    for (i = 0x3000; i < 0x30fc; i += 16) {
+        VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
+    }
+    VLOG(ERR,"[-] VCPU HOST REG Dump\n");
+
+    VLOG(ERR,"[+] VCPU ENT ENC REG Dump\n");
+    for (i = 0x6800; i < 0x7000; i += 16) {
+        VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
+    }
+    VLOG(ERR,"[-] VCPU ENT ENC REG Dump\n");
+
+    VLOG(ERR,"[+] VCPU HOST MEM Dump\n");
+    for (i = 0x7000; i < 0x70fc; i += 16) {
+        VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
+            vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
+    }
+    VLOG(ERR,"[-] VCPU SPP Dump\n");
+
+    VLOG(ERR,"vce run flag = %d\n", VpuReadReg(coreIdx, 0x1E8));
+
+
+    VLOG(ERR,"-------------------------------------------------------------------------------\n");
+    VLOG(ERR,"------                            VCE DUMP(ENC)                           -----\n");
+    VLOG(ERR,"-------------------------------------------------------------------------------\n");
+    vce_enc_debug[0] = 0x0ba0;//MODE SEL //parameter VCE_ENC_DEBUG0            = 9'h1A0;
+    vce_enc_debug[1] = 0x0ba4;
+    vce_enc_debug[2] = 0x0ba8;
+    vce_enc_debug[3] = 0x0bac;
+    vce_enc_debug[4] = 0x0bb0;
+    vce_enc_debug[5] = 0x0bb4;
+    vce_enc_debug[6] = 0x0bb8;
+    vce_enc_debug[7] = 0x0bbc;
+    vce_enc_debug[8] = 0x0bc0;
+    vce_enc_debug[9] = 0x0bc4;
+    set_mode              = 0x0ba0;
+    vcore_num            = 1;
+
+
+    for (vcore_idx = 0; vcore_idx < vcore_num ; vcore_idx++) {
+        VLOG(ERR,"==========================================\n");
+        VLOG(ERR,"[+] VCE REG Dump VCORE_IDX : %d\n",vcore_idx);
+        VLOG(ERR,"==========================================\n");
+        DisplayVceEncReadVCE             (coreIdx, vcore_idx);
+        DisplayVceEncDebugCommon521      (coreIdx, vcore_idx, set_mode, vce_enc_debug[0], vce_enc_debug[1], vce_enc_debug[2]);
+        DisplayVceEncDebugMode2          (coreIdx, vcore_idx, set_mode, vce_enc_debug);
+    }
+}
+
+void vp5xx_vcpu_status (unsigned long coreIdx)
+{
+    Uint32 vcpu_reg[31]= {0,};
+    Uint32 i;
+
+        VLOG(INFO,"-------------------------------------------------------------------------------\n");
+        VLOG(INFO,"------                            VCPU STATUS                                                     -----\n");
+        VLOG(INFO,"-------------------------------------------------------------------------------\n");
+
+   // --------- VCPU register Dump
+    VLOG(INFO,"[+] VCPU REG Dump\n");
+    for (i = 0; i < 25; i++) {
+        VpuWriteReg (coreIdx, 0x14, (1<<9) | (i & 0xff));
+        vcpu_reg[i] = VpuReadReg (coreIdx, 0x1c);
+
+        if (i < 16) {
+            VLOG(INFO,"0x%08x\t",  vcpu_reg[i]);
+            if ((i % 4) == 3) VLOG(INFO,"\n");
+        }
+        else {
+            switch (i) {
+            case 16: VLOG(INFO,"CR0: 0x%08x\t", vcpu_reg[i]); break;
+            case 17: VLOG(INFO,"CR1: 0x%08x\n", vcpu_reg[i]); break;
+            case 18: VLOG(INFO,"ML:  0x%08x\t", vcpu_reg[i]); break;
+            case 19: VLOG(INFO,"MH:  0x%08x\n", vcpu_reg[i]); break;
+            case 21: VLOG(INFO,"LR:  0x%08x\n", vcpu_reg[i]); break;
+            case 22: VLOG(INFO,"PC:  0x%08x\n", vcpu_reg[i]); break;
+            case 23: VLOG(INFO,"SR:  0x%08x\n", vcpu_reg[i]); break;
+            case 24: VLOG(INFO,"SSP: 0x%08x\n", vcpu_reg[i]); break;
+            default: break;
+            }
+        }
+    }
+    for ( i = 0 ; i < 20 ; i++) {
+        VLOG(ERR, "PC=0x%x\n", vdi_read_register(coreIdx, VP5_VCPU_CUR_PC));
+    }
+    VLOG(INFO,"[-] VCPU REG Dump\n");
+}
+
 void vdi_print_vpu_status(unsigned long coreIdx)
 {
     Uint32 productCode;
 
     productCode = vdi_read_register(coreIdx, VPU_PRODUCT_CODE_REGISTER);
 
-    if (PRODUCT_CODE_VP(productCode))
-    {
-        Uint32 vcpu_reg[31]= {0,};
-        Uint32 i;
-
-        VLOG(INFO,"-------------------------------------------------------------------------------\n");
-        VLOG(INFO,"------                            VCPU STATUS                             -----\n");
-        VLOG(INFO,"-------------------------------------------------------------------------------\n");
-
-        // --------- VCPU register Dump
-        VLOG(INFO,"[+] VCPU REG Dump\n");
-        for (i = 0; i < 25; i++) {
-            VpuWriteReg (coreIdx, 0x14, (1<<9) | (i & 0xff));
-            vcpu_reg[i] = VpuReadReg (coreIdx, 0x1c);
-
-            if (i < 16) {
-                VLOG(INFO,"0x%08x\t",  vcpu_reg[i]);
-                if ((i % 4) == 3) VLOG(INFO,"\n");
-            }
-            else {
-                switch (i) {
-                case 16: VLOG(INFO,"CR0: 0x%08x\t", vcpu_reg[i]); break;
-                case 17: VLOG(INFO,"CR1: 0x%08x\n", vcpu_reg[i]); break;
-                case 18: VLOG(INFO,"ML:  0x%08x\t", vcpu_reg[i]); break;
-                case 19: VLOG(INFO,"MH:  0x%08x\n", vcpu_reg[i]); break;
-                case 21: VLOG(INFO,"LR:  0x%08x\n", vcpu_reg[i]); break;
-                case 22: VLOG(INFO,"PC:  0x%08x\n", vcpu_reg[i]); break;
-                case 23: VLOG(INFO,"SR:  0x%08x\n", vcpu_reg[i]); break;
-                case 24: VLOG(INFO,"SSP: 0x%08x\n", vcpu_reg[i]); break;
-                default: break;
-                }
-            }
-        }
-        VLOG(INFO,"[-] VCPU REG Dump\n");
-        /// -- VCPU ENTROPY PERI DECODE Common
-
-        VLOG(INFO,"[+] VCPU ENT DEC REG Dump\n");
-        for(i = 0x6000; i < 0x6800; i += 16) {
-            VLOG(INFO,"0x%04xh: 0x%08x 0x%08x 0x%08x 0x%08x\n", (VP5_REG_BASE + i),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i)),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 4 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 8 )),
-                vdi_fio_read_register(coreIdx, (VP5_REG_BASE + i + 12)));
-        }
-        VLOG(INFO,"[-] VCPU ENT DEC REG Dump\n");
+    if (PRODUCT_CODE_VP_SERIES(productCode)) {
+        vp5xx_vcpu_status(coreIdx);
         vp5xx_vcore_status(coreIdx);
+        vp5xx_bpu_status(coreIdx);
         VLOG(INFO,"-------------------------------------------------------------------------------\n");
     }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", productCode);
+    }
+}
+
+void ChekcAndPrintDebugInfo(VpuHandle handle, BOOL isEnc, RetCode result)
+{
+    if ( result == RETCODE_VPU_RESPONSE_TIMEOUT || result == RETCODE_ERROR_FW_FATAL ) {
+        VPUDebugInfo* DebugInfo;
+        if ( isEnc == TRUE )
+            VPU_EncGiveCommand(handle, GET_DEBUG_INFORM, &DebugInfo);
+        VLOG(ERR, "result=%x, priReason:%d \n", result, DebugInfo->priReason);
     }
 }

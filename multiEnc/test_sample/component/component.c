@@ -50,17 +50,17 @@ typedef struct ClockData {
     Uint64  lastClock;          /* in millisecond */
 } ClockData;
 
-/* 
+/*
  * component_list.h is generated in the makefiles.
  */
 #include "component_list.h"
 
-static void SetupSinkPort(ComponentImpl* component, ComponentImpl* connectedComponent) 
+static void SetupSinkPort(ComponentImpl* component, ComponentImpl* connectedComponent)
 {
     component->sinkPort.connectedComponent = (Component)connectedComponent;
 }
 
-static void SetupSrcPort(ComponentImpl* component, ComponentImpl* connectedComponent, Port sinkPort) 
+static void SetupSrcPort(ComponentImpl* component, ComponentImpl* connectedComponent, Port sinkPort)
 {
     Port* srcPort = &component->srcPort;
 
@@ -71,7 +71,7 @@ static void SetupSrcPort(ComponentImpl* component, ComponentImpl* connectedCompo
     component->usingQ = Queue_Create_With_Lock(srcPort->inputQ->size, srcPort->inputQ->itemSize);
 }
 
-Component ComponentCreate(const char* componentName, CNMComponentConfig* componentParam) 
+Component ComponentCreate(const char* componentName, CNMComponentConfig* componentParam)
 {
     ComponentImpl* instance = NULL;
     ComponentImpl* com;
@@ -94,7 +94,7 @@ Component ComponentCreate(const char* componentName, CNMComponentConfig* compone
     }
     else {
         Port*  port = &instance->sinkPort;
-        Uint32 size = instance->portSize;
+        Uint32 size = instance->containerSize;
         void*  data = osal_malloc(size);
 
         osal_memset((void*)data, 0x00, size);
@@ -118,7 +118,7 @@ Component ComponentCreate(const char* componentName, CNMComponentConfig* compone
     return (Component)instance;
 }
 
-BOOL ComponentSetupTunnel(Component fromComponent, Component toComponent) 
+BOOL ComponentSetupTunnel(Component fromComponent, Component toComponent)
 {
     ComponentImpl* src  = (ComponentImpl*)fromComponent;
     ComponentImpl* sink = (ComponentImpl*)toComponent;
@@ -146,7 +146,7 @@ BOOL ComponentSetupTunnel(Component fromComponent, Component toComponent)
     return TRUE;
 }
 
-void ComponentWaitState(Component component, ComponentState state) 
+void ComponentWaitState(Component component, ComponentState state)
 {
     ComponentImpl* imp = (ComponentImpl*)component;
 
@@ -169,7 +169,7 @@ static void WaitReturningPortData(ComponentImpl* com)
     }
 }
 
-Int32 ComponentWait(Component component) 
+Int32 ComponentWait(Component component)
 {
     ComponentImpl*  com = (ComponentImpl*)component;
     Int32           ret;
@@ -179,7 +179,7 @@ Int32 ComponentWait(Component component)
         return (com->state != COMPONENT_STATE_TERMINATED) ? 2 : 0;
     }
 
-    if ((ret=osal_thread_timedjoin(com->thread, (void**)&retval, 1)) == 0) {
+    if ((ret=osal_thread_timedjoin(com->thread, (void**)&retval, 100)) == 0) {
         com->thread = NULL;
         WaitReturningPortData(com);
     }
@@ -215,8 +215,8 @@ static BOOL HasPortData(ComponentImpl* com, PortContainer** in, PortContainer** 
         success = TRUE;
         break;
     }
-    if (*in)  (*in)->reuse  = FALSE;
-    if (*out) (*out)->reuse = FALSE;
+    if (*in)  (*in)->reuse  = TRUE;
+    if (*out) (*out)->reuse = TRUE;
 
     return success;
 }
@@ -239,7 +239,7 @@ static BOOL ReturnPortContainer(ComponentImpl* com, BOOL inputConsumed, BOOL has
     }
 
     if (doReturn) {
-        PortContainer* container; 
+        PortContainer* container;
         Uint32          i, numItems = Queue_Get_Cnt(com->usingQ);
         for (i=0; i<numItems; i++) {
             container=(PortContainer*)Queue_Dequeue(com->usingQ);
@@ -290,7 +290,6 @@ static BOOL Execute(ComponentImpl* com)
     PortContainer* in      = NULL;
     PortContainer* out     = NULL;
     BOOL            success = TRUE;
-    ComponentImpl*  sinkComponent;
 
     SendClockSignal(com);
 
@@ -298,7 +297,7 @@ static BOOL Execute(ComponentImpl* com)
         if ((success=com->Execute(com, in, out)) == FALSE) {
             com->terminate = TRUE;
         }
-        
+
         if (in && in->reuse == FALSE) {
             Queue_Enqueue(com->usingQ, (void*)in);
             // The "in" container still exists in a source port. It removes the container from the source port.
@@ -312,11 +311,8 @@ static BOOL Execute(ComponentImpl* com)
             // Send data to the sink component
             ComponentPortSetData(&com->sinkPort, out);
         }
-        // Return a consumed container to the source port. 
+        // Return a consumed container to the source port.
         ReturnPortContainer(com, (in && in->consumed), (out && out->reuse == FALSE));
-    }
-    else {
-        osal_msleep(2);
     }
 
     if (com->portFlush == TRUE) {
@@ -333,21 +329,15 @@ static BOOL Execute(ComponentImpl* com)
         com->portFlush = FALSE;
     }
 
-    /* Check if connected components are terminated */
-    sinkComponent = (ComponentImpl*)com->sinkPort.connectedComponent;
-    if (sinkComponent && sinkComponent->terminate == TRUE) {
-        /* I can't live without you */
-        com->terminate = TRUE;
-    }
-
     return success;
 }
 
 
 static void DoYourJob(ComponentImpl* com)
 {
-    BOOL            success; 
+    BOOL            success;
     BOOL            done = FALSE;
+    ComponentImpl*  sinkComponent;
 
     if (CNMErrorGet() == CNM_ERROR_HANGUP) {
         com->terminate = TRUE;
@@ -375,6 +365,12 @@ static void DoYourJob(ComponentImpl* com)
             com->terminate = TRUE;
         }
     }
+    /* Check if connected components are terminated */
+    sinkComponent = (ComponentImpl*)com->sinkPort.connectedComponent;
+    if (sinkComponent && sinkComponent->terminate == TRUE) {
+        com->terminate = TRUE;
+    }
+
     if (com->terminate == TRUE) {
         com->state = COMPONENT_STATE_TERMINATED;
     }
@@ -386,13 +382,13 @@ static void DoThreadWork(void* arg)
 
     while (com->terminate == FALSE) {
         DoYourJob(com);
-        osal_msleep(0);
+        osal_msleep(1); // To yield schedule
     }
 
     com->state = COMPONENT_STATE_TERMINATED;
 }
 
-ComponentState ComponentExecute(Component component) 
+ComponentState ComponentExecute(Component component)
 {
     ComponentImpl* com   = (ComponentImpl*)component;
 
@@ -427,7 +423,7 @@ void ComponentStop(Component component)
 void ComponentRelease(Component component)
 {
     ComponentImpl*  impl = (ComponentImpl*)component;
-    
+
     if (impl) {
         impl->Release(impl);
     }
@@ -435,7 +431,7 @@ void ComponentRelease(Component component)
     return;
 }
 
-BOOL ComponentDestroy(Component component, BOOL* ret) 
+BOOL ComponentDestroy(Component component, BOOL* ret)
 {
     ComponentImpl*  impl = (ComponentImpl*)component;
     BOOL            success;
@@ -466,9 +462,8 @@ static char* getParamName[GET_PARAM_MAX] = {
     "GET_PARAM_DEC_HANDLE",
     "GET_PARAM_DEC_CODEC_INFO",
     "GET_PARAM_DEC_BITSTREAM_BUF_POS",
-    "GET_PARAM_DEC_FRAME_BUF_STRIDE",
     "GET_PARAM_DEC_FRAME_BUF_NUM",
-    "GET_PARAM_DEC_QUEUE_STATUS",
+    "GET_PARAM_VPU_STATUS",
     "GET_PARAM_RENDERER_FRAME_BUF",
     "GET_PARAM_ENC_HANDLE",
     "GET_PARAM_ENC_FRAME_BUF_NUM",
@@ -477,7 +472,7 @@ static char* getParamName[GET_PARAM_MAX] = {
     "GET_PARAM_READER_BITSTREAM_BUF",
 };
 
-CNMComponentParamRet ComponentGetParameter(Component from, Component to, GetParameterCMD commandType, void* data) 
+CNMComponentParamRet ComponentGetParameter(Component from, Component to, GetParameterCMD commandType, void* data)
 {
     ComponentImpl* com = (ComponentImpl*)to;
     CNMComponentParamRet ret;
@@ -515,11 +510,11 @@ CNMComponentParamRet ComponentGetParameter(Component from, Component to, GetPara
     return ret;
 }
 
-void ComponentNotifyListeners(Component component, Uint32 event, void* data)
+void ComponentNotifyListeners(Component component, Uint64 event, void* data)
 {
     ComponentImpl*          com = (ComponentImpl*)component;
     Uint32                  i   = 0;
-    Uint32                  listeningEvents;
+    Uint64                  listeningEvents;
     void*                   context;
     ComponentListenerFunc   update  = NULL;
 
@@ -533,7 +528,7 @@ void ComponentNotifyListeners(Component component, Uint32 event, void* data)
     }
 }
 
-BOOL ComponentRegisterListener(Component component, Uint32 events, ComponentListenerFunc func, void* context)
+BOOL ComponentRegisterListener(Component component, Uint64 events, ComponentListenerFunc func, void* context)
 {
     ComponentImpl*  com = (ComponentImpl*)component;
     Uint32          num;
@@ -541,7 +536,7 @@ BOOL ComponentRegisterListener(Component component, Uint32 events, ComponentList
     if (com == NULL) return FALSE;
 
     num = com->numListeners;
-    
+
     if (num == MAX_NUM_LISTENERS) {
         VLOG(ERR, "%s:%d Failed to ComponentRegisterListener\n", __FUNCTION__, __LINE__);
         return FALSE;
@@ -555,7 +550,7 @@ BOOL ComponentRegisterListener(Component component, Uint32 events, ComponentList
     return TRUE;
 }
 
-CNMComponentParamRet ComponentSetParameter(Component from, Component to, SetParameterCMD commandType, void* data) 
+CNMComponentParamRet ComponentSetParameter(Component from, Component to, SetParameterCMD commandType, void* data)
 {
     ComponentImpl* com = (ComponentImpl*)to;
 
@@ -590,11 +585,6 @@ CNMComponentParamRet ComponentSetParameter(Component from, Component to, SetPara
     }
 
     return CNM_COMPONENT_PARAM_SUCCESS;
-}
-
-void ComponentSetPortListener(Component component, ListenerFuncType func)
-{
-    VLOG(ERR, "%s NOT IMPLEMENTED YET!!!\n", __FUNCTION__);
 }
 
 void ComponentPortCreate(Port* port, Component owner, Uint32 depth, Uint32 size)
@@ -693,6 +683,20 @@ ComponentState ComponentGetState(Component component)
     }
 
     return com->state;
+}
+
+BOOL ComponentChangeState(Component component, Uint32 state)
+{
+    ComponentImpl* com = (ComponentImpl*)component;
+
+    if (NULL != com) {
+        if (COMPONENT_STATE_NONE < state && COMPONENT_STATE_MAX > state) {
+            com->state = (ComponentState)state;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
 /* return TRUE  - Go next step

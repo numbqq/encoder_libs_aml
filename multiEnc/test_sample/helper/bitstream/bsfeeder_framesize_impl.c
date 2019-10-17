@@ -138,20 +138,21 @@ static BOOL VP9ParseSuperframe(
 }
 
 static Int32 BuildSeqHeader(
-    Uint8*        pbHeader, 
-    const CodStd    codStd, 
-    const AVStream* st, 
+    Uint8*        pbHeader,
+    const CodStd    codStd,
+    const AVStream* st,
     Int32*        sizelength
     )
 {
     /*lint -save -e438 */
-    AVCodecContext* avc = st->codec;
+    AVCodecParameters* avc = st->codecpar;
+
     Uint8*        pbMetaData = avc->extradata;
     Int32         nMetaData = avc->extradata_size;
     Uint8* p =    pbMetaData;
     Uint8 *a =    p + 4 - ((long) p & 3);
-    Uint8* t =    pbHeader;	
-    Int32         size; 
+    Uint8* t =    pbHeader;
+    Int32         size;
     Int32         fourcc;
     Int32         sps, pps, i, nal;
     Int32         frameRate = 0;
@@ -197,7 +198,7 @@ static Int32 BuildSeqHeader(
             }
         }
         else if(nMetaData > 3) {
-            size = -1;// return to meaning of invalid stream data;		
+            size = -1;// return to meaning of invalid stream data;
             for (; p < a; p++) {
                 if (p[0] == 0 && p[1] == 0 && p[2] == 1)  {
                     // find startcode
@@ -207,7 +208,7 @@ static Int32 BuildSeqHeader(
                     PUT_BUFFER(pbHeader, pbMetaData, size);
                     break;
                 }
-            }	
+            }
         }
     }
     else if (codStd == STD_HEVC) {
@@ -231,10 +232,10 @@ static Int32 BuildSeqHeader(
                     nalUnitLength = (*p << 8) + *(p + 1);
                     p+=2;
                     //if(i == 0)
-                    {	
+                    {
                         osal_memcpy(pbHeader + offset, nalu_header, 4);
                         offset += 4;
-                        osal_memcpy(pbHeader + offset, p, nalUnitLength);	
+                        osal_memcpy(pbHeader + offset, p, nalUnitLength);
                         offset += nalUnitLength;
                     }
                     p += nalUnitLength;
@@ -245,7 +246,7 @@ static Int32 BuildSeqHeader(
         }
         else if(nMetaData > 3)
         {
-            size = -1;// return to meaning of invalid stream data;		
+            size = -1;// return to meaning of invalid stream data;
 
             for (; p < a; p++)
             {
@@ -257,7 +258,7 @@ static Int32 BuildSeqHeader(
                     PUT_BUFFER(pbHeader, pbMetaData, size);
                     break;
                 }
-            }	
+            }
         }
     }
     else if (codStd == STD_VC1)
@@ -271,7 +272,7 @@ static Int32 BuildSeqHeader(
             //if there is no seq startcode in pbMetatData. VPU will be failed at seq_init stage.
         }
         else
-        {	
+        {
 #ifdef RCV_V2
             PUT_LE32(pbHeader, ((0xC5 << 24)|0));
             size += 4; //version
@@ -289,7 +290,7 @@ static Int32 BuildSeqHeader(
             size += 4; // STRUCT_B_FRIST (LEVEL:3|CBR:1:RESERVE:4:HRD_BUFFER|24)
             PUT_LE32(pbHeader, avc->bit_rate);
             size += 4; // hrd_rate
-            PUT_LE32(pbHeader, frameRate);            
+            PUT_LE32(pbHeader, frameRate);
             size += 4; // frameRate
 #else	//RCV_V1
             PUT_LE32(pbHeader, (0x85 << 24) | 0x00);
@@ -341,7 +342,7 @@ static Int32 BuildSeqHeader(
             PUT_LE32(pbHeader, st->avg_frame_rate.den);      //time scale(?)
             PUT_LE32(pbHeader, st->nb_index_entries);      //number of frames in file
             PUT_LE32(pbHeader, 0); //unused
-            size += 32;		
+            size += 32;
             return size;
         }
 
@@ -378,20 +379,21 @@ static Int32 BuildSeqHeader(
 }
 
 static Int32 BuildPicHeader(
-    Uint8*        pbHeader, 
-    const CodStd    codStd, 
-    const AVStream* st, 
-    const AVPacket* pkt, 
+    Uint8*        pbHeader,
+    const CodStd    codStd,
+    const AVStream* st,
+    const AVPacket* pkt,
     Int32         sizelength
     )
 {
-    AVCodecContext* avc = st->codec;
+    AVCodecParameters* avc = st->codecpar;
+    Int64         frame_number = st->nb_frames;
     Uint8*        pbChunk = pkt->data;
     Int32         size = 0;
     Int32         fourcc;
     Int32         cSlice, nSlice;
     Int32         i, val, offset;
-    BOOL            hasStartCode = 0;
+    BOOL          hasStartCode = 0;
 
     size = 0;
     offset = 0;
@@ -409,7 +411,7 @@ static Int32 BuildPicHeader(
                 pbHeader[0] = 0x00;
                 pbHeader[1] = 0x00;
                 pbHeader[2] = 0x01;
-                pbHeader[3] = 0x0D;	// replace to the correct picture header to indicate as frame				
+                pbHeader[3] = 0x0D;	// replace to the correct picture header to indicate as frame
 
                 size += 4;
             }
@@ -444,7 +446,7 @@ static Int32 BuildPicHeader(
             }
         }
 
-        if ((!hasStartCode && avc->extradata[0] == 0x01) || 
+        if ((!hasStartCode && avc->extradata[0] == 0x01) ||
             (avc->extradata_size > 1 && avc->extradata && avc->extradata[0] == 0x01)) {
             // check sequence metadata if the stream is mov/mo4 file format.
             pbChunk = pkt->data;
@@ -480,7 +482,7 @@ static Int32 BuildPicHeader(
                 }
 
                 offset += nSlice;
-            }			
+            }
         }
     }
     else if (codStd == STD_RV) {
@@ -503,7 +505,7 @@ static Int32 BuildPicHeader(
             PUT_LE32(pbHeader, (int)((double)(pkt->pts/st->time_base.den))); // milli_sec
         }
 
-        PUT_BE16(pbHeader, avc->frame_number);
+        PUT_BE16(pbHeader, frame_number);
         PUT_BE16(pbHeader, 0x02); //Flags
         PUT_BE32(pbHeader, 0x00); //LastPacket
         PUT_BE32(pbHeader, cSlice); //NumSegments
@@ -535,7 +537,7 @@ static Int32 BuildPicHeader(
             }
         }
 
-        if ((!hasStartCode && avc->extradata[0] == 0x01) || 
+        if ((!hasStartCode && avc->extradata[0] == 0x01) ||
             (avc->extradata_size > 1 && avc->extradata && avc->extradata[0] == 0x01)) {
             // check sequence metadata if the stream is mov/mo4 file format.
             pbChunk = pkt->data;
@@ -567,7 +569,7 @@ static Int32 BuildPicHeader(
                 }
 
                 offset += nSlice;
-            }			
+            }
         }
     }
     else if(codStd == STD_AVS) {
@@ -610,10 +612,10 @@ static Int32 BuildPicHeader(
                 }
 
                 offset += nSlice;
-            }			
+            }
         }
     }
-    else if (codStd == STD_DIV3 || codStd == STD_VP8 || codStd == STD_VP9) {
+    else if (codStd == STD_DIV3 || codStd == STD_VP8) {
         PUT_LE32(pbHeader,pkt->size);
         PUT_LE32(pbHeader,0);
         PUT_LE32(pbHeader,0);
@@ -627,7 +629,7 @@ static Int32 MakeupTheoraPacket(
     tho_parser_t*   theora,
     BSChunk*        packet,
     AVPacket*       avPacket,
-    Uint32        seqSize 
+    Uint32        seqSize
     )
 {
     size_t size;
@@ -653,9 +655,9 @@ void* BSFeederFrameSize_Create(
     )
 {
     /*lint -esym(438, avContext) */
-    FeederFrameContext*    ffmpegReader = NULL;
-    AVFormatContext*  avContext    = NULL;
-    AVCodecContext*   codec        = NULL;
+    FeederFrameContext* ffmpegReader = NULL;
+    AVFormatContext*    avContext    = NULL;
+    AVCodecParameters*  codec        = NULL;
     AVInputFormat*    fmt          = NULL;
     Int32             error;
     Int32             videoIndex;
@@ -665,7 +667,6 @@ void* BSFeederFrameSize_Create(
 
     vdi_lock(0);
     if (initFFmpeg == FALSE) {
-        av_register_all();
         initFFmpeg = TRUE;
     }
     vdi_unlock(0);
@@ -674,7 +675,7 @@ void* BSFeederFrameSize_Create(
         return NULL;
     }
 
-    avContext->flags |= CODEC_FLAG_TRUNCATED;
+    avContext->flags |= AV_CODEC_FLAG_TRUNCATED;
     if ((error=avformat_open_input(&avContext, path, fmt, NULL))) {
         VLOG(ERR, "%s:%d failed to av_open_input_file error(%d), %s\n",
              __FILE__, __LINE__, error, path);
@@ -693,14 +694,14 @@ void* BSFeederFrameSize_Create(
         goto __failed_to_end;
     }
 
-    codec = avContext->streams[videoIndex]->codec;
+    codec = avContext->streams[videoIndex]->codecpar;
     standard = ConvFOURCCToCodStd(codec->codec_tag);
 
-    if (standard == -1) 
+    if (standard == -1)
         standard = ConvCodecIdToCodStd(codec->codec_id);
 
     mp4ClassId = ConvFOURCCToMp4Class(codec->codec_tag);
-    if (mp4ClassId == (Uint32)-1) 
+    if (mp4ClassId == (Uint32)-1)
         mp4ClassId = ConvCodecIdToMp4Class(codec->codec_id);
 
     if (standard != STD_MPEG4) {
@@ -714,8 +715,6 @@ void* BSFeederFrameSize_Create(
     ffmpegReader->mp4ClassId    = mp4ClassId;
     ffmpegReader->avContext     = avContext;
     ffmpegReader->videoIndex    = videoIndex;
-    ffmpegReader->seqWidth      = codec->width;
-    ffmpegReader->seqHeight     = codec->height;
     ffmpegReader->isFirstPacket = TRUE;
     ffmpegReader->tempBuffer    = NULL;
     ffmpegReader->tempRdPtr     = 0;
@@ -739,7 +738,7 @@ __failed_to_end:
 
     if (ffmpegReader) {
 #ifdef SUPPORT_LIB_THEORA
-        if (ffmpegReader->theora) 
+        if (ffmpegReader->theora)
             ffmpegReader->theora->close(ffmpegReader->theora);
 #endif /* SUPPORT_LIB_THEORA */
         osal_free(ffmpegReader);
@@ -841,19 +840,19 @@ Int32 BSFeederFrameSize_Act(
                 return 0;
             }
             else {
-                VLOG(ERR, "%s:%d failed to av_read_frame error(0x%08x)\n", 
+                VLOG(ERR, "%s:%d failed to av_read_frame error(0x%08x)\n",
                     __FUNCTION__, __LINE__, error);
                 goto __end_read;
             }
-        } 
+        }
 
-        if (avpacket.stream_index != ffmpegReader->videoIndex) 
+        if (avpacket.stream_index != ffmpegReader->videoIndex)
             continue;
 
         break;
     }
 
-    if (avpacket.size == 0) 
+    if (avpacket.size == 0)
         return 0;
 
     if (avpacket.size >= (signed)packet->size )
@@ -861,15 +860,15 @@ Int32 BSFeederFrameSize_Act(
         VLOG(ERR, "one packet size(%d) is bigger than STREAM_BUF_SIZE(%d)\n", avpacket.size, packet->size);
         return -1;
     }
-   
+
     osal_memset(packet->data, 0x00, packet->size);
 
     vindex = ffmpegReader->videoIndex;
 
     if (ffmpegReader->isFirstPacket) {
-        AVCodecContext* codec;
+        AVCodecParameters* codec;
 
-        codec = ffmpegReader->avContext->streams[vindex]->codec;
+        codec = ffmpegReader->avContext->streams[vindex]->codecpar;
         seqHeader = (Uint8*)osal_malloc(codec->extradata_size + 1024);
         if (seqHeader == NULL) {
             goto __end_read;
@@ -970,14 +969,14 @@ Int32 BSFeederFrameSize_Act(
         break;
     }
 
-    if (avFormatContext->pb->eof_reached && avFormatContext->packet_buffer == NULL) {
+    if (avFormatContext->pb->eof_reached && avpacket.size <= 0) {
         packet->eos = TRUE;
     }
 
     // Sequence header data should be only one chunk data unit.
     // In case of RV, 1st chunk should be Sequence header + 1st frame.
-    if (ffmpegReader->standard != STD_VP9 && ffmpegReader->standard != STD_RV) {
-        if (seqHeaderSize > 0) { 
+    if (ffmpegReader->standard != STD_VP9 && ffmpegReader->standard != STD_RV && ffmpegReader->standard != STD_VP8) {
+        if (seqHeaderSize > 0) {
             ffmpegReader->tempBuffer = (Uint8*)osal_malloc(packetSize);
             if (!ffmpegReader->tempBuffer)
                 goto __end_read;
@@ -1008,7 +1007,7 @@ Int32 BSFeederFrameSize_Act(
     }
 
 __end_read:
-    av_free_packet(&avpacket);
+    av_packet_unref(&avpacket);
 
     if (picHeader)
         osal_free(picHeader);
@@ -1044,6 +1043,17 @@ BOOL BSFeederFrameSize_Rewind(
     }
 
     return TRUE;
+}
+
+Int32 BSFeederFrameSize_GetStandard(
+    void* feeder
+    )
+{
+    FeederFrameContext*      ffmpegReader = (FeederFrameContext*)feeder;
+    if (NULL != ffmpegReader) {
+        return ffmpegReader->standard;
+    }
+    return -1;
 }
 #else
 void* BSFeederFrameSize_Create(
@@ -1091,6 +1101,16 @@ BOOL BSFeederFrameSize_Rewind(
 
     return FALSE;
 
+}
+
+Int32 BSFeederFrameSize_GetStandard(
+    void* feeder
+    )
+{
+    UNREFERENCED_PARAMETER(feeder);
+    VLOG(ERR, "PLEASE PORT THIS %s ON YOUR ANDROID SYSTEM\n", __FUNCTION__);
+
+    return -1;
 }
 #endif /* SUPPORT_FFMPEG_DEMUX */
 

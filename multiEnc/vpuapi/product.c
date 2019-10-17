@@ -34,11 +34,13 @@
 #include "enc_driver.h"
 #include "vdi_osal.h"
 
+
 VpuAttr g_VpuCoreAttributes[MAX_NUM_VPU_CORE];
 
 static Int32 s_ProductIds[MAX_NUM_VPU_CORE] = {
     PRODUCT_ID_NONE,
 };
+
 
 typedef struct FrameBufInfoStruct {
     Uint32 unitSizeHorLuma;
@@ -75,9 +77,9 @@ Int32 ProductVpuGetId(Uint32 coreIdx)
 }
 
 RetCode ProductVpuGetVersion(
-    Uint32  coreIdx, 
-    Uint32* versionInfo, 
-    Uint32* revision 
+    Uint32  coreIdx,
+    Uint32* versionInfo,
+    Uint32* revision
     )
 {
     Int32   productId = s_ProductIds[coreIdx];
@@ -85,9 +87,7 @@ RetCode ProductVpuGetVersion(
 
     switch (productId) {
     case PRODUCT_ID_512:
-    case PRODUCT_ID_520:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuGetVersion(coreIdx, versionInfo, revision);
@@ -100,8 +100,8 @@ RetCode ProductVpuGetVersion(
 }
 
 RetCode ProductVpuGetProductInfo(
-    Uint32  coreIdx, 
-    ProductInfo* productInfo 
+    Uint32  coreIdx,
+    VpuAttr* attr
     )
 {
     Int32   productId = s_ProductIds[coreIdx];
@@ -110,11 +110,9 @@ RetCode ProductVpuGetProductInfo(
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
-        ret = Vp5VpuGetProductInfo(coreIdx, productInfo);
+        osal_memcpy((void*)attr, (void*)&g_VpuCoreAttributes[coreIdx], sizeof(VpuAttr));
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -125,7 +123,7 @@ RetCode ProductVpuGetProductInfo(
 
 RetCode ProductVpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
 {
-    RetCode ret = RETCODE_SUCCESS; 
+    RetCode ret = RETCODE_SUCCESS;
     int     productId;
 
     productId  = s_ProductIds[coreIdx];
@@ -133,8 +131,6 @@ RetCode ProductVpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuInit(coreIdx, firmware, size);
@@ -148,7 +144,7 @@ RetCode ProductVpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
 
 RetCode ProductVpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
 {
-    RetCode ret = RETCODE_SUCCESS; 
+    RetCode ret = RETCODE_SUCCESS;
     int     productId;
 
     productId  = s_ProductIds[coreIdx];
@@ -156,8 +152,6 @@ RetCode ProductVpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuReInit(coreIdx, firmware, size);
@@ -184,8 +178,6 @@ Uint32 ProductVpuIsInit(Uint32 coreIdx)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         pc = Vp5VpuIsInit(coreIdx);
@@ -205,8 +197,6 @@ Int32 ProductVpuIsBusy(Uint32 coreIdx)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         busy = Vp5VpuIsBusy(coreIdx);
@@ -229,8 +219,6 @@ Int32 ProductVpuWaitInterrupt(CodecInst *instance, Int32 timeout)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         flag = Vp5VpuWaitInterrupt(instance, timeout, FALSE);
@@ -253,8 +241,6 @@ RetCode ProductVpuReset(Uint32 coreIdx, SWResetMode resetMode)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuReset(coreIdx, resetMode);
@@ -277,8 +263,6 @@ RetCode ProductVpuSleepWake(Uint32 coreIdx, int iSleepWake, const Uint16* code, 
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuSleepWake(coreIdx, iSleepWake, (void*)code, size, FALSE);
@@ -297,8 +281,6 @@ RetCode ProductVpuClearInterrupt(Uint32 coreIdx, Uint32 flags)
     switch (productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = Vp5VpuClearInterrupt(coreIdx, flags);
@@ -308,20 +290,19 @@ RetCode ProductVpuClearInterrupt(Uint32 coreIdx, Uint32 flags)
     return ret;
 }
 
-RetCode ProductVpuEncUpdateBitstreamBuffer(CodecInst* instance)
+RetCode ProductVpuEncUpdateBitstreamBuffer(CodecInst* instance, Int32 size)
 {
     Int32   productId;
     Uint32  coreIdx;
+    BOOL    updateNewbsBuf = (BOOL)(size == 0);
     RetCode ret = RETCODE_SUCCESS;
 
     coreIdx   = instance->coreIdx;
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
-        ret = Vp5VpuEncUpdateBS(instance);
+        ret = Vp5VpuEncUpdateBS(instance, updateNewbsBuf);
         break;
     default:
         ret = RETCODE_NOT_FOUND_VPU_DEVICE;
@@ -341,8 +322,6 @@ RetCode ProductVpuEncGetRdWrPtr(CodecInst* instance, PhysicalAddress* rdPtr, Phy
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncGetRdWrPtr(instance, rdPtr, wrPtr);
         if (ret != RETCODE_SUCCESS) {
@@ -374,8 +353,6 @@ RetCode ProductVpuEncBuildUpOpenParam(CodecInst* pCodec, EncOpenParam* param)
     productId = s_ProductIds[coreIdx];
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuBuildUpEncParam(pCodec, param);
         break;
@@ -405,13 +382,13 @@ RetCode ProductVpuAllocateFramebuffer(
     Uint32          sizeLuma;
     Uint32          sizeChroma;
     RetCode         ret           = RETCODE_SUCCESS;
-    
+
     osal_memset((void*)&vbFrame, 0x00, sizeof(vpu_buffer_t));
     osal_memset((void*)&fbInfo,  0x00, sizeof(FrameBufInfo));
 
     DRAMConfig* bufferConfig = NULL;
-    sizeLuma   = CalcLumaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
-    sizeChroma = CalcChromaSize(inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
+    sizeLuma   = CalcLumaSize(inst, inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
+    sizeChroma = CalcChromaSize(inst, inst->productId, stride, height, format, cbcrInterleave, mapType, bufferConfig);
 
     // Framebuffer common informations
     for (i=0; i<num; i++) {
@@ -422,14 +399,14 @@ RetCode ProductVpuAllocateFramebuffer(
             fbArr[i].height         = height;
             fbArr[i].mapType        = mapType;
             fbArr[i].format         = format;
-            fbArr[i].cbcrInterleave = (mapType == COMPRESSED_FRAME_MAP ? TRUE : cbcrInterleave);
+            fbArr[i].cbcrInterleave = (mapType >= COMPRESSED_FRAME_MAP ? TRUE : cbcrInterleave);
             fbArr[i].nv21           = nv21;
-            fbArr[i].endian         = (mapType == COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
+            fbArr[i].endian         = (mapType >= COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
             fbArr[i].lumaBitDepth   = pDecInfo->initialInfo.lumaBitdepth;
             fbArr[i].chromaBitDepth = pDecInfo->initialInfo.chromaBitdepth;
             fbArr[i].sourceLBurstEn = FALSE;
             if(inst->codecMode == W_HEVC_ENC || inst->codecMode == W_SVAC_ENC || inst->codecMode == W_AVC_ENC) {
-                fbArr[i].endian         = (mapType == COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
+                fbArr[i].endian         = (mapType >= COMPRESSED_FRAME_MAP ? VDI_128BIT_LITTLE_ENDIAN : endian);
                 fbArr[i].lumaBitDepth   = pEncInfo->openParam.EncStdParam.vpParam.internalBitDepth;
                 fbArr[i].chromaBitDepth = pEncInfo->openParam.EncStdParam.vpParam.internalBitDepth;
             }
@@ -466,12 +443,11 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
     FrameBuffer*    fb;
     Int32           gdiIndex = 0;
     EncInfo*        pEncInfo = &instance->CodecInfo->encInfo;
-
     switch (instance->productId) {
     default:
         {
             // ENCODER
-            if (pEncInfo->mapType != COMPRESSED_FRAME_MAP)
+            if (pEncInfo->mapType < COMPRESSED_FRAME_MAP)
                 return RETCODE_NOT_SUPPORTED_FEATURE;
 
             fb = pEncInfo->frameBufPool;
@@ -490,13 +466,17 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
     }
     return ret;
 }
-Int32 ProductCalculateFrameBufSize(Int32 productId, Int32 stride, Int32 height, TiledMapType mapType, FrameBufferFormat format, BOOL interleave, DRAMConfig* pDramCfg)
+Int32 ProductCalculateFrameBufSize(CodecInst* inst, Int32 productId, Int32 stride, Int32 height, TiledMapType mapType, FrameBufferFormat format, BOOL interleave, DRAMConfig* pDramCfg)
 {
     Int32 size_dpb_lum, size_dpb_chr, size_dpb_all;
 
-    size_dpb_lum = CalcLumaSize(productId, stride, height, format, interleave, mapType, pDramCfg);
-    size_dpb_chr = CalcChromaSize(productId, stride, height, format, interleave, mapType, pDramCfg);
-    size_dpb_all = size_dpb_lum + size_dpb_chr*2;
+    size_dpb_lum = CalcLumaSize(inst, productId, stride, height, format, interleave, mapType, pDramCfg);
+    size_dpb_chr = CalcChromaSize(inst, productId, stride, height, format, interleave, mapType, pDramCfg);
+
+    if (mapType < COMPRESSED_FRAME_MAP)
+        size_dpb_all = size_dpb_lum + size_dpb_chr*2;
+    else
+        size_dpb_all = size_dpb_lum + size_dpb_chr;
 
     return size_dpb_all;
 }
@@ -542,19 +522,39 @@ RetCode ProductVpuGetBandwidth(CodecInst* instance, VPUBWData* data)
 {
     if (data == 0) {
         return RETCODE_INVALID_PARAM;
-    }                
+    }
 
-    if (instance->productId < PRODUCT_ID_520)
+    if (instance->productId < PRODUCT_ID_512)
         return RETCODE_INVALID_COMMAND;
 
     return Vp5VpuGetBwReport(instance, data);
 }
 
 
+RetCode ProductVpuGetDebugInfo(CodecInst* instance, VPUDebugInfo* info)
+{
+    if (info == 0) {
+        return RETCODE_INVALID_PARAM;
+    }
+
+    if (instance->productId < PRODUCT_ID_512)
+        return RETCODE_INVALID_COMMAND;
+
+    return Vp5VpuGetDebugInfo(instance, info);
+}
+
 
 /************************************************************************/
 /* ENCODER                                                              */
 /************************************************************************/
+RetCode ProductVpuGetSrcBufFlag(CodecInst* instance, Uint32* flag)
+{
+    if (instance->productId < PRODUCT_ID_521)
+        return RETCODE_INVALID_COMMAND;
+
+    return Vp5VpuGetSrcBufFlag(instance, flag);
+}
+
 RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
 {
     Int32       coreIdx;
@@ -563,19 +563,25 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
     Int32       productId;
     VpuAttr*    pAttr;
 
-    if (pop == 0) 
+    if (pop == 0)
         return RETCODE_INVALID_PARAM;
 
-    if (pop->coreIdx > MAX_NUM_VPU_CORE) 
+    if (pop->coreIdx > MAX_NUM_VPU_CORE)
         return RETCODE_INVALID_PARAM;
 
     coreIdx   = pop->coreIdx;
     picWidth  = pop->picWidth;
-    picHeight = pop->picHeight;    
+    picHeight = pop->picHeight;
     productId = s_ProductIds[coreIdx];
     pAttr     = &g_VpuCoreAttributes[coreIdx];
 
-    if ((pAttr->supportEncoders&(1<<pop->bitstreamFormat)) == 0) 
+    if ( pop->bitstreamFormat == STD_AVC && pop->srcBitDepth == 10 && pAttr->supportAVC10bitEnc != TRUE )
+        return RETCODE_NOT_SUPPORTED_FEATURE;
+
+    if ( pop->bitstreamFormat == STD_HEVC && pop->srcBitDepth == 10 && pAttr->supportHEVC10bitEnc != TRUE )
+        return RETCODE_NOT_SUPPORTED_FEATURE;
+
+    if ((pAttr->supportEncoders&(1<<pop->bitstreamFormat)) == 0)
         return RETCODE_NOT_SUPPORTED_FEATURE;
 
     if (pop->ringBufferEnable == TRUE) {
@@ -583,45 +589,45 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             return RETCODE_INVALID_PARAM;
         }
 
-        if (productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521) {
+        if (productId == PRODUCT_ID_521) {
             if (pop->bitstreamBuffer % 16)
                 return RETCODE_INVALID_PARAM;
         }
 
-        if (productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521) {
+        if (productId == PRODUCT_ID_521) {
             if (pop->bitstreamBufferSize < (1024*64)) {
                 return RETCODE_INVALID_PARAM;
             }
         }
 
-        if (pop->bitstreamBufferSize % 1024 || pop->bitstreamBufferSize < 1024) 
+        if (pop->bitstreamBufferSize % 1024 || pop->bitstreamBufferSize < 1024)
             return RETCODE_INVALID_PARAM;
     }
 
-    if (pop->frameRateInfo == 0) 
+    if (pop->frameRateInfo == 0)
         return RETCODE_INVALID_PARAM;
 
     if (pop->bitstreamFormat == STD_AVC) {
         if (productId == PRODUCT_ID_980) {
-            if (pop->bitRate > 524288 || pop->bitRate < 0) 
+            if (pop->bitRate > 524288 || pop->bitRate < 0)
                 return RETCODE_INVALID_PARAM;
         }
     }
     else if (pop->bitstreamFormat == STD_HEVC || pop->bitstreamFormat == STD_SVAC) {
-        if (productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521) {
-            if (pop->bitRate > 700000000 || pop->bitRate < 0) 
+        if ( productId == PRODUCT_ID_521) {
+            if (pop->bitRate > 700000000 || pop->bitRate < 0)
                 return RETCODE_INVALID_PARAM;
         }
     }
     else {
-        if (pop->bitRate > 32767 || pop->bitRate < 0) 
+        if (pop->bitRate > 32767 || pop->bitRate < 0)
             return RETCODE_INVALID_PARAM;
     }
 
     if (pop->frameSkipDisable != 0 && pop->frameSkipDisable != 1)
         return RETCODE_INVALID_PARAM;
 
-    if (pop->sliceMode.sliceMode != 0 && pop->sliceMode.sliceMode != 1) 
+    if (pop->sliceMode.sliceMode != 0 && pop->sliceMode.sliceMode != 1)
         return RETCODE_INVALID_PARAM;
 
     if (pop->sliceMode.sliceMode == 1) {
@@ -633,13 +639,13 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
         }
     }
 
-    if (pop->intraRefreshNum < 0) 
+    if (pop->intraRefreshNum < 0)
         return RETCODE_INVALID_PARAM;
 
-    if (pop->MEUseZeroPmv != 0 && pop->MEUseZeroPmv != 1) 
+    if (pop->MEUseZeroPmv != 0 && pop->MEUseZeroPmv != 1)
         return RETCODE_INVALID_PARAM;
 
-    if (pop->intraCostWeight < 0 || pop->intraCostWeight >= 65535) 
+    if (pop->intraCostWeight < 0 || pop->intraCostWeight >= 65535)
         return RETCODE_INVALID_PARAM;
 
     if (productId == PRODUCT_ID_980) {
@@ -648,10 +654,10 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
         }
         if (pop->MESearchRangeY < 0 || pop->MESearchRangeY > 3) {
             return RETCODE_INVALID_PARAM;
-        }        
+        }
     }
     else {
-        if (pop->MESearchRange < 0 || pop->MESearchRange >= 4) 
+        if (pop->MESearchRange < 0 || pop->MESearchRange >= 4)
             return RETCODE_INVALID_PARAM;
     }
 
@@ -709,28 +715,28 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
 
         EncAvcParam* param     = &pop->EncStdParam.avcParam;
 
-        if (param->constrainedIntraPredFlag != 0 && param->constrainedIntraPredFlag != 1) 
+        if (param->constrainedIntraPredFlag != 0 && param->constrainedIntraPredFlag != 1)
             return RETCODE_INVALID_PARAM;
-        if (param->disableDeblk != 0 && param->disableDeblk != 1 && param->disableDeblk != 2) 
+        if (param->disableDeblk != 0 && param->disableDeblk != 1 && param->disableDeblk != 2)
             return RETCODE_INVALID_PARAM;
-        if (param->deblkFilterOffsetAlpha < -6 || 6 < param->deblkFilterOffsetAlpha) 
+        if (param->deblkFilterOffsetAlpha < -6 || 6 < param->deblkFilterOffsetAlpha)
             return RETCODE_INVALID_PARAM;
-        if (param->deblkFilterOffsetBeta < -6 || 6 < param->deblkFilterOffsetBeta) 
+        if (param->deblkFilterOffsetBeta < -6 || 6 < param->deblkFilterOffsetBeta)
             return RETCODE_INVALID_PARAM;
-        if (param->chromaQpOffset < -12 || 12 < param->chromaQpOffset) 
+        if (param->chromaQpOffset < -12 || 12 < param->chromaQpOffset)
             return RETCODE_INVALID_PARAM;
-        if (param->audEnable != 0 && param->audEnable != 1) 
+        if (param->audEnable != 0 && param->audEnable != 1)
             return RETCODE_INVALID_PARAM;
-        if (param->frameCroppingFlag != 0 &&param->frameCroppingFlag != 1) 
+        if (param->frameCroppingFlag != 0 &&param->frameCroppingFlag != 1)
             return RETCODE_INVALID_PARAM;
         if (param->frameCropLeft & 0x01 || param->frameCropRight & 0x01 ||
             param->frameCropTop & 0x01  || param->frameCropBottom & 0x01) {
                 return RETCODE_INVALID_PARAM;
         }
 
-        if (picWidth < MIN_ENC_PIC_WIDTH || picWidth > MAX_ENC_PIC_WIDTH ) 
+        if (picWidth < MIN_ENC_PIC_WIDTH || picWidth > MAX_ENC_PIC_WIDTH )
             return RETCODE_INVALID_PARAM;
-        if (picHeight < MIN_ENC_PIC_HEIGHT) 
+        if (picHeight < MIN_ENC_PIC_HEIGHT)
             return RETCODE_INVALID_PARAM;
     }
     else if (pop->bitstreamFormat == STD_HEVC || pop->bitstreamFormat == STD_SVAC || (pop->bitstreamFormat == STD_AVC && productId == PRODUCT_ID_521)) {
@@ -745,8 +751,12 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
         if (picHeight < VP_MIN_ENC_PIC_HEIGHT || picHeight > VP_MAX_ENC_PIC_HEIGHT)
             return RETCODE_INVALID_PARAM;
 
-        if (param->profile != HEVC_PROFILE_MAIN && param->profile != HEVC_PROFILE_MAIN10 && param->profile != HEVC_PROFILE_STILLPICTURE)
-            return RETCODE_INVALID_PARAM;
+        if (pop->bitstreamFormat == STD_HEVC) { // only for HEVC condition
+            if (param->profile != HEVC_PROFILE_MAIN && param->profile != HEVC_PROFILE_MAIN10 && param->profile != HEVC_PROFILE_STILLPICTURE)
+                return RETCODE_INVALID_PARAM;
+            if (param->internalBitDepth > 8 && param->profile == HEVC_PROFILE_MAIN)
+                return RETCODE_INVALID_PARAM;
+        }
 
         if (param->internalBitDepth != 8 && param->internalBitDepth != 10)
             return RETCODE_INVALID_PARAM;
@@ -768,9 +778,8 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
                 return RETCODE_INVALID_PARAM;
         }
 
-
         if (pop->bitstreamFormat == STD_AVC) {
-            if (param->customLambdaEnable == 1) 
+            if (param->customLambdaEnable == 1)
                 return RETCODE_INVALID_PARAM;
         }
         if (param->constIntraPredFlag != 1 && param->constIntraPredFlag != 0)
@@ -778,7 +787,6 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
 
         if (param->intraRefreshMode < 0 || param->intraRefreshMode > 4)
             return RETCODE_INVALID_PARAM;
-        
 
         if (pop->bitstreamFormat == STD_HEVC) {
             if (param->independSliceMode < 0 || param->independSliceMode > 1)
@@ -789,16 +797,15 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
                     return RETCODE_INVALID_PARAM;
             }
         }
-        
 
-        if (param->useRecommendEncParam < 0 && param->useRecommendEncParam > 3) 
+        if (param->useRecommendEncParam < 0 && param->useRecommendEncParam > 3)
             return RETCODE_INVALID_PARAM;
 
         if (param->useRecommendEncParam == 0 || param->useRecommendEncParam == 2 || param->useRecommendEncParam == 3) {
 
             if (param->intraNxNEnable != 1 && param->intraNxNEnable != 0)
                 return RETCODE_INVALID_PARAM;
-            
+
             if (param->skipIntraTrans != 1 && param->skipIntraTrans != 0)
                 return RETCODE_INVALID_PARAM;
 
@@ -812,7 +819,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
                 return RETCODE_INVALID_PARAM;
 
             if (param->useRecommendEncParam != 3) {     // in FAST mode (recommendEncParam==3), maxNumMerge value will be decided in FW
-                if (param->maxNumMerge < 0 || param->maxNumMerge > 3) 
+                if (param->maxNumMerge < 0 || param->maxNumMerge > 3)
                     return RETCODE_INVALID_PARAM;
             }
 
@@ -833,73 +840,73 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             }
         }
 
-        if (param->losslessEnable != 1 && param->losslessEnable != 0) 
+        if (param->losslessEnable != 1 && param->losslessEnable != 0)
             return RETCODE_INVALID_PARAM;
 
-        if (param->intraQP < 0 || param->intraQP > 63) 
+        if (param->intraQP < 0 || param->intraQP > 63)
             return RETCODE_INVALID_PARAM;
 
         if (pop->bitstreamFormat == STD_SVAC && param->internalBitDepth != 8) {
-            if (param->intraQP < 1 || param->intraQP > 63) 
+            if (param->intraQP < 1 || param->intraQP > 63)
                 return RETCODE_INVALID_PARAM;
         }
 
-        if (pop->rcEnable != 1 && pop->rcEnable != 0) 
+        if (pop->rcEnable != 1 && pop->rcEnable != 0)
             return RETCODE_INVALID_PARAM;
 
         if (pop->rcEnable == 1) {
 
-            if (param->minQpI < 0 || param->minQpI > 63) 
+            if (param->minQpI < 0 || param->minQpI > 63)
                 return RETCODE_INVALID_PARAM;
-            if (param->maxQpI < 0 || param->maxQpI > 63) 
-                return RETCODE_INVALID_PARAM;
-
-            if (param->minQpP < 0 || param->minQpP > 63) 
-                return RETCODE_INVALID_PARAM;
-            if (param->maxQpP < 0 || param->maxQpP > 63) 
+            if (param->maxQpI < 0 || param->maxQpI > 63)
                 return RETCODE_INVALID_PARAM;
 
-            if (param->minQpB < 0 || param->minQpB > 63) 
+            if (param->minQpP < 0 || param->minQpP > 63)
                 return RETCODE_INVALID_PARAM;
-            if (param->maxQpB < 0 || param->maxQpB > 63) 
+            if (param->maxQpP < 0 || param->maxQpP > 63)
+                return RETCODE_INVALID_PARAM;
+
+            if (param->minQpB < 0 || param->minQpB > 63)
+                return RETCODE_INVALID_PARAM;
+            if (param->maxQpB < 0 || param->maxQpB > 63)
                 return RETCODE_INVALID_PARAM;
 
             if (pop->bitstreamFormat == STD_SVAC && param->internalBitDepth != 8) {
-                if (param->minQpI < 1 || param->minQpI > 63) 
+                if (param->minQpI < 1 || param->minQpI > 63)
                     return RETCODE_INVALID_PARAM;
-                if (param->maxQpI < 1 || param->maxQpI > 63) 
-                    return RETCODE_INVALID_PARAM;
-
-                if (param->minQpP < 1 || param->minQpP > 63) 
-                    return RETCODE_INVALID_PARAM;
-                if (param->maxQpP < 1 || param->maxQpP > 63) 
+                if (param->maxQpI < 1 || param->maxQpI > 63)
                     return RETCODE_INVALID_PARAM;
 
-                if (param->minQpB < 1 || param->minQpB > 63) 
+                if (param->minQpP < 1 || param->minQpP > 63)
                     return RETCODE_INVALID_PARAM;
-                if (param->maxQpB < 1 || param->maxQpB > 63) 
+                if (param->maxQpP < 1 || param->maxQpP > 63)
+                    return RETCODE_INVALID_PARAM;
+
+                if (param->minQpB < 1 || param->minQpB > 63)
+                    return RETCODE_INVALID_PARAM;
+                if (param->maxQpB < 1 || param->maxQpB > 63)
                     return RETCODE_INVALID_PARAM;
             }
-         
-            if (param->cuLevelRCEnable != 1 && param->cuLevelRCEnable != 0) 
+
+            if (param->cuLevelRCEnable != 1 && param->cuLevelRCEnable != 0)
                 return RETCODE_INVALID_PARAM;
-            
-            if (param->hvsQPEnable != 1 && param->hvsQPEnable != 0) 
+
+            if (param->hvsQPEnable != 1 && param->hvsQPEnable != 0)
                 return RETCODE_INVALID_PARAM;
 
             if (param->hvsQPEnable) {
-                if (param->maxDeltaQp < 0 || param->maxDeltaQp > 51) 
+                if (param->hvsMaxDeltaQp < 0 || param->hvsMaxDeltaQp > 51)
                     return RETCODE_INVALID_PARAM;
-            }            
-            
-            if (param->bitAllocMode < 0 && param->bitAllocMode > 2) 
+            }
+
+            if (param->bitAllocMode < 0 && param->bitAllocMode > 2)
                 return RETCODE_INVALID_PARAM;
 
             if (pop->vbvBufferSize < 10 || pop->vbvBufferSize > 3000 )
                 return RETCODE_INVALID_PARAM;
         }
 
-        // packed format & cbcrInterleave & nv12 can't be set at the same time. 
+        // packed format & cbcrInterleave & nv12 can't be set at the same time.
         if (pop->packedFormat == 1 && pop->cbcrInterleave == 1)
             return RETCODE_INVALID_PARAM;
 
@@ -919,29 +926,26 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
                 return RETCODE_INVALID_COMMAND;
         }
 
-        if (param->wppEnable && pop->ringBufferEnable)      // WPP can be processed on only linebuffer mode.
-            return RETCODE_INVALID_PARAM;
-
         if (param->chromaCbQpOffset < -12 || param->chromaCbQpOffset > 12)
             return RETCODE_INVALID_PARAM;
 
         if (param->chromaCrQpOffset < -12 || param->chromaCrQpOffset > 12)
             return RETCODE_INVALID_PARAM;
-        
+
         if (param->intraRefreshMode == 3 && param-> intraRefreshArg == 0)
             return RETCODE_INVALID_PARAM;
 
         if (pop->bitstreamFormat == STD_HEVC) {
-            if (param->nrYEnable != 1 && param->nrYEnable != 0) 
+            if (param->nrYEnable != 1 && param->nrYEnable != 0)
                 return RETCODE_INVALID_PARAM;
 
-            if (param->nrCbEnable != 1 && param->nrCbEnable != 0) 
+            if (param->nrCbEnable != 1 && param->nrCbEnable != 0)
                 return RETCODE_INVALID_PARAM;
 
-            if (param->nrCrEnable != 1 && param->nrCrEnable != 0) 
+            if (param->nrCrEnable != 1 && param->nrCrEnable != 0)
                 return RETCODE_INVALID_PARAM;
 
-            if (param->nrNoiseEstEnable != 1 && param->nrNoiseEstEnable != 0) 
+            if (param->nrNoiseEstEnable != 1 && param->nrNoiseEstEnable != 0)
                 return RETCODE_INVALID_PARAM;
 
             if (param->nrNoiseSigmaY > 255)
@@ -974,8 +978,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             if((param->nrYEnable == 1 || param->nrCbEnable == 1 || param->nrCrEnable == 1) && (param->losslessEnable == 1))
                 return RETCODE_INVALID_PARAM;
         }
-        
-        
+
         if (pop->bitstreamFormat == STD_SVAC) {
             // set parameters that not used for SVAC encoder to default value (=0)
             param->decodingRefreshType  = 0;
@@ -992,13 +995,13 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             if (param->lumaDcQpOffset < -3 || param->lumaDcQpOffset> 3)
                 return RETCODE_INVALID_PARAM;
         }
-       
+
     }
     if (pop->linear2TiledEnable == TRUE) {
-        if (pop->linear2TiledMode != FF_FRAME && pop->linear2TiledMode != FF_FIELD ) 
+        if (pop->linear2TiledMode != FF_FRAME && pop->linear2TiledMode != FF_FIELD )
             return RETCODE_INVALID_PARAM;
     }
-    
+
     return RETCODE_SUCCESS;
 }
 
@@ -1013,8 +1016,6 @@ RetCode ProductVpuEncFiniSeq(CodecInst* instance)
     case PRODUCT_ID_511:
         ret = RETCODE_NOT_SUPPORTED_FEATURE;
         break;
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncFiniSeq(instance);
         break;
@@ -1029,8 +1030,6 @@ RetCode ProductVpuEncSetup(CodecInst* instance)
     switch (instance->productId) {
     case PRODUCT_ID_512:
     case PRODUCT_ID_515:
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
     case PRODUCT_ID_511:
         ret = RETCODE_NOT_SUPPORTED_FEATURE;
@@ -1051,8 +1050,6 @@ RetCode ProductVpuEncode(CodecInst* instance, EncParam* param)
     case PRODUCT_ID_511:
         ret = RETCODE_NOT_SUPPORTED_FEATURE;
         break;
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncode(instance, param);
         break;
@@ -1073,8 +1070,6 @@ RetCode ProductVpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     case PRODUCT_ID_511:
         ret = RETCODE_NOT_SUPPORTED_FEATURE;
         break;
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncGetResult(instance, result);
         break;
@@ -1104,8 +1099,6 @@ RetCode ProductVpuEncInitSeq(CodecInst* instance)
     productId   = instance->productId;
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncInitSeq(instance);
         break;
@@ -1124,8 +1117,6 @@ RetCode ProductVpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
     productId   = instance->productId;
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         ret = Vp5VpuEncGetSeqInfo(instance, info);
         break;
@@ -1135,4 +1126,3 @@ RetCode ProductVpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
 
     return ret;
 }
- 

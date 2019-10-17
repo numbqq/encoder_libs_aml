@@ -195,7 +195,6 @@ RetCode GetCodecInstance(Uint32 coreIdx, CodecInst ** ppInst)
 
 void FreeCodecInstance(CodecInst * pCodecInst)
 {
-    pCodecInst->inUse = 0;
     pCodecInst->codecMode    = -1;
     pCodecInst->codecModeAux = -1;
 
@@ -203,6 +202,7 @@ void FreeCodecInstance(CodecInst * pCodecInst)
 
     osal_free(pCodecInst->CodecInfo);
     pCodecInst->CodecInfo = NULL;
+    pCodecInst->inUse = 0;
 }
 
 RetCode CheckInstanceValidity(CodecInst * pCodecInst)
@@ -541,10 +541,11 @@ RetCode UpdateFrameBufferAddr(
     Uint32      i;
     BOOL        yuv422Interleave = FALSE;
     BOOL        fieldFrame       = (BOOL)(mapType == LINEAR_FIELD_MAP);
-    BOOL        cbcrInterleave   = (BOOL)(mapType == COMPRESSED_FRAME_MAP || mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL || fbArr[0].cbcrInterleave == TRUE);
+    BOOL        cbcrInterleave   = (BOOL)(mapType >= COMPRESSED_FRAME_MAP || fbArr[0].cbcrInterleave == TRUE);
     BOOL        reuseFb          = FALSE;
 
-    if (mapType != COMPRESSED_FRAME_MAP && mapType != COMPRESSED_FRAME_MAP_SVAC_SVC_BL) {
+
+    if (mapType < COMPRESSED_FRAME_MAP) {
         switch (fbArr[0].format) {
         case FORMAT_YUYV:
         case FORMAT_YUYV_P10_16BIT_MSB:
@@ -575,7 +576,7 @@ RetCode UpdateFrameBufferAddr(
     }
 
     for (i=0; i<numOfFrameBuffers; i++) {
-        reuseFb = (fbArr[i].bufY != (Uint32)-1 && fbArr[i].bufCb != (Uint32)-1 && fbArr[i].bufCr != (Uint32)-1);
+        reuseFb = (fbArr[i].bufY != (PhysicalAddress)-1 && fbArr[i].bufCb != (PhysicalAddress)-1 && fbArr[i].bufCr != (PhysicalAddress)-1);
         if (reuseFb == FALSE) {
             if (yuv422Interleave == TRUE) {
                 fbArr[i].bufCb = (PhysicalAddress)-1;
@@ -603,7 +604,7 @@ RetCode UpdateFrameBufferAddr(
 Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 width, Uint32 height, Uint32 profile, Uint32 levelIdc)
 {
     vpu_buffer_t vb;
-    Uint32 offset;
+    int offset;
     Uint32 size = 0;
     Uint32 lumaSize = 0;
     Uint32 chromaSize = 0;
@@ -637,7 +638,6 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
         switch (productId) {
         case PRODUCT_ID_512:
         case PRODUCT_ID_515:
-        case PRODUCT_ID_525:
             if ( codecMode == W_VP9_DEC ) {
                 lumaSize   = VPU_ALIGN128(width) * 10/8;
                 chromaSize = VPU_ALIGN128(width) * 10/8;
@@ -854,11 +854,6 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
     if (sa->u.vp.useEncRdoEnable == TRUE) {
 
         switch (productId) {
-        case PRODUCT_ID_520:
-        case PRODUCT_ID_525:
-            sa->u.vp.bufRdo = sa->bufBase + offset;
-            offset += (VPU_ALIGN64(width)>>6) * 288;
-            break;
         case PRODUCT_ID_521:
             sa->u.vp.bufRdo = sa->bufBase + offset;
             if (codecMode == W_AVC_ENC) {
@@ -1138,6 +1133,7 @@ int LevelCalculation(int MbNumX, int MbNumY, int frameRateInfo, int interlaceFla
 }
 
 Int32 CalcLumaSize(
+    CodecInst*          inst,
     Int32           productId,
     Int32           stride,
     Int32           height,
@@ -1294,6 +1290,7 @@ Int32 CalcLumaSize(
 }
 
 Int32 CalcChromaSize(
+    CodecInst*          inst,
     Int32               productId,
     Int32               stride,
     Int32               height,
@@ -1436,7 +1433,6 @@ Int32 CalcChromaSize(
             size_dpb_chr = VPU_ALIGN32(stride)*VPU_ALIGN4(height);
             break;
         }
-        size_dpb_chr = size_dpb_chr / 2;
     }
     else if (mapType == COMPRESSED_FRAME_MAP_V50_LOSSLESS_10BIT) {
         size_dpb_chr = VP5_ENC_FBC50_LOSSLESS_CHROMA_10BIT_FRAME_SIZE(stride, height);

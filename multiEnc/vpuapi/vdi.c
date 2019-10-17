@@ -105,6 +105,7 @@ typedef struct  {
     void* vpu_mutex;
     void* vpu_omx_mutex;
     void* vpu_disp_mutex;
+    void* vmem_mutex;
 } vdi_info_t;
 
 static vdi_info_t s_vdi_info[MAX_NUM_VPU_CORE];
@@ -112,6 +113,49 @@ static int vdi_init_flag[MAX_NUM_VPU_CORE] = {0};
 static pthread_mutex_t vid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int swap_endian(u32 core_idx, unsigned char *data, int len, int endian);
+
+static void restore_mutex_in_dead(MUTEX_HANDLE *mutex)
+{
+    int mutex_value;
+
+    if (!mutex)
+        return;
+#if 0 // defined(ANDROID)
+    mutex_value = mutex->value;
+#else
+    memcpy(&mutex_value, mutex, sizeof(mutex_value));
+#endif
+    if (mutex_value == (int)0xdead10cc) // destroy by device driver
+    {
+            pthread_mutexattr_t mutexattr;
+            pthread_mutexattr_init(&mutexattr);
+            pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
+            pthread_mutex_init(mutex, &mutexattr);
+    }
+}
+
+static void vmem_lock(vdi_info_t* vdi)
+{
+#if defined(ANDROID) || !defined(PTHREAD_MUTEX_ROBUST_NP)
+#else
+    const int MUTEX_TIMEOUT = 0x7fffffff;
+#endif
+
+#if defined(ANDROID) || !defined(PTHREAD_MUTEX_ROBUST_NP)
+    restore_mutex_in_dead((MUTEX_HANDLE *)vdi->vmem_mutex);
+    pthread_mutex_lock((MUTEX_HANDLE*)vdi->vmem_mutex);
+#else
+    if (pthread_mutex_lock((MUTEX_HANDLE *)vdi->vmem_mutex) != 0) {
+        VLOG(ERR, "%s:%d failed to pthread_mutex_locK\n", __FUNCTION__, __LINE__);
+    }
+#endif
+    return;
+}
+
+static void vmem_unlock(vdi_info_t* vdi)
+{
+    pthread_mutex_unlock((MUTEX_HANDLE *)vdi->vmem_mutex);
+}
 
 
 int vdi_probe(u32 core_idx)
@@ -189,7 +233,7 @@ retry:
 #endif
         pthread_mutex_init((MUTEX_HANDLE *)vdi->vpu_mutex, &mutexattr);
         pthread_mutex_init((MUTEX_HANDLE *)vdi->vpu_disp_mutex, &mutexattr);
-
+        pthread_mutex_init((MUTEX_HANDLE *)vdi->vmem_mutex, &mutexattr);
 
         for ( i = 0; i < MAX_NUM_INSTANCE; i++) {
             pCodecInst = (int *)vdi->pvip->codecInstPool[i];
@@ -484,8 +528,9 @@ vpu_instance_pool_t *vdi_get_instance_pool(u32 core_idx)
 #else
         vdi->pvip = (vpu_instance_pool_t *)(vdb.virt_addr);
 #endif
-        vdi->vpu_mutex =      (void *)((ulong)vdi->pvip + sizeof(vpu_instance_pool_t));	//change the pointer of vpu_mutex to at end pointer of vpu_instance_pool_t to assign at allocated position.
+        vdi->vpu_mutex = (void *)((ulong)vdi->pvip + sizeof(vpu_instance_pool_t));	//change the pointer of vpu_mutex to at end pointer of vpu_instance_pool_t to assign at allocated position.
         vdi->vpu_disp_mutex = (void *)((ulong)vdi->pvip + sizeof(vpu_instance_pool_t) + sizeof(MUTEX_HANDLE));
+        vdi->vmem_mutex = (void *)((unsigned long)vdi->pvip + sizeof(vpu_instance_pool_t) + 2*sizeof(MUTEX_HANDLE));
 
         VLOG(INFO, "[VDI] instance pool physaddr=0x%x, virtaddr=0x%x, base=0x%x, size=%d\n", (int)vdb.phys_addr, (int)vdb.virt_addr, (int)vdb.base, (int)vdb.size);
     }
@@ -574,26 +619,6 @@ int vdi_hw_reset(u32 core_idx) // DEVICE_ADDR_SW_RESET
 
 }
 
-static void restore_mutex_in_dead(MUTEX_HANDLE *mutex)
-{
-	int mutex_value;
-
-	if (!mutex)
-		return;
-#if 0 // defined(ANDROID)
-	mutex_value = mutex->value;
-#else
-	memcpy(&mutex_value, mutex, sizeof(mutex_value));
-#endif
-	if (mutex_value == (int)0xdead10cc) // destroy by device driver
-	{
-		pthread_mutexattr_t mutexattr;
-		pthread_mutexattr_init(&mutexattr);
-        pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
-        pthread_mutex_init(mutex, &mutexattr);
-	}
-}
-
 int vdi_lock(u32 core_idx)
 {
     vdi_info_t *vdi;
@@ -619,7 +644,7 @@ int vdi_lock(u32 core_idx)
     }
 #endif
 
-    return 0;//lint !e454
+    return 0;
 }
 
 void vdi_unlock(u32 core_idx)
@@ -751,15 +776,24 @@ unsigned int vdi_fio_read_register(u32 core_idx, unsigned int addr)
 void vdi_fio_write_register(u32 core_idx, unsigned int addr, unsigned int data)
 {
     unsigned int ctrl;
+    unsigned int count = 0;
 
     vdi_write_register(core_idx, VP5_VPU_FIO_DATA, data);
     ctrl  = (addr&0xffff);
     ctrl |= (1<<16);    /* write operation */
     vdi_write_register(core_idx, VP5_VPU_FIO_CTRL_ADDR, ctrl);
+
+    count = FIO_TIMEOUT;
+    while (count--) {
+        ctrl = vdi_read_register(core_idx, VP5_VPU_FIO_CTRL_ADDR);
+        if (ctrl & 0x80000000) {
+            break;
+        }
+    }
 }
 
 
-int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian)
+int vdi_clear_memory(u32 core_idx, PhysicalAddress addr, int len, int endian)
 {
     vdi_info_t *vdi;
     vpudrv_buffer_t vdb;
@@ -811,7 +845,7 @@ int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian)
     return len;
 }
 
-int vdi_write_memory(u32 core_idx, unsigned int addr, unsigned char *data, int len, int endian)
+int vdi_write_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian)
 {
     vdi_info_t *vdi;
     vpudrv_buffer_t vdb;
@@ -860,7 +894,7 @@ int vdi_write_memory(u32 core_idx, unsigned int addr, unsigned char *data, int l
     return len;
 }
 
-int vdi_read_memory(u32 core_idx, unsigned int addr, unsigned char *data, int len, int endian)
+int vdi_read_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian)
 {
     vdi_info_t *vdi;
     vpudrv_buffer_t vdb;
@@ -904,7 +938,7 @@ int vdi_read_memory(u32 core_idx, unsigned int addr, unsigned char *data, int le
     return len;
 }
 
-int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
+int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int instIndex)
 {
     vdi_info_t *vdi;
     int i;
@@ -943,6 +977,7 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     }
     vb->virt_addr = vdb.virt_addr;
 
+    vmem_lock(vdi);
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
         if (vdi->vpu_buffer_pool[i].inuse == 0)
@@ -953,8 +988,9 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
             break;
         }
     }
-    VLOG(INFO, "[VDI] vdi_allocate_dma_memory, physaddr=%lx, virtaddr=%p~%p, size=%d\n",
-        vb->phys_addr, (void *)vb->virt_addr, (void *)(vb->virt_addr + vb->size), vb->size);
+    vmem_unlock(vdi);
+    VLOG(INFO, "[VDI] vdi_allocate_dma_memory, physaddr=%lx, virtaddr=%p~%p, size=%d, memType=%d\n",
+        vb->phys_addr, (void *)vb->virt_addr, (void *)(vb->virt_addr + vb->size), vb->size, memTypes);
     return 0;
 }
 
@@ -1000,6 +1036,7 @@ int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
 
     vdb.virt_addr = vb->virt_addr;
 
+    vmem_lock(vdi);
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
         if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr)
@@ -1019,6 +1056,7 @@ int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
             }
         }
     }
+    vmem_unlock(vdi);
 
     //VLOG(INFO, "[VDI] vdi_attach_dma_memory, physaddr=0x%lx, virtaddr=0x%lx, size=%d, index=%d\n", vb->phys_addr, vb->virt_addr, vb->size, i);
 
@@ -1045,6 +1083,7 @@ int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     if (vb->size == 0)
         return -1;
 
+    vmem_lock(vdi);
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
         if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr)
@@ -1054,11 +1093,12 @@ int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb)
             break;
         }
     }
+    vmem_unlock(vdi);
 
     return 0;
 }
 
-void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb)
+void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int instIndex)
 {
     vdi_info_t *vdi;
     int i;
@@ -1081,6 +1121,7 @@ void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb)
 
     osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
 
+    vmem_lock(vdi);
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
         if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr)
@@ -1091,6 +1132,7 @@ void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb)
             break;
         }
     }
+    vmem_unlock(vdi);
 
     if (!vdb.size)
     {
@@ -1271,14 +1313,26 @@ int vdi_get_clock_gate(u32 core_idx)
     return ret;
 }
 
+static int get_pc_addr(Uint32 product_code)
+{
+    if (PRODUCT_CODE_VP_SERIES(product_code)) {
+        return VP5_VCPU_CUR_PC;
+    }
+    else {
+        VLOG(ERR, "Unknown product id : %08x\n", product_code);
+        return -1;
+    }
+}
+
 int vdi_wait_bus_busy(u32 core_idx, int timeout, unsigned int gdi_busy_flag)
 {
     Uint64 elapse, cur;
+    Uint32 pc;
     vdi_info_t *vdi;
     vdi = &s_vdi_info[core_idx];
 
     elapse = osal_gettime();
-
+    pc = get_pc_addr(vdi->product_code);
     while(1)
     {
         if (vdi->product_code == VP521C_CODE) {
@@ -1293,7 +1347,7 @@ int vdi_wait_bus_busy(u32 core_idx, int timeout, unsigned int gdi_busy_flag)
             cur = osal_gettime();
 
             if ((int)(cur - elapse) > timeout) {
-                VLOG(ERR, "[VDI] vdi_wait_bus_busy timeout, PC=0x%x\n", vdi_read_register(core_idx, 0x018));
+                print_busy_timeout_status(core_idx, vdi->product_code, pc);
                 return -1;
             }
         }
@@ -1311,9 +1365,9 @@ int vdi_wait_vpu_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy_flag
     vdi = &s_vdi_info[core_idx];
 
     elapse = osal_gettime();
+    pc = get_pc_addr(vdi->product_code);
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
-        pc = VP5_VCPU_CUR_PC;
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
     else {
@@ -1334,10 +1388,7 @@ int vdi_wait_vpu_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy_flag
             cur = osal_gettime();
 
             if ((int)(cur - elapse) > timeout) {
-                Uint32 idx;
-                for (idx=0; idx<50; idx++) {
-                    VLOG(ERR, "[VDI] vdi_wait_vpu_busy timeout, PC=0x%x\n", vdi_read_register(core_idx, pc));
-                }
+                print_busy_timeout_status(core_idx, vdi->product_code, pc);
                 return -1;
             }
         }
@@ -1356,15 +1407,14 @@ int vdi_wait_vcpu_bus_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy
 
     elapse = osal_gettime();
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
-        pc = VP5_VCPU_CUR_PC;
+    pc = get_pc_addr(vdi->product_code);
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
         if (addr_bit_busy_flag&0x8000) normalReg = FALSE;
     }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);
         return -1;
     }
-
     while(1)
     {
         if (normalReg == TRUE) {
@@ -1378,10 +1428,7 @@ int vdi_wait_vcpu_bus_busy(u32 core_idx, int timeout, unsigned int addr_bit_busy
             cur = osal_gettime();
 
             if ((int)(cur - elapse) > timeout) {
-                Uint32 idx;
-                for (idx=0; idx<50; idx++) {
-                    VLOG(ERR, "[VDI] vdi_wait_vcpu_bus_busy timeout, PC=0x%x\n", vdi_read_register(core_idx, pc));
-                }
+                print_busy_timeout_status(core_idx, vdi->product_code, pc);
                 return -1;
             }
         }
@@ -1430,7 +1477,7 @@ int vdi_get_system_endian(u32 core_idx)
     if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
         return VDI_128BIT_BUS_SYSTEM_ENDIAN;
     }
     else {
@@ -1451,7 +1498,7 @@ int vdi_convert_endian(u32 core_idx, unsigned int endian)
     if(!vdi || !vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
         switch (endian) {
         case VDI_LITTLE_ENDIAN:       endian = 0x00; break;
         case VDI_BIG_ENDIAN:          endian = 0x0f; break;
@@ -1533,7 +1580,7 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
     if(!vdi || vdi->vpu_fd == -1 || vdi->vpu_fd == 0x00)
         return -1;
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
         sys_endian = VDI_128BIT_BUS_SYSTEM_ENDIAN;
     }
     else {
@@ -1546,7 +1593,7 @@ int swap_endian(u32 core_idx, unsigned char *data, int len, int endian)
     if (endian == sys_endian)
         return 0;
 
-    if (PRODUCT_CODE_VP(vdi->product_code)) {
+    if (PRODUCT_CODE_VP_SERIES(vdi->product_code)) {
     }
     else {
         VLOG(ERR, "Unknown product id : %08x\n", vdi->product_code);

@@ -97,24 +97,29 @@ static BOOL ParseArgumentAndSetTestConfig(CommandLineArgument argument, TestEncC
         {"picWidth",              1, NULL, 0, "--picWidth                  source width\n"},
         {"picHeight",             1, NULL, 0, "--picHeight                 source height\n"},
         {"kbps",                  1, NULL, 0, "--kbps                      RC bitrate in kbps. In case of without cfg file, if this option has value then RC will be enabled\n"},
-        {"enable-lineBufInt",     0, NULL, 0, "--enable-lineBufInt         enable linebuffer interrupt\n"},
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+        {"srcReleaseInt",         1, NULL, 0, "--srcReleaseInt             1 : enable source release Interrupt\n"},
+#endif
+        {"lineBufInt",            1, NULL, 0, "--lineBufInt                1 : enable linebuffer interrupt\n"},
         {"lowLatencyMode",        1, NULL, 0, "--lowLatencyMode            bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable\n"},
         {"loop-count",            1, NULL, 0, "--loop-count                integer number. loop test, default 0\n"},
         {"enable-cbcrInterleave", 0, NULL, 0, "--enable-cbcrInterleave     enable cbcr interleave\n"},
         {"nv21",                  1, NULL, 0, "--nv21                      enable NV21(must set enable-cbcrInterleave)\n"},
         {"packedFormat",          1, NULL, 0, "--packedFormat              1:YUYV, 2:YVYU, 3:UYVY, 4:VYUY\n"},
         {"rotAngle",              1, NULL, 0, "--rotAngle                  rotation angle(0,90,180,270), Not supported on VP420L, VP525\n"},
-        {"mirDir",                1, NULL, 0, "--mirDir                    1:Vertical, 2: Horizontal, 3:Vert-Horz, Not supported on VP420L, VP525\n"}, /* 20 */
+        {"mirDir",                1, NULL, 0, "--mirDir                    1:Vertical, 2: Horizontal, 3:Vert-Horz, Not supported on VP420L, VP525\n"},
         {"secondary-axi",         1, NULL, 0, "--secondary-axi             0~3: bit mask values, Please refer programmer's guide or datasheet\n"
-        "                            1: RDO, 2: LF\n"},
+                                              "                            1: RDO, 2: LF\n"},
         {"frame-endian",          1, NULL, 0, "--frame-endian              16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"stream-endian",         1, NULL, 0, "--stream-endian             16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"source-endian",         1, NULL, 0, "--source-endian             16~31, default 31(LE) Please refer programmer's guide or datasheet\n"},
         {"ref_stream_path",       1, NULL, 0, "--ref_stream_path           golden data which is compared with encoded stream when -c option\n"},
-        {"srcFormat3p4b",         1, NULL, 0, "--srcFormat3p4b             [VP420]This option MUST BE enabled when format of source yuv is 3pixel 4byte format\n"},
+        {"srcFormat",             1, NULL, 0, "--srcFormat                 0:8bit, 1:10bit 1P2B_MSB, 2:10bit 1P2B_LSB, 3:10bit 3P4B_MSB, 4:10bit 3P4B_LSB\n"
+                                              "                            1P2B : 10bit 1pixel 2bytes source format\n"
+                                              "                            3P4B : 10bit 3pixel 4bytes srouce format\n"},
         {NULL,                    0, NULL, 0},
     };
-  
+
 
     for (i = 0; i < MAX_GETOPT_OPTIONS;i++) {
         if (options_help[i].name == NULL)
@@ -153,8 +158,12 @@ static BOOL ParseArgumentAndSetTestConfig(CommandLineArgument argument, TestEncC
                 testConfig->picHeight = atoi(optarg);
             } else if (!strcmp(options[idx].name, "kbps")) {
                 testConfig->kbps = atoi(optarg);
-            } else if (!strcmp(options[idx].name, "enable-lineBufInt")) {
-                testConfig->lineBufIntEn = TRUE;
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+            } else if (!strcmp(options[idx].name, "srcReleaseInt")) {
+                testConfig->srcReleaseIntEnable = atoi(optarg);
+#endif
+            } else if (!strcmp(options[idx].name, "lineBufInt")) {
+                testConfig->lineBufIntEn = atoi(optarg);
             } else if (!strcmp(options[idx].name, "lowLatencyMode")) {
                 testConfig->lowLatencyMode = atoi(optarg);
             } else if (!strcmp(options[idx].name, "loop-count")) {
@@ -180,8 +189,22 @@ static BOOL ParseArgumentAndSetTestConfig(CommandLineArgument argument, TestEncC
             } else if (!strcmp(options[idx].name, "ref_stream_path")) {
                 osal_memcpy(testConfig->ref_stream_path, optarg, strlen(optarg));
                 ChangePathStyle(testConfig->ref_stream_path);
-            } else if (!strcmp(options[idx].name, "srcFormat3p4b")) {
-                testConfig->srcFormat3p4b = atoi(optarg);
+            } else if (!strcmp(options[idx].name, "srcFormat")) {
+                Uint32 temp;
+                temp = atoi(optarg);
+                testConfig->srcFormat = FORMAT_420;
+                if (temp == 1) {
+                    testConfig->srcFormat = FORMAT_420_P10_16BIT_MSB;
+                }
+                else if (temp == 2) {
+                    testConfig->srcFormat = FORMAT_420_P10_16BIT_LSB;
+                }
+                else if (temp == 3) {
+                    testConfig->srcFormat = FORMAT_420_P10_32BIT_MSB;
+                }
+                else if (temp == 4) {
+                    testConfig->srcFormat = FORMAT_420_P10_32BIT_LSB;
+                }
             } else {
                 VLOG(ERR, "not exist param = %s\n", options[idx].name);
                 Help(options_help, argv[0]);
@@ -263,16 +286,20 @@ int main(int argc, char **argv)
     config.testEncConfig = testConfig;
     config.bitcode       = (Uint8*)pusBitCode;
     config.sizeOfBitcode = sizeInWord;
-	
-    if (SetupEncoderOpenParam(&config.encOpenParam, &config.testEncConfig) == FALSE)
+
+    if (SetupEncoderOpenParam(&config.encOpenParam, &config.testEncConfig, NULL) == FALSE) {
+        VLOG(ERR, "SetupEncoderOpenParam error\n");
         return 1;
+    }
+
 
     CNMAppInit();
 
     task       = CNMTaskCreate();
-    yuvFeeder  = ComponentCreate("yuvFeeder", &config);
-    encoder    = ComponentCreate("encoder",   &config);
-    reader     = ComponentCreate("reader",    &config);
+
+    yuvFeeder  = ComponentCreate("yuvfeeder",       &config);
+    encoder    = ComponentCreate("encoder",         &config);
+    reader     = ComponentCreate("reader",          &config);
 
     CNMTaskAdd(task, yuvFeeder);
     CNMTaskAdd(task, encoder);
@@ -292,6 +319,8 @@ int main(int argc, char **argv)
     ClearEncListenerContext(&lsnCtx);
 
     testResult = (ret == TRUE && lsnCtx.match == TRUE && lsnCtx.matchOtherInfo == TRUE);
+
+
     if (testResult == TRUE) VLOG(INFO, "[RESULT] SUCCESS\n");
     else                    VLOG(ERR,  "[RESULT] FAILURE\n");
 

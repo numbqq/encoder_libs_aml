@@ -51,10 +51,8 @@ typedef struct {
     Int32                       mirDir;
     Int32                       frameOutNum;
     Int32                       yuvMode;
-    Uint32                      reconFbStride;
-    Uint32                      reconFbHeight;
-    Uint32                      srcFbStride;
     FrameBufferAllocInfo        srcFbAllocInfo;
+    FrameBufferAllocInfo        reconFbAllocInfo;
     BOOL                        fbAllocated;
     ParamEncNeedFrameBufferNum  fbCount;
     FrameBuffer                 pFbRecon[MAX_REG_FRAME];
@@ -68,15 +66,15 @@ typedef struct {
     YuvFeederState              state;
     BOOL                        stateDoing;
     Int32                       feedingNum;
+    TiledMapConfig              mapConfig;
+    Int32                       productID;
 } YuvFeederContext;
 
 static void InitYuvFeederContext(YuvFeederContext* ctx, CNMComponentConfig* componentParam) 
 {
     osal_memset((void*)ctx, 0, sizeof(YuvFeederContext));
     strcpy(ctx->inputPath, componentParam->testEncConfig.yuvFileName);
-    ctx->reconFbStride      = 0;
-    ctx->reconFbHeight      = 0;
-    ctx->srcFbStride        = 0;
+
     ctx->fbAllocated        = FALSE;
     ctx->encOpenParam       = componentParam->encOpenParam;
     ctx->yuvMode            = componentParam->testEncConfig.yuv_mode;
@@ -87,6 +85,7 @@ static void InitYuvFeederContext(YuvFeederContext* ctx, CNMComponentConfig* comp
     ctx->mirDir             = componentParam->testEncConfig.mirDir;
 
     osal_memset(&ctx->srcFbAllocInfo,          0x00, sizeof(FrameBufferAllocInfo));
+    osal_memset(&ctx->reconFbAllocInfo,        0x00, sizeof(FrameBufferAllocInfo));
     osal_memset((void*)ctx->pFbRecon,          0x00, sizeof(ctx->pFbRecon));
     osal_memset((void*)ctx->pFbReconMem,       0x00, sizeof(ctx->pFbReconMem));
     osal_memset((void*)ctx->pFbSrc,            0x00, sizeof(ctx->pFbSrc));
@@ -106,14 +105,12 @@ static CNMComponentParamRet GetParameterYuvFeeder(ComponentImpl* from, Component
         if (ctx->fbAllocated == FALSE) return CNM_COMPONENT_PARAM_NOT_READY;
         allocFb = (ParamEncFrameBuffer*)data;
         allocFb->reconFb          = ctx->pFbRecon;
-        allocFb->reconFbStride    = ctx->reconFbStride;
-        allocFb->reconFbHeight    = ctx->reconFbHeight;
         allocFb->srcFb            = ctx->pFbSrc;
+        allocFb->reconFbAllocInfo = ctx->reconFbAllocInfo;
         allocFb->srcFbAllocInfo   = ctx->srcFbAllocInfo;
         break;
     default:
-        result = FALSE;
-        break;
+        return CNM_COMPONENT_PARAM_NOT_FOUND;
     }
 
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
@@ -133,119 +130,116 @@ static CNMComponentParamRet SetParameterYuvFeeder(ComponentImpl* from, Component
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
-static BOOL AllocateReconFrameBuffer(ComponentImpl* com) {
-    YuvFeederContext*    ctx = (YuvFeederContext*)com->context;
-    EncOpenParam         encOpenParam = ctx->encOpenParam;
-    Uint32               i = 0;
-    Uint32               reconFbSize   = 0;
-    Uint32               reconFbStride = 0;
-    Uint32               reconFbWidth;
-    Uint32               reconFbHeight;
+static BOOL AllocateFrameBuffer(ComponentImpl* com) {
+    YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
+    EncOpenParam            encOpenParam = ctx->encOpenParam;
+    Uint32                  fbWidth = 0;
+    Uint32                  fbHeight = 0;
+    Uint32                  fbStride = 0;
+    Uint32                  fbSize = 0;
+    SRC_FB_TYPE             srcFbType = SRC_FB_TYPE_YUV;
+    DRAMConfig              dramConfig;
+    DRAMConfig*             pDramConfig = NULL;
+    TiledMapType            mapType;
+    FrameBufferAllocInfo    fbAllocInfo;
 
-    if (ctx->encOpenParam.bitstreamFormat == STD_AVC) {
-        reconFbWidth  = VPU_ALIGN16(encOpenParam.picWidth);
-        reconFbHeight = VPU_ALIGN16(encOpenParam.picHeight);
-    }
-    else {
-        reconFbWidth  = VPU_ALIGN8(encOpenParam.picWidth);
-        reconFbHeight = VPU_ALIGN8(encOpenParam.picHeight);
+    osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
+    osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
+
+    //Buffers for source frames
+    if (PRODUCT_ID_VP_SERIES(ctx->productID)) {
+        fbWidth = VPU_ALIGN8(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN8(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.sourceEndian;
+    } else {
+        //CODA
+        fbWidth = VPU_ALIGN16(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN16(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.frameEndian;
+        VPU_EncGiveCommand(ctx->handle, GET_DRAM_CONFIG, &dramConfig);
+        pDramConfig = &dramConfig;
     }
 
-    if ((ctx->rotAngle != 0 || ctx->mirDir != 0) && !(ctx->rotAngle == 180 && ctx->mirDir == MIRDIR_HOR_VER)) {
-        reconFbWidth  = VPU_ALIGN32(encOpenParam.picWidth);
-        reconFbHeight = VPU_ALIGN32(encOpenParam.picHeight);
+
+    if (SRC_FB_TYPE_YUV == srcFbType) {
+        mapType = LINEAR_FRAME_MAP;
+    }
+    fbStride = CalcStride(fbWidth, fbHeight, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, mapType, FALSE);
+    fbSize = VPU_GetFrameBufSize(ctx->handle, encOpenParam.coreIdx, fbStride, fbHeight, mapType, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, pDramConfig);
+
+    fbAllocInfo.format  = (FrameBufferFormat)encOpenParam.srcFormat;
+    fbAllocInfo.cbcrInterleave = encOpenParam.cbcrInterleave;
+    fbAllocInfo.mapType = mapType;
+    fbAllocInfo.stride  = fbStride;
+    fbAllocInfo.height  = fbHeight;
+    fbAllocInfo.size    = fbSize;
+    fbAllocInfo.type    = FB_TYPE_PPU;
+    fbAllocInfo.num     = ctx->fbCount.srcFbNum;
+    fbAllocInfo.nv21    = encOpenParam.nv21;
+
+    if (PRODUCT_ID_NOT_VP_SERIES(ctx->productID)) {
+        fbAllocInfo.lumaBitDepth = 8;
+        fbAllocInfo.chromaBitDepth = 8;
     }
 
-    if (ctx->rotAngle == 90 || ctx->rotAngle == 270) {
-        reconFbWidth  = VPU_ALIGN32(encOpenParam.picHeight);
-        reconFbHeight = VPU_ALIGN32(encOpenParam.picWidth);
+    if (FALSE == AllocFBMemory(encOpenParam.coreIdx, ctx->pFbSrcMem, ctx->pFbSrc, fbSize, ctx->fbCount.srcFbNum, ENC_SRC, ctx->handle->instIndex)) {
+        VLOG(ERR, "failed to allocate source buffers\n");
+        return FALSE;
     }
+    ctx->srcFbAllocInfo = fbAllocInfo;
 
-    /* Allocate framebuffers for recon. */
-    reconFbStride = CalcStride(reconFbWidth, reconFbHeight, (FrameBufferFormat)encOpenParam.outputFormat, encOpenParam.cbcrInterleave, COMPRESSED_FRAME_MAP, FALSE);
-    reconFbSize   = VPU_GetFrameBufSize(encOpenParam.coreIdx, reconFbStride, reconFbHeight, COMPRESSED_FRAME_MAP, (FrameBufferFormat)encOpenParam.outputFormat, encOpenParam.cbcrInterleave, NULL);
-    vdi_lock(encOpenParam.coreIdx);
-    for (i = 0; i < ctx->fbCount.reconFbNum; i++) {
-        ctx->pFbReconMem[i].size = reconFbSize;
-        if (vdi_allocate_dma_memory(encOpenParam.coreIdx, &ctx->pFbReconMem[i]) < 0) {
-            vdi_unlock(encOpenParam.coreIdx);
-            VLOG(ERR, "fail to allocate recon buffer\n");
-            return FALSE;
+    //Buffers for reconstructed frames
+    osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
+
+    if (PRODUCT_ID_VP_SERIES(ctx->productID)) {
+        pDramConfig = NULL;
+        if (ctx->encOpenParam.bitstreamFormat == STD_AVC) {
+            fbWidth  = VPU_ALIGN16(encOpenParam.picWidth);
+            fbHeight = VPU_ALIGN16(encOpenParam.picHeight);
+        } else {
+            fbWidth  = VPU_ALIGN8(encOpenParam.picWidth);
+            fbHeight = VPU_ALIGN8(encOpenParam.picHeight);
         }
-        ctx->pFbRecon[i].bufY  = ctx->pFbReconMem[i].phys_addr;
-        ctx->pFbRecon[i].bufCb = (PhysicalAddress) - 1;
-        ctx->pFbRecon[i].bufCr = (PhysicalAddress) - 1;
-        ctx->pFbRecon[i].size  = reconFbSize;
-        ctx->pFbRecon[i].updateFbInfo = TRUE;
-    }
-    vdi_unlock(encOpenParam.coreIdx);
 
-    ctx->reconFbStride = reconFbStride;
-    ctx->reconFbHeight = reconFbHeight;
-
-    return TRUE;
-}
-
-static BOOL AllocateYuvBuffer(ComponentImpl* com, Uint32 srcFbWidth, Uint32 srcFbHeight) 
-{
-    YuvFeederContext*    ctx = (YuvFeederContext*)com->context;
-    EncOpenParam         encOpenParam = ctx->encOpenParam;
-    Uint32               i = 0;
-    FrameBufferAllocInfo srcFbAllocInfo;
-    Uint32               srcFbSize    = 0;
-    Uint32               srcFbStride  = 0;
-
-    osal_memset(&srcFbAllocInfo,   0x00, sizeof(FrameBufferAllocInfo));
-
-    /* Allocate framebuffers for source. */
-    srcFbStride = CalcStride(srcFbWidth, srcFbHeight, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, LINEAR_FRAME_MAP, FALSE);
-    srcFbSize   = VPU_GetFrameBufSize(encOpenParam.coreIdx, srcFbStride, srcFbHeight, LINEAR_FRAME_MAP, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, NULL);
-
-    srcFbAllocInfo.mapType = LINEAR_FRAME_MAP;
-    srcFbAllocInfo.format  = (FrameBufferFormat)encOpenParam.srcFormat;
-    srcFbAllocInfo.cbcrInterleave = encOpenParam.cbcrInterleave;
-    srcFbAllocInfo.stride  = srcFbStride;
-    srcFbAllocInfo.height  = srcFbHeight;
-    srcFbAllocInfo.endian  = encOpenParam.sourceEndian;
-    srcFbAllocInfo.type    = FB_TYPE_PPU;
-    srcFbAllocInfo.num     = ctx->fbCount.srcFbNum;
-    srcFbAllocInfo.nv21    = encOpenParam.nv21;
-
-    vdi_lock(encOpenParam.coreIdx);
-    for (i = 0; i < ctx->fbCount.srcFbNum; i++) {
-        ctx->pFbSrcMem[i].size = srcFbSize;
-        if (vdi_allocate_dma_memory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i]) < 0) {
-            vdi_unlock(encOpenParam.coreIdx);
-            VLOG(ERR, "fail to allocate src buffer\n");
-            return FALSE;
+        if ((ctx->rotAngle != 0 || ctx->mirDir != 0) && !(ctx->rotAngle == 180 && ctx->mirDir == MIRDIR_HOR_VER)) {
+            fbWidth  = VPU_ALIGN32(encOpenParam.picWidth);
+            fbHeight = VPU_ALIGN32(encOpenParam.picHeight);
         }
-        ctx->pFbSrc[i].bufY  = ctx->pFbSrcMem[i].phys_addr;
-        ctx->pFbSrc[i].bufCb = (PhysicalAddress) - 1;
-        ctx->pFbSrc[i].bufCr = (PhysicalAddress) - 1;
-        ctx->pFbSrc[i].updateFbInfo = TRUE;
-    }
-    vdi_unlock(encOpenParam.coreIdx);
-
-    ctx->srcFbStride      = srcFbStride;
-    ctx->srcFbAllocInfo   = srcFbAllocInfo;
-
-    return TRUE;
-}
-
-
-static BOOL AllocateSourceFrameBuffer(ComponentImpl* com) {
-    YuvFeederContext* ctx = (YuvFeederContext*)com->context;
-    EncOpenParam    encOpenParam = ctx->encOpenParam;
-    Uint32          srcFbWidth   = VPU_ALIGN8(encOpenParam.picWidth);
-    Uint32          srcFbHeight  = VPU_ALIGN8(encOpenParam.picHeight);
-    SRC_FB_TYPE     srcFbType = SRC_FB_TYPE_YUV;
-
-        
-    if (srcFbType == SRC_FB_TYPE_YUV) {
-        if (AllocateYuvBuffer(com, srcFbWidth, srcFbHeight) == FALSE) {
-            return FALSE;
+        //TODO if --> else if
+        if (ctx->rotAngle == 90 || ctx->rotAngle == 270) {
+            fbWidth  = VPU_ALIGN32(encOpenParam.picHeight);
+            fbHeight = VPU_ALIGN32(encOpenParam.picWidth);
         }
+
+        mapType = COMPRESSED_FRAME_MAP;
+    } else {
+        //CODA
+        pDramConfig = &dramConfig;
+        fbWidth = encOpenParam.picWidth;
+        fbHeight = encOpenParam.picHeight;
+        if (90 == ctx->rotAngle || 270 == ctx->rotAngle) {
+            fbWidth = encOpenParam.picHeight;
+            fbHeight = encOpenParam.picWidth;
+        }
+        fbWidth     = VPU_ALIGN16(fbWidth);
+        fbHeight    = VPU_ALIGN32(fbHeight);
+        mapType     = mapType;
     }
+
+    fbStride = CalcStride(fbWidth, fbHeight, (FrameBufferFormat)encOpenParam.outputFormat, encOpenParam.cbcrInterleave, mapType, FALSE);
+    fbSize   = VPU_GetFrameBufSize(ctx->handle, encOpenParam.coreIdx, fbStride, fbHeight, mapType, (FrameBufferFormat)encOpenParam.outputFormat, encOpenParam.cbcrInterleave, pDramConfig);
+
+    if (FALSE == AllocFBMemory(encOpenParam.coreIdx, ctx->pFbReconMem, ctx->pFbRecon, fbSize, ctx->fbCount.reconFbNum, ENC_FBC, ctx->handle->instIndex)) {
+        VLOG(ERR, "failed to allocate recon buffers\n");
+        return FALSE;
+    }
+
+    fbAllocInfo.stride  = fbStride;
+    fbAllocInfo.height  = fbHeight;
+    fbAllocInfo.type    = FB_TYPE_CODEC;
+    fbAllocInfo.num     = ctx->fbCount.reconFbNum;
+
+    ctx->reconFbAllocInfo = fbAllocInfo;
 
     return TRUE;
 }
@@ -272,13 +266,8 @@ static BOOL PrepareYuvFeeder(ComponentImpl* com, BOOL* done)
         return success;
     }
 
-    if (AllocateReconFrameBuffer(com) == FALSE) {
-        VLOG(ERR, "AllocateReconFrameBuffer error\n");
-        return FALSE;
-    }
-
-    if (AllocateSourceFrameBuffer(com) == FALSE) {
-        VLOG(ERR, "AllocateSourceFrameBuffer error\n");
+    if (FALSE == AllocateFrameBuffer(com)) {
+        VLOG(ERR, "AllocateFramBuffer() error\n");
         return FALSE;
     }
 
@@ -289,13 +278,15 @@ static BOOL PrepareYuvFeeder(ComponentImpl* com, BOOL* done)
     yuvFeederInfo.packedFormat   = encOpenParam->packedFormat;
     yuvFeederInfo.srcFormat      = encOpenParam->srcFormat;
     yuvFeederInfo.srcPlanar      = TRUE;
-    yuvFeederInfo.srcStride      = ctx->srcFbStride;
+    yuvFeederInfo.srcStride      = ctx->srcFbAllocInfo.stride;
     yuvFeederInfo.srcHeight      = VPU_CEIL(encOpenParam->picHeight, 8);
     yuvFeeder = YuvFeeder_Create(ctx->yuvMode, ctx->inputPath, yuvFeederInfo);
     if (yuvFeeder == NULL) {
         VLOG(ERR, "YuvFeeder_Create Error\n");
         return FALSE;
     }
+
+    ((AbstractYuvFeeder*)yuvFeeder)->impl->handle = ctx->handle;
     ctx->yuvFeeder = yuvFeeder;
 
     // Fill data into the input queue of the sink port.
@@ -310,6 +301,10 @@ static BOOL PrepareYuvFeeder(ComponentImpl* com, BOOL* done)
             defaultData.srcFbIndex   = i;
             Queue_Enqueue(com->sinkPort.inputQ, (void*)&defaultData);
         }
+    }
+
+    if (PRODUCT_ID_NOT_VP_SERIES(ctx->productID)) {
+        VPU_EncGiveCommand(ctx->handle, GET_TILEDMAP_CONFIG, &(ctx->mapConfig));
     }
 
     ctx->fbAllocated = TRUE;
@@ -327,6 +322,7 @@ static BOOL ExecuteYuvFeeder(ComponentImpl* com, PortContainer* in, PortContaine
     PortContainerYuv*   sinkData     = (PortContainerYuv*)out;
     void*               extraFeedingInfo = NULL;
 
+    out->reuse = FALSE;
     if (ctx->state == YUV_FEEDER_STATE_WAIT) {
         CNMComponentParamRet ParamRet;
         BOOL                 success, done = FALSE;
@@ -348,6 +344,10 @@ static BOOL ExecuteYuvFeeder(ComponentImpl* com, PortContainer* in, PortContaine
 
     sinkData->fb              = ctx->pFbSrc[sinkData->srcFbIndex];
 
+    if (PRODUCT_ID_NOT_VP_SERIES(ctx->productID)) {
+        extraFeedingInfo = &(ctx->mapConfig);
+    }
+
     ctx->feedingNum++;
     if (ctx->feedingNum > ctx->frameOutNum && ctx->frameOutNum != -1) {
         ctx->last = sinkData->last = TRUE;
@@ -368,18 +368,16 @@ static void ReleaseYuvFeeder(ComponentImpl* com)
     YuvFeederContext* ctx = (YuvFeederContext*)com->context;
     Uint32          i   = 0;
 
-    vdi_lock(ctx->encOpenParam.coreIdx);
     for (i = 0; i < ctx->fbCount.reconFbNum*2; i++) {
         if (ctx->pFbReconMem[i].size)
-            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbReconMem[i]);
+            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbReconMem[i], ENC_FBC, ctx->handle->instIndex);
     }
     for (i = 0; i < ctx->fbCount.srcFbNum; i++) {
         if (ctx->pFbSrcMem[i].size)
-            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbSrcMem[i]);
+            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbSrcMem[i], ENC_SRC, ctx->handle->instIndex);
         if (ctx->pFbOffsetTblMem[i].size)
-            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbOffsetTblMem[i]);
+            vdi_free_dma_memory(ctx->encOpenParam.coreIdx, &ctx->pFbOffsetTblMem[i], ENC_FBCY_TBL, ctx->handle->instIndex);
     }
-    vdi_unlock(ctx->encOpenParam.coreIdx);
 }
 
 static BOOL DestroyYuvFeeder(ComponentImpl* com) 
@@ -406,11 +404,13 @@ static Component CreateYuvFeeder(ComponentImpl* com, CNMComponentConfig* compone
         com->numSinkPortQueue = ctx->encOpenParam.sourceBufCount;//set requested sourceBufCount
 
 
+    ctx->productID = componentParam->testEncConfig.productId;
+
     return (Component)com;
 }
 
 ComponentImpl yuvFeederComponentImpl = {
-    "yuvFeeder",
+    "yuvfeeder",
     NULL,
     {0,},
     {0,},

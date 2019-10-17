@@ -47,7 +47,7 @@ typedef struct {
     Uint32      sumMhzPerfps;
     Uint32      minMhzPerfps;
     Uint32      maxMhzPerfps;
-    double      nsPerCycle;     /**< Nanosecond per cycle */	
+    double      nsPerCycle;     /**< Nanosecond per cycle */
     BOOL        isEnc;
 } PerformanceMonitor;
 
@@ -77,10 +77,10 @@ PFCtx PFMonitorSetup(
     if (strLogDir) {
         sprintf(path, "./report/pf/%s/", strLogDir);
         MkDir(path);
-        sprintf(path, "./report/pf/%s/report_performance_%d_%d.txt", strLogDir, coreIdx, instanceIndex);
+        sprintf(path, "./report/pf/%s/report_performance_%d_0.txt", strLogDir, coreIdx);
     }
     else {
-        sprintf(path, "./report/pf/report_performance_%d_%d.txt", coreIdx, instanceIndex);
+        sprintf(path, "./report/pf/report_performance_%d_0.txt", coreIdx);
         MkDir("./report/pf/");
     }
 
@@ -109,7 +109,7 @@ PFCtx PFMonitorSetup(
     pm->sumMhzPerfps = 0;
     pm->isEnc        = isEnc;
 
-    VPU_GetVersionInfo(coreIdx, NULL, &revision, NULL);	
+    VPU_GetVersionInfo(coreIdx, NULL, &revision, NULL);
 
     if ( isEnc == TRUE) {
         osal_fprintf(fp, "You didn't enable SUPPORT_ENC_PERFORMANCE. performance cycles are not checked correctly\n");
@@ -122,7 +122,7 @@ PFCtx PFMonitorSetup(
     osal_fprintf(fp, "#Rev.%d\n", revision);
     osal_fprintf(fp, "#Target Clock: %dMHz\n", targetClkInHz/1000000);
     osal_fprintf(fp, "#PASS CONDITION : MovingSum(%dframes) <= 100ms, %dFps\n", movingCount, pm->fps);
-    if (productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521 || productId == PRODUCT_ID_511) {
+    if ( productId == PRODUCT_ID_521 || productId == PRODUCT_ID_511) {
         osal_fprintf(fp, "#================================================================================================================================================================\n");
         osal_fprintf(fp, "#             One frame                      %d Frames moving sum                  Average                   %dfps                              Cycles\n", movingCount, pm->fps);
         osal_fprintf(fp, "#      ---------------------------     ----------------------------------------------------------- ---------------------------    -------------------------------\n");
@@ -154,7 +154,7 @@ void PFMonitorRelease(
         return;
     }
 
-    expectedCpf = pm->referenceClk / pm->fps; 
+    expectedCpf = pm->referenceClk / pm->fps;
     avgCycles   = (Uint32)(pm->totalCycles / pm->num);
 
     fp = pm->fp;
@@ -205,7 +205,7 @@ void PFMonitorUpdate(
     fp          = pm->fp;
     count       = pm->num;
     preCycles   = pm->preCycles;
-    mhzPerfps   = (Uint32)(cycles*pm->fps / 1000000.0 + 0.5); 
+    mhzPerfps   = (Uint32)(cycles*pm->fps / 1000000.0 + 0.5);
 
     pm->totalCycles += cycles;
     pm->sumMhzPerfps += mhzPerfps;
@@ -235,8 +235,8 @@ void PFMonitorUpdate(
         }
     }
 
-    cyclesInMs      = (Uint32)((cycles * pm->nsPerCycle)/1000000); 
-    TotalcyclesInMs = (Uint32)((pm->totalCycles * pm->nsPerCycle)/1000000); 
+    cyclesInMs      = (Uint32)((cycles * pm->nsPerCycle)/1000000);
+    TotalcyclesInMs = (Uint32)((pm->totalCycles * pm->nsPerCycle)/1000000);
     movingSum3InMs  = (Uint32)((movingSum3InCycle * pm->nsPerCycle)/1000000);
 
     if (movingSum3InMs > 100) {
@@ -247,7 +247,7 @@ void PFMonitorUpdate(
         resultMsg = 'O';
     }
 
-    if ( productId == PRODUCT_ID_520  || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521)
+    if ( productId == PRODUCT_ID_521)
     {
         Uint32  encPrepareCycle;
         Uint32  encProcessingCycle;
@@ -261,24 +261,24 @@ void PFMonitorUpdate(
         va_end(ap);
         if ((count%pm->fps) == 0) {
             Uint32 avgMhzPerfps = pm->sumMhzPerfps / count;
-            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d      %8d %8d %8d   %10d %10d %10d\n", 
+            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d      %8d %8d %8d   %10d %10d %10d\n",
                 count, cycles, cyclesInMs, movingSum3InCycle, movingSum3InMs, resultMsg, pm->totalCycles/count, TotalcyclesInMs/count,
                 pm->minMhzPerfps, avgMhzPerfps, pm->maxMhzPerfps, encPrepareCycle, encProcessingCycle, encEncodingCycle);
         }
         else {
-            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d                                   %10d %10d %10d\n", 
+            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d                                   %10d %10d %10d\n",
                 count, cycles, cyclesInMs, movingSum3InCycle, movingSum3InMs, resultMsg, pm->totalCycles/count, TotalcyclesInMs/count, encPrepareCycle, encProcessingCycle, encEncodingCycle);
         }
     }
     else {
         if ((count%pm->fps) == 0) {
             Uint32 avgMhzPerfps = pm->sumMhzPerfps / count;
-            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d      %8d %8d %8d\n", 
+            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d      %8d %8d %8d\n",
                 count, cycles, cyclesInMs, movingSum3InCycle, movingSum3InMs, resultMsg, pm->totalCycles/count, TotalcyclesInMs/count,
                 pm->minMhzPerfps, avgMhzPerfps, pm->maxMhzPerfps);
         }
         else {
-            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d\n", 
+            osal_fprintf(fp, "%5d %10d %10d             %10d %10d     %c      %10d   %7d\n",
                 count, cycles, cyclesInMs, movingSum3InCycle, movingSum3InMs, resultMsg, pm->totalCycles/count, TotalcyclesInMs/count);
         }
     }

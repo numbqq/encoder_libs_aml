@@ -42,6 +42,7 @@
     #include <sys/stat.h>
 #endif
 
+
 #define MATCH_OR_MISMATCH(_expected, _value, _ret)        ((_ret=(_expected == _value)) ? "MATCH" : "MISMATCH")
 
 #if defined(WIN32) || defined(WIN64)
@@ -87,8 +88,6 @@ struct OptionExt
 #define MAX_NOT_DEC_COUNT               2000
 #define COMPARE_RESOLUTION(_src, _dst)  (_src->width == _dst->width && _src->height == _dst->height)
 
-extern char* productNameList[];
-
 typedef union {
     struct {
         Uint32  ctu_force_mode  :  2; //[ 1: 0]
@@ -131,10 +130,10 @@ typedef enum {
 } CompSaveMode;
 
 typedef struct {
-    int picX;               
+    int picX;
     int picY;
     int internalBitDepth;
-    int losslessEnable;        
+    int losslessEnable;
     int constIntraPredFlag;
     int gopSize;
     int numTemporalLayers;
@@ -172,7 +171,7 @@ typedef struct {
     int rcEnable;
 
     int bitRate;
-    int bitAllocMode;                   
+    int bitAllocMode;
     int fixedBitRatio[MAX_GOP_NUM];
     int cuLevelRCEnable;
     int hvsQPEnable;
@@ -269,7 +268,7 @@ typedef struct {
     int    forceCoefDropEnd;
     char   scalingListFileName[MAX_FILE_PATH];
     char   customLambdaFileName[MAX_FILE_PATH];
-    
+
     Uint32 enStillPicture;
 
     // custom map
@@ -281,6 +280,7 @@ typedef struct {
     char   WpParamFileName[MAX_FILE_PATH];
 
     // for H.264 on VP
+    int idrPeriod;
     int rdoSkip;
     int lambdaScalingEnable;
     int transform8x8;
@@ -292,6 +292,10 @@ typedef struct {
     int entropyCodingMode;
 
     int s2fmeDisable;
+    int forceIdrPicIdx;
+    int forcedIdrHeaderEnable;
+    Uint32 rcWeightParam;
+    Uint32 rcWeightBuf;
 } VP_ENC_CFG;
 
 typedef struct {
@@ -398,6 +402,7 @@ typedef struct {
 
     int numChangeParam;
     VP5ChangeParam changeParam[10];
+    int rcWeightFactor;
 } ENC_CFG;
 
 
@@ -416,6 +421,14 @@ extern Uint32 randomSeed;
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+/* The simple load balancer for performance measurement */
+void LoadBalancerInit(void);
+void LoadBalancerRelease(void);
+BOOL LoadBalancerGetMyTurn(Uint32 myInstance);
+void LoadBalancerSetNextTurn(void);
+void LoadBalancerAddInstance(Uint32 instanceIndex);
+void LoadBalancerRemoveInstance(Uint32 instanceIndex);
 
 /* Performance report */
 typedef void*   PFCtx;
@@ -445,51 +458,51 @@ void PrepareDecoderTest(
     );
 
 void byte_swap(
-    unsigned char* data, 
+    unsigned char* data,
     int len
     );
 
 void word_swap(
-    unsigned char* data, 
+    unsigned char* data,
     int len
     );
 
 void dword_swap(
-    unsigned char* data, 
+    unsigned char* data,
     int len
     );
 
 void lword_swap(
-    unsigned char* data, 
+    unsigned char* data,
     int len
     );
 
 Int32 LoadFirmware(
-    Int32       productId, 
-    Uint8**   retFirmware, 
-    Uint32*   retSizeInWord, 
+    Int32       productId,
+    Uint8**   retFirmware,
+    Uint32*   retSizeInWord,
     const char* path
     );
 
 #if 0
 void PrintDecSeqWarningMessages(
-    Uint32          productId, 
+    Uint32          productId,
     DecInitialInfo* seqInfo
     );
 
 void DisplayDecodedInformation(
-    DecHandle      handle, 
-    CodStd         codec, 
-    Uint32         frameNo, 
+    DecHandle      handle,
+    CodStd         codec,
+    Uint32         frameNo,
     DecOutputInfo* decodedInfo,
     ...
     );
 #endif
-void 
+void
 DisplayEncodedInformation(
-    EncHandle      handle, 
-    CodStd         codec, 
-    Uint32         frameNo, 
+    EncHandle      handle,
+    CodStd         codec,
+    Uint32         frameNo,
     EncOutputInfo* encodedInfo,
     ...
     );
@@ -506,7 +519,7 @@ void PrintEncSppStatus(
 /************************************************************************/
 
 #define PUT_BYTE(_p, _b) \
-    *_p++ = (unsigned char)_b; 
+    *_p++ = (unsigned char)_b;
 
 #define PUT_BUFFER(_p, _buf, _len) \
     osal_memcpy(_p, _buf, _len); \
@@ -516,21 +529,21 @@ void PrintEncSppStatus(
     *_p++ = (unsigned char)((_var)>>0);  \
     *_p++ = (unsigned char)((_var)>>8);  \
     *_p++ = (unsigned char)((_var)>>16); \
-    *_p++ = (unsigned char)((_var)>>24); 
+    *_p++ = (unsigned char)((_var)>>24);
 
 #define PUT_BE32(_p, _var) \
     *_p++ = (unsigned char)((_var)>>24);  \
     *_p++ = (unsigned char)((_var)>>16);  \
     *_p++ = (unsigned char)((_var)>>8); \
-    *_p++ = (unsigned char)((_var)>>0); 
+    *_p++ = (unsigned char)((_var)>>0);
 
 #define PUT_LE16(_p, _var) \
     *_p++ = (unsigned char)((_var)>>0);  \
-    *_p++ = (unsigned char)((_var)>>8);  
+    *_p++ = (unsigned char)((_var)>>8);
 
 #define PUT_BE16(_p, _var) \
     *_p++ = (unsigned char)((_var)>>8);  \
-    *_p++ = (unsigned char)((_var)>>0);  
+    *_p++ = (unsigned char)((_var)>>0);
 
 Int32 ConvFOURCCToMp4Class(
     Int32   fourcc
@@ -555,16 +568,17 @@ Int32 ConvCodecIdToFourcc(
 /*!
  * \brief       wrapper function of StoreYuvImageBurstFormat()
  */
+#if 0
 Uint8* GetYUVFromFrameBuffer(
     DecHandle       decHandle,
     FrameBuffer*    fb,
     VpuRect         rcFrame,
-	Uint32*       retWidth,
+    Uint32*       retWidth,
     Uint32*       retHeight,
     Uint32*       retBpp,
-	size_t*		retSize
+    size_t*		retSize
     );
-
+#endif
 /************************************************************************/
 /* Queue                                                                */
 /************************************************************************/
@@ -599,7 +613,7 @@ void Queue_Destroy(
  * \brief       Enqueue with deep copy
  */
 BOOL Queue_Enqueue(
-    Queue*      queue, 
+    Queue*      queue,
     void*       data
     );
 
@@ -661,29 +675,29 @@ Int32 MD5_Init(
     );
 
 Int32 MD5_Update(
-    MD5_CTX*    c, 
-    const void* data, 
+    MD5_CTX*    c,
+    const void* data,
     size_t      len);
 
 Int32 MD5_Final(
-    Uint8*      md, 
+    Uint8*      md,
     MD5_CTX*    c
     );
 
 Uint8* MD5(
-    const Uint8*  d, 
-    size_t        n, 
+    const Uint8*  d,
+    size_t        n,
     Uint8*        md
     );
 
-void plane_md5(MD5_CTX *md5_ctx, 
+void plane_md5(MD5_CTX *md5_ctx,
     Uint8  *src,
-    int    src_x, 
+    int    src_x,
     int    src_y,
-    int    out_x, 
+    int    out_x,
     int    out_y,
-    int    stride, 
-    int    bpp, 
+    int    stride,
+    int    bpp,
     Uint16 zero
 );
 
@@ -706,7 +720,7 @@ typedef struct ComparatorImpl {
     Uint32      numOfFrames;
     BOOL        (*Create)(struct ComparatorImpl* impl, char* path);
     BOOL        (*Destroy)(struct ComparatorImpl* impl);
-    BOOL        (*Compare)(struct ComparatorImpl* impl, void* data, Uint32 size);
+    BOOL        (*Compare)(struct ComparatorImpl* impl, void* data, PhysicalAddress size);
     BOOL        (*Configure)(struct ComparatorImpl* impl, ComparatorConfType type, void* val);
     BOOL        (*Rewind)(struct ComparatorImpl* impl);
     BOOL        eof;
@@ -719,7 +733,7 @@ typedef struct {
     ComparatorImpl* impl;
 } AbstractComparator;
 
-// YUV Comparator 
+// YUV Comparator
 typedef struct {
     Uint32            width;
     Uint32            height;
@@ -769,6 +783,8 @@ BOOL IsEndOfFile(
     FILE* fp
     );
 
+
+#if 0
 /************************************************************************/
 /* Bitstream Feeder                                                     */
 /************************************************************************/
@@ -783,7 +799,7 @@ typedef struct {
     void*       data;
     Uint32    size;
     BOOL        eos;        //!<< End of stream
-	int seqHeaderSize;
+    int seqHeaderSize;
 } BSChunk;
 
 typedef void* BSFeeder;
@@ -827,8 +843,8 @@ BOOL BitstreamFeeder_SetFeedingSize(
     Uint32      size
     );
 /**
- * \brief           Set filling bitstream as ringbuffer mode or linebuffer mode. 
- * \param   mode    0 : auto 
+ * \brief           Set filling bitstream as ringbuffer mode or linebuffer mode.
+ * \param   mode    0 : auto
  *                  1 : ringbuffer
  *                  2 : linebuffer.
  */
@@ -836,7 +852,7 @@ BOOL BitstreamFeeder_SetFeedingSize(
 #define BSF_FILLING_RINGBUFFER              1
 #define BSF_FILLING_LINEBUFFER              2
 /* BSF_FILLING_RINBGUFFER_WITH_ENDFLAG:
- * Scenario: 
+ * Scenario:
  * - Application writes 1 ~ 10 frames into bitstream buffer.
  * - Set stream end flag by using VPU_DecUpdateBitstreamBuffer(handle, 0).
  * - Application clears stream end flag by using VPU_DecUpdateBitstreamBuffer(handle, -1).
@@ -856,8 +872,8 @@ BOOL BitstreamFeeder_IsEos(
 
 
 Uint32 BitstreamFeeder_GetSeqHeaderSize(
-	BSFeeder    feeder
-	);
+    BSFeeder    feeder
+    );
 
 
 BOOL BitstreamFeeder_Destroy(
@@ -874,6 +890,7 @@ BOOL BitstreamFeeder_SetHook(
     void*           arg
     );
 
+#endif
 /************************************************************************/
 /* YUV Feeder                                                           */
 /************************************************************************/
@@ -941,9 +958,9 @@ BOOL YuvFeeder_Destroy(
  */
 BOOL LoadYuvImageByYCbCrLine(
     EncHandle   handle,
-    Uint32      coreIdx, 
-    Uint8*      src, 
-    size_t      picWidth, 
+    Uint32      coreIdx,
+    Uint8*      src,
+    size_t      picWidth,
     size_t      picHeight,
     FrameBuffer* fb,
     Uint32      srcFbIndex
@@ -958,9 +975,9 @@ typedef enum {
     REMAIN_SRC_DATA_WRITE     = 0x80000000
 } SOURCE_LINE_WRITE;
 BOOL LoadYuvImageBurstFormat(
-    Uint32      coreIdx, 
-    Uint8*      src, 
-    size_t      picWidth, 
+    Uint32      coreIdx,
+    Uint8*      src,
+    size_t      picWidth,
     size_t      picHeight,
     FrameBuffer *fb,
     BOOL        convertCbcrIntl
@@ -968,31 +985,32 @@ BOOL LoadYuvImageBurstFormat(
 
 
 int ProcessEncodedBitstreamBurst(
-    Uint32 core_idx, 
-    osal_file_t fp, 
+    Uint32 core_idx,
+    osal_file_t fp,
     int targetAddr,
-    PhysicalAddress bsBufStartAddr, 
+    PhysicalAddress bsBufStartAddr,
     PhysicalAddress bsBufEndAddr,
-    int size, 
+    int size,
     int endian,
     Comparator comparator
     );
 
 BOOL LoadTiledImageYuvBurst(
+    VpuHandle       handle,
     Uint32          coreIdx,
-    BYTE*           pYuv, 
-    size_t          picWidth, 
-    size_t          picHeight, 
-    FrameBuffer*    fb, 
+    BYTE*           pYuv,
+    size_t          picWidth,
+    size_t          picHeight,
+    FrameBuffer*    fb,
     TiledMapConfig  mapCfg
     );
 
 Uint32 StoreYuvImageBurstFormat(
-    Uint32          coreIndex, 
-    FrameBuffer*    fbSrc, 
-    TiledMapConfig  mapCfg, 
-    Uint8*          pDst, 
-    VpuRect         cropRect, 
+    Uint32          coreIndex,
+    FrameBuffer*    fbSrc,
+    TiledMapConfig  mapCfg,
+    Uint8*          pDst,
+    VpuRect         cropRect,
     BOOL            enableCrop
     );
 
@@ -1064,7 +1082,7 @@ typedef struct RenderDevice {
 Renderer SimpleRenderer_Create(
     DecHandle           decHandle,
     RenderDeviceType    deviceType,
-    const char*         yuvPath            //!<< path to store yuv iamge. 
+    const char*         yuvPath            //!<< path to store yuv iamge.
     );
 
 Uint32 SimpleRenderer_Act(
@@ -1079,7 +1097,7 @@ void* SimpleRenderer_GetFreeFrameInfo(
     Renderer        renderer
     );
 
-/* \brief       Flush display queues and clear display indexes 
+/* \brief       Flush display queues and clear display indexes
  */
 void SimpleRenderer_Flush(
     Renderer        renderer
@@ -1101,7 +1119,7 @@ BOOL MkDir(
 /*******************************************************************************
  * DATATYPES AND FUNCTIONS RELATED TO REPORT
  *******************************************************************************/
-typedef struct 
+typedef struct
 {
     osal_file_t     fpPicDispInfoLogfile;
     osal_file_t     fpPicTypeLogfile;
@@ -1136,35 +1154,35 @@ typedef struct VpuReportConfig_t {
 
 #if 0
 void OpenDecReport(
-    Uint32              core_idx, 
+    Uint32              core_idx,
     VpuReportConfig_t*  cfg
     );
 
 void CloseDecReport(
-    Uint32 core_idx
+    DecHandle handle
     );
 
 void ConfigDecReport(
-    Uint32      core_idx, 
-    DecHandle   handle, 
+    Uint32      core_idx,
+    DecHandle   handle,
     CodStd      bitstreamFormat
     );
 
 void SaveDecReport(
-    Uint32          core_idx, 
-    DecHandle       handle, 
-    DecOutputInfo*  pDecInfo, 
-    CodStd          bitstreamFormat, 
-    Uint32          mbNumX, 
+    Uint32          core_idx,
+    DecHandle       handle,
+    DecOutputInfo*  pDecInfo,
+    CodStd          bitstreamFormat,
+    Uint32          mbNumX,
     Uint32          mbNumY
     );
 #endif
 
 void CheckUserDataInterrupt(
-    Uint32      core_idx, 
-    DecHandle   handle, 
-    Int32       decodeIdx, 
-    CodStd      bitstreamFormat, 
+    Uint32      core_idx,
+    DecHandle   handle,
+    Int32       decodeIdx,
+    CodStd      bitstreamFormat,
     Int32       int_reason
     );
 
@@ -1176,12 +1194,15 @@ RetCode VPU_GetFBCOffsetTableSize(
     int*     csize
     );
 extern Int32 ProductCalculateAuxBufferSize(
-    AUX_BUF_TYPE    type, 
-    CodStd          codStd, 
-    Int32           width, 
+    AUX_BUF_TYPE    type,
+    CodStd          codStd,
+    Int32           width,
     Int32           height
     );
-#define MAX_CFG                 (179)
+
+#define MAX_CFG                 (183)
+
+
 #define MAX_ROI_LEVEL           (8)
 #define LOG2_CTB_SIZE           (5)
 #define CTB_SIZE                (1<<LOG2_CTB_SIZE)
@@ -1201,8 +1222,8 @@ typedef struct {
 } VpCfgInfo;
 
 Int32 GetEncOpenParamChange(
-    EncOpenParam*   pEncOP, 
-    char*           cfgFileName, 
+    EncOpenParam*   pEncOP,
+    char*           cfgFileName,
     ENC_CFG*        pEncCfg,
     EncHandle       handle
     );
@@ -1229,7 +1250,7 @@ BOOL CalcYuvSize(
     );
 
 FrameBufferFormat GetPackedFormat (
-    int srcBitDepth, 
+    int srcBitDepth,
     int packedType,
     int p10bits,
     int msb
@@ -1244,27 +1265,27 @@ char* GetBasename(
     );
 
 char* GetFileExtension(
-    const char* filename 
+    const char* filename
     );
 
 int parseAvcCfgFile(
-    ENC_CFG*    pEncCfg, 
-    char*       filename 
+    ENC_CFG*    pEncCfg,
+    char*       filename
     );
 
 int parseMp4CfgFile(
-    ENC_CFG*    pEncCfg, 
-    char*       filename 
+    ENC_CFG*    pEncCfg,
+    char*       filename
     );
 
 int parseVpEncCfgFile(
-    ENC_CFG*    pEncCfg, 
+    ENC_CFG*    pEncCfg,
     char*       FileName,
     int bitFormat
     );
 
 int parseVpChangeParamCfgFile(
-    ENC_CFG*    pEncCfg, 
+    ENC_CFG*    pEncCfg,
     char*       FileName
     );
 
@@ -1293,10 +1314,14 @@ struct option* ConvertOptions(
     Uint32              nItems
     );
 
-void ReleaseVideoMemory(
-    Uint32        coreIndex,
-    vpu_buffer_t*   memoryArr,
-    Uint32        count
+BOOL AllocFBMemory(
+    Uint32 coreIdx,
+    vpu_buffer_t *pFbMem,
+    FrameBuffer *pFb,
+    Uint32 memSize,
+    Uint32 memNum,
+    Int32 memTypes,
+    Int32 instIndex
     );
 
 #define OUTPUT_FP_NUMBER 4
@@ -1327,7 +1352,7 @@ typedef struct TestEncConfig_struct {
     int     rcIntraQp;
     int     outNum;
     int     skipPicNums[MAX_PIC_SKIP_NUM];
-    int     coreIdx;
+    Uint32     coreIdx;
     TiledMapType mapType;
     // 2D cache option
 
@@ -1342,7 +1367,6 @@ typedef struct TestEncConfig_struct {
                                     //!<< the value of needSourceConvert should be true.
     int packedFormat;
     FrameBufferFormat srcFormat;
-    int srcFormat3p4b;
     int bitdepth;
     int secondaryAXI;
     EndianMode stream_endian;
@@ -1354,7 +1378,7 @@ typedef struct TestEncConfig_struct {
     int compareType;
 #define YUV_MODE_YUV 0
 #define YUV_MODE_YUV_LOADER 2
-#define YUV_MODE_CFBC       3 
+#define YUV_MODE_CFBC       3
     int yuv_mode;
     char ref_stream_path[MAX_FILE_PATH];
     int loopCount;
@@ -1400,9 +1424,15 @@ typedef struct TestEncConfig_struct {
     Int32  numChangeParam;
     VP5ChangeParam   changeParam[10];
 
+    int    forceIdrPicIdx;
     Int32  lowLatencyMode;
 
     char            optYuvPath[256];
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+    int             srcReleaseIntEnable;
+#endif
+    int             ringBufferWrapEnable;
+
 } TestEncConfig;
 
 #ifdef __cplusplus
@@ -1410,17 +1440,18 @@ extern "C" {
 #endif /* __cplusplus */
 BOOL SetupEncoderOpenParam(
     EncOpenParam*   param,
-    TestEncConfig*  config
+    TestEncConfig*  config,
+    ENC_CFG*        encConfig
     );
 
 Int32   GetEncOpenParam(
-    EncOpenParam*   pEncOP, 
-    TestEncConfig*  pEncConfig, 
+    EncOpenParam*   pEncOP,
+    TestEncConfig*  pEncConfig,
     ENC_CFG*        pEncCfg
     );
 
 Int32 GetEncOpenParamDefault(
-    EncOpenParam*   pEncOP, 
+    EncOpenParam*   pEncOP,
     TestEncConfig*  pEncConfig
     );
 
@@ -1434,19 +1465,19 @@ void GenRegionToMap(
     );
 
 int setRoiMap(
-    int coreIdx, 
-    TestEncConfig *encConfig, 
-    EncOpenParam encOP, 
+    int coreIdx,
+    TestEncConfig *encConfig,
+    EncOpenParam encOP,
     PhysicalAddress addrRoiMap,
-    Uint8 *roiMapBuf, 
-    int srcFrameWidth, 
-    int srcFrameHeight, 
-    EncParam *encParam, 
+    Uint8 *roiMapBuf,
+    int srcFrameWidth,
+    int srcFrameHeight,
+    EncParam *encParam,
     int maxCtuNum
     );
 
 void setEncBgMode(
-    EncParam *encParam, 
+    EncParam *encParam,
     TestEncConfig encConfig
     );
 
@@ -1468,28 +1499,41 @@ int openRoiMapFile(
     TestEncConfig *encConfig
     );
 int allocateRoiMapBuf(
-    int coreIdx, 
-    TestEncConfig encConfig, 
-    vpu_buffer_t *vbROi, 
-    int srcFbNum, 
+    EncHandle handle,
+    TestEncConfig encConfig,
+    vpu_buffer_t *vbROi,
+    int srcFbNum,
     int ctuNum
     );
 
 void SetMapData(
-    int coreIdx, 
-    TestEncConfig encConfig, 
-    EncOpenParam encOP, 
-    EncParam *encParam, 
-    int srcFrameWidth, 
-    int srcFrameHeight, 
+    int coreIdx,
+    TestEncConfig encConfig,
+    EncOpenParam encOP,
+    EncParam *encParam,
+    int srcFrameWidth,
+    int srcFrameHeight,
     unsigned long addrCustomMap
     );
 
 RetCode SetChangeParam(
-    EncHandle handle, 
+    EncHandle handle,
     TestEncConfig encConfig,
     EncOpenParam encOP,
     Int32 changedCount
+    );
+
+
+BOOL GetBitstreamToBuffer(
+    EncHandle handle,
+    Uint8* pBuffer,
+    PhysicalAddress rdAddr,
+    PhysicalAddress wrAddr,
+    PhysicalAddress streamBufStartAddr,
+    PhysicalAddress streamBufEndAddr,
+    Uint32 streamSize,
+    EndianMode endian,
+    BOOL enabledRinbuffer
     );
 
 
@@ -1503,8 +1547,8 @@ void SetDefaultEncTestConfig(
 // user scaling list
 #define SL_NUM_MATRIX (6)
 
-typedef struct 
-{ 
+typedef struct
+{
     Uint8 s4[SL_NUM_MATRIX][16]; // [INTRA_Y/U/V,INTER_Y/U/V][NUM_COEFF]
     Uint8 s8[SL_NUM_MATRIX][64];
     Uint8 s16[SL_NUM_MATRIX][64];
@@ -1523,8 +1567,8 @@ enum ScalingListSize
 };
 
 int parse_user_scaling_list(
-    UserScalingList* sl, 
-    FILE* fp_sl, 
+    UserScalingList* sl,
+    FILE* fp_sl,
     CodStd  stdMode
     );
 
@@ -1537,4 +1581,4 @@ int parse_custom_lambda(Uint32 buf[NUM_CUSTOM_LAMBDA], FILE* fp);
 #endif /* __cplusplus */
 
 #endif	/* _MAIN_HELPER_H_ */
- 
+

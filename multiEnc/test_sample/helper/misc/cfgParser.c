@@ -48,7 +48,7 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"FrameRate",                   0,              240,                    0},
     {"FrameSkip",                   0,              INT_MAX,                0},
     {"FramesToBeEncoded",           0,              INT_MAX,                0},
-    {"IntraPeriod",                 0,              UI16_MAX,               0},
+    {"IntraPeriod",                 0,              2047,                   0},
     {"DecodingRefreshType",         0,              2,                      1},
     {"GOPSize",                     1,              MAX_GOP_NUM,            1},
     {"IntraNxN",                    0,              1,                      1},// 10
@@ -71,7 +71,7 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"LFCrossSliceBoundaryFlag",    0,              1,                      1},
     {"BetaOffsetDiv2",             -6,              6,                      0},
     {"TcOffsetDiv2",               -6,              6,                      0},
-    {"VpFrontSynchro",            0,              1,                      0}, // 30
+    {"VpFrontSynchro",              0,              1,                      0}, // 30
     {"LosslessCoding",              0,              1,                      0},
     {"UsePresetEncTools",           0,              3,                      0},
     {"GopPreset",                   0,             16,                      0},
@@ -87,7 +87,7 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"HvsQpScaleDiv2",              0,              4,                      2},
     {"MinQp",                       0,              63,                     8},
     {"MaxQp",                       0,              63,                    51},
-    {"MaxDeltaQp",                  0,              51,                    10},
+    {"MaxDeltaQp",                  0,              12,                    10},
     {"QP",                          0,              63,                    30},
     {"BitAllocMode",                0,              2,                      0},
     {"FixedBitRatio%d",             1,              255,                    1},
@@ -210,17 +210,22 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
     {"VbvBufferSize",              10,             3000,                   3000},
     {"EncBitrateBL",                0,              700000000,              0},
     // newly added for H.264 on VP5
+    {"IdrPeriod",                   0,              2047,                   0},
     {"RdoSkip",                     0,              1,                      1},
     {"LambdaScaling",               0,              1,                      1},
     {"Transform8x8",                0,              1,                      1},
-    {"SliceMode",                   0,              1,                      0},
+    {"SliceMode",                   0,              1,                      0}, //170
     {"SliceArg",                    0,              INT_MAX,                0},
     {"IntraMbRefreshMode",          0,              3,                      0},
     {"IntraMbRefreshArg",           1,              INT_MAX,                1},
     {"MBLevelRateControl",          0,              1,                      0},
     {"CABAC",                       0,              1,                      1},
-    {"RoiQpMapFile",                0,              1,                      1}, // 178  total : 179
+    {"RoiQpMapFile",                0,              1,                      1},
     {"S2fmeOff",                    0,              1,                      0},
+    {"RcWeightParaCtrl",            1,              31,                     16},
+    {"RcWeightBufCtrl",             1,              255,                    128}, //179, total 180
+    {"EnForcedIDRHeader",           0,              2,                      0},
+    {"ForceIdrPicIdx",             -1,              INT_MAX,               -1},
 };
 
 //------------------------------------------------------------------------------
@@ -229,19 +234,19 @@ const VpCfgInfo vpCfgInfo[MAX_CFG] = {
 // Parameter parsing helper
 static int GetValue(osal_file_t fp, char *para, char *value)
 {
-	char lineStr[256];
-	char paraStr[256];
-	osal_fseek(fp, 0, SEEK_SET);
+    char lineStr[256];
+    char paraStr[256];
+    osal_fseek(fp, 0, SEEK_SET);
 
-	while (1) {
-		if (fgets(lineStr, 256, fp) == NULL)
-			return 0;
-		sscanf(lineStr, "%s %s", paraStr, value);
-		if (paraStr[0] != ';') {
-			if (strcmp(para, paraStr) == 0)
-				return 1;
-		}
-	}
+    while (1) {
+        if (fgets(lineStr, 256, fp) == NULL)
+            return 0;
+        sscanf(lineStr, "%s %s", paraStr, value);
+        if (paraStr[0] != ';') {
+            if (strcmp(para, paraStr) == 0)
+                return 1;
+        }
+    }
 }
 
 // Parse "string number number ..." at most "num" numbers
@@ -281,7 +286,7 @@ static int GetValues(osal_file_t fp, char *para, int *values, int num)
 
 int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
 {
-	osal_file_t fp;
+    osal_file_t fp;
     char sValue[1024];
     int  ret = 0;
 
@@ -290,29 +295,29 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
         return ret;
     }
 
-	if (GetValue(fp, "YUV_SRC_IMG", sValue) == 0)
+    if (GetValue(fp, "YUV_SRC_IMG", sValue) == 0)
         goto __end_parseMp4CfgFile;
     else
-		strcpy(pEncCfg->SrcFileName, sValue);
+        strcpy(pEncCfg->SrcFileName, sValue);
 
-	if (GetValue(fp, "FRAME_NUMBER_ENCODED", sValue) == 0)
+    if (GetValue(fp, "FRAME_NUMBER_ENCODED", sValue) == 0)
         goto __end_parseMp4CfgFile;
     pEncCfg->NumFrame = atoi(sValue);
-	if (GetValue(fp, "PICTURE_WIDTH", sValue) == 0)
+    if (GetValue(fp, "PICTURE_WIDTH", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->PicX = atoi(sValue);
-	if (GetValue(fp, "PICTURE_HEIGHT", sValue) == 0)
+    pEncCfg->PicX = atoi(sValue);
+    if (GetValue(fp, "PICTURE_HEIGHT", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->PicY = atoi(sValue);
-	if (GetValue(fp, "FRAME_RATE", sValue) == 0)
+    pEncCfg->PicY = atoi(sValue);
+    if (GetValue(fp, "FRAME_RATE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	{
-		double frameRate;
+    {
+        double frameRate;
         int  timeRes, timeInc;
 #ifdef ANDROID
-		frameRate = atoi(sValue);
+        frameRate = atoi(sValue);
 #else
-		frameRate = atof(sValue);
+        frameRate = atof(sValue);
 #endif
         timeInc = 1;
         while ((int)frameRate != frameRate) {
@@ -336,66 +341,66 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
         pEncCfg->FrameRate = (timeInc - 1) << 16;
         pEncCfg->FrameRate |= timeRes;
     }
-	if (GetValue(fp, "VERSION_ID", sValue) == 0)
+    if (GetValue(fp, "VERSION_ID", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->VerId = atoi(sValue);
-	if (GetValue(fp, "DATA_PART_ENABLE", sValue) == 0)
+    pEncCfg->VerId = atoi(sValue);
+    if (GetValue(fp, "DATA_PART_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->DataPartEn = atoi(sValue);
-	if (GetValue(fp, "REV_VLC_ENABLE", sValue) == 0)
+    pEncCfg->DataPartEn = atoi(sValue);
+    if (GetValue(fp, "REV_VLC_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->RevVlcEn = atoi(sValue);
+    pEncCfg->RevVlcEn = atoi(sValue);
 
-	if (GetValue(fp, "INTRA_DC_VLC_THRES", sValue) == 0)
+    if (GetValue(fp, "INTRA_DC_VLC_THRES", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->IntraDcVlcThr = atoi(sValue);
-	if (GetValue(fp, "SHORT_VIDEO", sValue) == 0)
+    pEncCfg->IntraDcVlcThr = atoi(sValue);
+    if (GetValue(fp, "SHORT_VIDEO", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->ShortVideoHeader = atoi(sValue);
-	if (GetValue(fp, "ANNEX_I_ENABLE", sValue) == 0)
+    pEncCfg->ShortVideoHeader = atoi(sValue);
+    if (GetValue(fp, "ANNEX_I_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->AnnexI = atoi(sValue);
-	if (GetValue(fp, "ANNEX_J_ENABLE", sValue) == 0)
+    pEncCfg->AnnexI = atoi(sValue);
+    if (GetValue(fp, "ANNEX_J_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->AnnexJ = atoi(sValue);
-	if (GetValue(fp, "ANNEX_K_ENABLE", sValue) == 0)
+    pEncCfg->AnnexJ = atoi(sValue);
+    if (GetValue(fp, "ANNEX_K_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->AnnexK = atoi(sValue);
-	if (GetValue(fp, "ANNEX_T_ENABLE", sValue) == 0)
+    pEncCfg->AnnexK = atoi(sValue);
+    if (GetValue(fp, "ANNEX_T_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->AnnexT = atoi(sValue);
+    pEncCfg->AnnexT = atoi(sValue);
 
-	if (GetValue(fp, "VOP_QUANT_SCALE", sValue) == 0)
+    if (GetValue(fp, "VOP_QUANT_SCALE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->VopQuant = atoi(sValue);
-	if (GetValue(fp, "GOP_PIC_NUMBER", sValue) == 0)
+    pEncCfg->VopQuant = atoi(sValue);
+    if (GetValue(fp, "GOP_PIC_NUMBER", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->GopPicNum = atoi(sValue);
-	if (GetValue(fp, "SLICE_MODE", sValue) == 0)
+    pEncCfg->GopPicNum = atoi(sValue);
+    if (GetValue(fp, "SLICE_MODE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->SliceMode = atoi(sValue);
-	if (GetValue(fp, "SLICE_SIZE_MODE", sValue) == 0)
+    pEncCfg->SliceMode = atoi(sValue);
+    if (GetValue(fp, "SLICE_SIZE_MODE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->SliceSizeMode = atoi(sValue);
-	if (GetValue(fp, "SLICE_SIZE_NUMBER", sValue) == 0)
+    pEncCfg->SliceSizeMode = atoi(sValue);
+    if (GetValue(fp, "SLICE_SIZE_NUMBER", sValue) == 0)
         goto __end_parseMp4CfgFile;
-        pEncCfg->SliceSizeNum = atoi(sValue);
+    pEncCfg->SliceSizeNum = atoi(sValue);
 
-	if (GetValue(fp, "RATE_CONTROL_ENABLE", sValue) == 0)
+    if (GetValue(fp, "RATE_CONTROL_ENABLE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->RcEnable = atoi(sValue);
-	if (GetValue(fp, "BIT_RATE_KBPS", sValue) == 0)
+    pEncCfg->RcEnable = atoi(sValue);
+    if (GetValue(fp, "BIT_RATE_KBPS", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->RcBitRate = atoi(sValue);
-	if (GetValue(fp, "DELAY_IN_MS", sValue) == 0)
+    pEncCfg->RcBitRate = atoi(sValue);
+    if (GetValue(fp, "DELAY_IN_MS", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->RcInitDelay = atoi(sValue);
-	if (GetValue(fp, "VBV_BUFFER_SIZE", sValue) == 0)
+    pEncCfg->RcInitDelay = atoi(sValue);
+    if (GetValue(fp, "VBV_BUFFER_SIZE", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->RcBufSize = atoi(sValue);
-	if (GetValue(fp, "INTRA_MB_REFRESH", sValue) == 0)
+    pEncCfg->RcBufSize = atoi(sValue);
+    if (GetValue(fp, "INTRA_MB_REFRESH", sValue) == 0)
         goto __end_parseMp4CfgFile;
-	pEncCfg->IntraRefreshNum = atoi(sValue);
+    pEncCfg->IntraRefreshNum = atoi(sValue);
 
     pEncCfg->ConscIntraRefreshEnable = 0;
     if (pEncCfg->IntraRefreshNum > 0)
@@ -405,65 +410,65 @@ int parseMp4CfgFile(ENC_CFG *pEncCfg, char *FileName)
         else
             pEncCfg->ConscIntraRefreshEnable = atoi(sValue);
     }
-	if (GetValue(fp, "CONST_INTRA_QP_EN", sValue) == 0)
-		pEncCfg->ConstantIntraQPEnable = 0;
-	else
-		pEncCfg->ConstantIntraQPEnable = atoi(sValue);
-	if (GetValue(fp, "CONST_INTRA_QP", sValue) == 0)
+    if (GetValue(fp, "CONST_INTRA_QP_EN", sValue) == 0)
+        pEncCfg->ConstantIntraQPEnable = 0;
+    else
+        pEncCfg->ConstantIntraQPEnable = atoi(sValue);
+    if (GetValue(fp, "CONST_INTRA_QP", sValue) == 0)
         pEncCfg->RCIntraQP = 0;
-	else
-		pEncCfg->RCIntraQP = atoi(sValue);
+    else
+        pEncCfg->RCIntraQP = atoi(sValue);
 
-	if (GetValue(fp, "HEC_ENABLE", sValue) == 0)
-		pEncCfg->HecEnable = 0;
-	else
-		pEncCfg->HecEnable = atoi(sValue);
+    if (GetValue(fp, "HEC_ENABLE", sValue) == 0)
+        pEncCfg->HecEnable = 0;
+    else
+        pEncCfg->HecEnable = atoi(sValue);
 
-	if (GetValue(fp, "SEARCH_RANGE", sValue) == 0)
-		pEncCfg->SearchRange = 0;
-	else
-		pEncCfg->SearchRange = atoi(sValue);
-	if (GetValue(fp, "ME_USE_ZERO_PMV", sValue) == 0)
-		pEncCfg->MeUseZeroPmv = 0;
-	else
-		pEncCfg->MeUseZeroPmv = atoi(sValue);
-	if (GetValue(fp, "WEIGHT_INTRA_COST", sValue) == 0)
+    if (GetValue(fp, "SEARCH_RANGE", sValue) == 0)
+        pEncCfg->SearchRange = 0;
+    else
+        pEncCfg->SearchRange = atoi(sValue);
+    if (GetValue(fp, "ME_USE_ZERO_PMV", sValue) == 0)
+        pEncCfg->MeUseZeroPmv = 0;
+    else
+        pEncCfg->MeUseZeroPmv = atoi(sValue);
+    if (GetValue(fp, "WEIGHT_INTRA_COST", sValue) == 0)
         pEncCfg->intraCostWeight = 0;
-	else
-		pEncCfg->intraCostWeight = atoi(sValue);
+    else
+        pEncCfg->intraCostWeight = atoi(sValue);
 
-	if (GetValue(fp, "MAX_QP_SET_ENABLE", sValue) == 0)
-		pEncCfg->MaxQpSetEnable= 0;
-	else
-		pEncCfg->MaxQpSetEnable = atoi(sValue);
-	if (GetValue(fp, "MAX_QP", sValue) == 0)
+    if (GetValue(fp, "MAX_QP_SET_ENABLE", sValue) == 0)
+        pEncCfg->MaxQpSetEnable= 0;
+    else
+        pEncCfg->MaxQpSetEnable = atoi(sValue);
+    if (GetValue(fp, "MAX_QP", sValue) == 0)
         pEncCfg->MaxQp = 0;
-	else
-		pEncCfg->MaxQp = atoi(sValue);
-	if (GetValue(fp, "GAMMA_SET_ENABLE", sValue) == 0)
+    else
+        pEncCfg->MaxQp = atoi(sValue);
+    if (GetValue(fp, "GAMMA_SET_ENABLE", sValue) == 0)
         pEncCfg->GammaSetEnable = 0;
-	else
-		pEncCfg->GammaSetEnable = atoi(sValue);
-	if (GetValue(fp, "GAMMA", sValue) == 0)
+    else
+        pEncCfg->GammaSetEnable = atoi(sValue);
+    if (GetValue(fp, "GAMMA", sValue) == 0)
         pEncCfg->Gamma = 0;
-	else
-		pEncCfg->Gamma = atoi(sValue);
+    else
+        pEncCfg->Gamma = atoi(sValue);
 
-	if (GetValue(fp, "RC_INTERVAL_MODE", sValue) == 0)
+    if (GetValue(fp, "RC_INTERVAL_MODE", sValue) == 0)
         pEncCfg->rcIntervalMode = 0;
-	else
-		pEncCfg->rcIntervalMode = atoi(sValue);
+    else
+        pEncCfg->rcIntervalMode = atoi(sValue);
 
-	if (GetValue(fp, "RC_MB_INTERVAL", sValue) == 0)
+    if (GetValue(fp, "RC_MB_INTERVAL", sValue) == 0)
         pEncCfg->RcMBInterval = 0;
-	else
-		pEncCfg->RcMBInterval = atoi(sValue);
+    else
+        pEncCfg->RcMBInterval = atoi(sValue);
 
     ret = 1; /* Success */
 
 __end_parseMp4CfgFile:
-	osal_fclose(fp);
-	return ret;
+    osal_fclose(fp);
+    return ret;
 }
 
 
@@ -1527,6 +1532,11 @@ int parseVpEncCfgFile(
     /*======================================================*/
     /*          ONLY for H.264                              */
     /*======================================================*/
+    if (VP_GetValue(fp, "IdrPeriod", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.idrPeriod = iValue;
+
     if (VP_GetValue(fp, "RdoSkip", &iValue) == 0)
         goto __end_parse;
     else
@@ -1795,6 +1805,26 @@ int parseVpEncCfgFile(
         goto __end_parse;
     else
         pEncCfg->vpCfg.forceCoefDropEnd = iValue;
+
+    if (VP_GetValue(fp, "RcWeightParaCtrl", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.rcWeightParam = iValue;
+
+    if (VP_GetValue(fp, "RcWeightBufCtrl", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.rcWeightBuf = iValue;
+
+    if (VP_GetValue(fp, "EnForcedIDRHeader", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.forcedIdrHeaderEnable = iValue;
+
+    if (VP_GetValue(fp, "ForceIdrPicIdx", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.forceIdrPicIdx = iValue;
 
     // Scaling list
     if (pEncCfg->vpCfg.scalingListEnable) {
@@ -2257,6 +2287,11 @@ int parseVpChangeParamCfgFile(
     /*======================================================*/
     /*          only for H.264 encoder                      */
     /*======================================================*/
+    if (VP_GetValue(fp, "IdrPeriod", &iValue) == 0)
+        goto __end_parse;
+    else
+        pEncCfg->vpCfg.idrPeriod = iValue;
+
     if (VP_GetValue(fp, "Transform8x8", &iValue) == 0)
         goto __end_parse;
     else

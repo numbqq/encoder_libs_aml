@@ -43,15 +43,18 @@ typedef struct {
     Uint32          streamBufCount;
     Uint32          streamBufSize;
     vpu_buffer_t*   bsBuffer;
-    Uint32          numBuffers;
     Uint32          coreIdx;
     EndianMode      streamEndian;
     EncReaderState  state;
     char            bitstreamFileName[MAX_FILE_PATH];
+    BitstreamReader bsReader;
     osal_file_t     fp;
+    BOOL            ringBuffer;
+    BOOL            ringBufferWrapEnable;
+    Int32           productID;
 } ReaderContext;
 
-static CNMComponentParamRet GetParameterReader(ComponentImpl* from, ComponentImpl* com, GetParameterCMD commandType, void* data) 
+static CNMComponentParamRet GetParameterReader(ComponentImpl* from, ComponentImpl* com, GetParameterCMD commandType, void* data)
 {
     ReaderContext*           ctx    = (ReaderContext*)com->context;
     BOOL                     result = TRUE;
@@ -67,7 +70,7 @@ static CNMComponentParamRet GetParameterReader(ComponentImpl* from, ComponentImp
         if (ctx->bsBuffer == NULL) return CNM_COMPONENT_PARAM_NOT_READY;
         bsBuf      = (ParamEncBitstreamBuffer*)data;
         bsBuf->bs  = ctx->bsBuffer;
-        bsBuf->num = ctx->numBuffers;
+        bsBuf->num = ctx->streamBufCount;
         break;
     default:
         return CNM_COMPONENT_PARAM_NOT_FOUND;
@@ -76,7 +79,7 @@ static CNMComponentParamRet GetParameterReader(ComponentImpl* from, ComponentImp
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
-static CNMComponentParamRet SetParameterReader(ComponentImpl* from, ComponentImpl* com, SetParameterCMD commandType, void* data) 
+static CNMComponentParamRet SetParameterReader(ComponentImpl* from, ComponentImpl* com, SetParameterCMD commandType, void* data)
 {
     BOOL result = TRUE;
 
@@ -89,38 +92,100 @@ static CNMComponentParamRet SetParameterReader(ComponentImpl* from, ComponentImp
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
-static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* out) 
+static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* out)
 {
     ReaderContext*          ctx     = (ReaderContext*)com->context;
     PortContainerES*        srcData = (PortContainerES*)in;
     BOOL                    success = TRUE;
     CNMComponentParamRet    ret;
 
+    srcData->reuse = FALSE;
+
     switch (ctx->state) {
     case READER_STATE_OPEN:
-        ret = ComponentGetParameter(com, com->srcPort.connectedComponent, GET_PARAM_ENC_HANDLE, &ctx->handle); 
+        ret = ComponentGetParameter(com, com->srcPort.connectedComponent, GET_PARAM_ENC_HANDLE, &ctx->handle);
         if (ComponentParamReturnTest(ret, &success) == FALSE) {
             return success;
         }
-
+        if ( ctx->bitstreamFileName[0] != 0) {
+            ctx->bsReader = BitstreamReader_Create(BUFFER_MODE_TYPE_LINEBUFFER, ctx->bitstreamFileName, ctx->streamEndian, &ctx->handle);
+            if (ctx->bsReader == NULL) {
+                VLOG(ERR, "%s:%d Failed to BitstreamReader_Create\n", __FUNCTION__, __LINE__);
+                return FALSE;
+            }
+        }
         ctx->state = READER_STATE_READING;
         srcData->reuse  = TRUE;
         break;
     case READER_STATE_READING:
-        if (srcData->size > 0) {
-            Uint8* buf = (Uint8*)osal_malloc(srcData->size);
-            vdi_read_memory(ctx->coreIdx, srcData->buf.phys_addr, buf, srcData->size, ctx->streamEndian); 
-            if (srcData->streamBufFull == TRUE) {
-                EnterLock(ctx->coreIdx);
-                VPU_EncUpdateBitstreamBuffer(ctx->handle, srcData->size);
-                LeaveLock(ctx->coreIdx);
-                srcData->buf.phys_addr = 0;
+        if (srcData->size > 0 ||
+            (ctx->ringBuffer == TRUE && ctx->ringBufferWrapEnable == FALSE && srcData->last == TRUE) ) {
+            if ( ctx->ringBuffer == TRUE) {
+                Uint8* buf = (Uint8*)osal_malloc(srcData->size);
+                PhysicalAddress rd, paBsBufStart, paBsBufEnd;
+                Int32           readSize;
+                Uint32          room;
+
+                rd = srcData->rdPtr;
+                paBsBufStart = srcData->paBsBufStart;
+                paBsBufEnd   = srcData->paBsBufEnd;
+                readSize = srcData->size;
+
+                if (ctx->ringBufferWrapEnable == TRUE ) {
+                    if (ctx->bsReader != 0) {
+                        if ((rd+readSize) > paBsBufEnd) {
+                            room = paBsBufEnd - rd;
+                            vdi_read_memory(ctx->coreIdx, rd, buf, room,  ctx->streamEndian);
+                            vdi_read_memory(ctx->coreIdx, paBsBufStart, buf+room, (readSize-room), ctx->streamEndian);
+                        }
+                        else {
+                            vdi_read_memory(ctx->coreIdx, rd, buf, readSize, ctx->streamEndian);
+                        }
+                    }
+                    VPU_EncUpdateBitstreamBuffer(ctx->handle, readSize);
+                    if (ctx->fp) {
+                        osal_fwrite(buf, readSize, 1, ctx->fp);
+                    }
+                }
+                else { //ring=1, wrap=0
+                    if (srcData->streamBufFull == TRUE || srcData->last == TRUE) { // read whole data at once and no UpdateBS
+                        if (ctx->bsReader != 0) {
+                            vdi_read_memory(ctx->coreIdx, rd, buf, readSize, ctx->streamEndian);
+                        }
+                        if (ctx->fp) {
+                            osal_fwrite(buf, readSize, 1, ctx->fp);
+                        }
+                    }
+                }
+                if (srcData->streamBufFull == TRUE) {
+                    if (ctx->ringBufferWrapEnable == FALSE )
+                        vdi_free_dma_memory(ctx->coreIdx, &srcData->buf, ENC_BS, ctx->handle->instIndex);
+                    srcData->buf.size = 0;
+                }
+                osal_free(buf);
+            }
+            else { /* line buffer mode */
+                Uint8* buf = (Uint8*)osal_malloc(srcData->size);
+                if (ctx->bsReader != 0) {
+                    //buf = (Uint8*)osal_malloc(srcData->size);
+                    BitstreamReader_Act(ctx->bsReader, srcData->buf.phys_addr, srcData->buf.size, srcData->size, NULL);
+
+                    if (PRODUCT_ID_NOT_VP_SERIES(ctx->productID) && TRUE == srcData->streamBufFull) {
+                        VPU_ClearInterrupt(ctx->coreIdx);
+                    }
+                }
+                if (srcData->streamBufFull == TRUE) {
+                    srcData->buf.phys_addr = 0;
+                }
+                if (ctx->fp) {
+                    osal_fwrite(buf, srcData->size, 1, ctx->fp);
+                }
+                if (buf)
+                    osal_free(buf);
+            }
+            if (TRUE == srcData->streamBufFull) {
                 srcData->streamBufFull = FALSE;
             }
-            if (ctx->fp) {
-                osal_fwrite(buf, srcData->size, 1, ctx->fp);
-            }
-            osal_free(buf);
         }
 
         srcData->consumed = TRUE;
@@ -139,30 +204,21 @@ static BOOL PrepareReader(ComponentImpl* com, BOOL* done)
     ReaderContext*       ctx = (ReaderContext*)com->context;
     Uint32               i;
     vpu_buffer_t*        bsBuffer;
-    Uint32               num = ComponentPortGetSize(&com->srcPort);
+    Uint32               num = ctx->streamBufCount;
 
     *done = FALSE;
+
     bsBuffer = (vpu_buffer_t*)osal_malloc(num*sizeof(vpu_buffer_t));
-    vdi_lock(ctx->coreIdx);
     for (i = 0; i < num; i++) {
         bsBuffer[i].size = ctx->streamBufSize;
-        if (vdi_allocate_dma_memory(ctx->coreIdx, &bsBuffer[i]) < 0) {
-            vdi_unlock(ctx->coreIdx);
+        if (vdi_allocate_dma_memory(ctx->coreIdx, &bsBuffer[i], ENC_BS, /*ctx->handle->instIndex*/0) < 0) {
             VLOG(ERR, "%s:%d fail to allocate bitstream buffer\n", __FUNCTION__, __LINE__);
             osal_free(bsBuffer);
             return FALSE;
         }
     }
-    vdi_unlock(ctx->coreIdx);
-    ctx->numBuffers = num;
     ctx->bsBuffer   = bsBuffer;
     ctx->state      = READER_STATE_OPEN;
-    if ( ctx->bitstreamFileName[0] ) {
-        if ((ctx->fp=osal_fopen(ctx->bitstreamFileName, "wb")) == NULL) {
-            return FALSE;
-        }
-        VLOG(INFO, "output bin file: %s\n", ctx->bitstreamFileName);
-    }
 
     *done = TRUE;
 
@@ -174,17 +230,15 @@ static void ReleaseReader(ComponentImpl* com)
     ReaderContext*  ctx = (ReaderContext*)com->context;
     Uint32          i   = 0;
 
-    vdi_lock(ctx->coreIdx);
     if (ctx->bsBuffer != NULL) {
-        for (i = 0; i < MAX_QUEUE_NUM; i++) {
+        for (i = 0; i < ctx->streamBufCount ; i++) {
             if (ctx->bsBuffer[i].size)
-                vdi_free_dma_memory(ctx->coreIdx, &ctx->bsBuffer[i]);
+                vdi_free_dma_memory(ctx->coreIdx, &ctx->bsBuffer[i], ENC_BS, 0);
         }
     }
-    vdi_unlock(ctx->coreIdx);
 }
 
-static BOOL DestroyReader(ComponentImpl* com) 
+static BOOL DestroyReader(ComponentImpl* com)
 {
     ReaderContext*  ctx = (ReaderContext*)com->context;
 
@@ -195,7 +249,7 @@ static BOOL DestroyReader(ComponentImpl* com)
     return TRUE;
 }
 
-static Component CreateReader(ComponentImpl* com, CNMComponentConfig* componentParam) 
+static Component CreateReader(ComponentImpl* com, CNMComponentConfig* componentParam)
 {
     ReaderContext* ctx;
 
@@ -206,10 +260,14 @@ static Component CreateReader(ComponentImpl* com, CNMComponentConfig* componentP
     strcpy(ctx->bitstreamFileName, componentParam->testEncConfig.bitstreamFileName);
     ctx->handle       = NULL;
     ctx->coreIdx      = componentParam->testEncConfig.coreIdx;
+    ctx->productID    = componentParam->testEncConfig.productId;
     ctx->streamEndian = (EndianMode)componentParam->testEncConfig.stream_endian;
 
     ctx->streamBufCount = componentParam->encOpenParam.streamBufCount;
     ctx->streamBufSize  = componentParam->encOpenParam.streamBufSize;
+    ctx->ringBuffer     = componentParam->encOpenParam.ringBufferEnable;
+    ctx->ringBufferWrapEnable = componentParam->encOpenParam.ringBufferWrapEnable;
+
     return (Component)com;
 }
 

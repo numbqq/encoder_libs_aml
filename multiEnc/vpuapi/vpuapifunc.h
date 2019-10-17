@@ -130,6 +130,7 @@ typedef enum {
 #define HEVC_MAX_SUB_LAYER_ID   6
 #define AVS2_MAX_SUB_LAYER_ID   7
 #define SVAC_MAX_SUB_LAYER_ID   3
+#define DECODE_ALL_TEMPORAL_LAYERS  -1
 
 //#define API_DEBUG
 #ifdef API_DEBUG
@@ -257,6 +258,7 @@ typedef struct {
     vpu_buffer_t    vbWork;
     vpu_buffer_t    vbTemp;
     vpu_buffer_t    vbReport;
+    vpu_buffer_t    vbTask;
     int             workBufferAllocExt;
     DecOutputInfo   decOutInfo[MAX_GDI_IDX];
     TiledMapConfig  mapCfg;
@@ -266,15 +268,19 @@ typedef struct {
     int             thumbnailMode;
     int             seqChangeMask;      // VPU410
     Uint32          prevFrameEndPos;      //!<< VPU410v2: end position of previous frame
-    Int32           targetSubLayerId;       //!<< H.265 temporal scalability
+    Int32           tempIdSelectMode;
+    Int32           targetSubLayerId;       //!<< temporal scalability
+    Int32           relTargetLayerId;
 
     int             rdPtrValidFlag;
 
     Int32           instanceQueueCount;
-    Int32           totalQueueCount;
+    Int32           reportQueueCount;
     Uint32          firstCycleCheck;
-    Uint32          PrevDecodeEndTick;
     Uint32          cyclePerTick;
+    Uint32          productCode;
+    Uint32          vlcBufSize;
+    Uint32          paramBufSize;
 } DecInfo;
 
 typedef struct {
@@ -331,6 +337,7 @@ typedef struct {
     vpu_buffer_t        vbFbcCTblBL;            //!< FBC Chroma table buffer (VPU encoder)
     vpu_buffer_t        vbSubSamBuf;            //!< Sub-sampled buffer for ME (VPU encoder)
     vpu_buffer_t        vbSubSamBufBL;          //!< Sub-sampled buffer for ME (VPU encoder)
+    vpu_buffer_t        vbTask;
 
     TiledMapConfig      mapCfg;
     DRAMConfig          dramCfg;                /*!<< 960 */
@@ -342,11 +349,17 @@ typedef struct {
     FrameBuffer     srcBufMap[MAX_SRC_FRAME]; /**! source frame index map */
     Uint32          srcBufUseIndex[MAX_SRC_FRAME]; /**! flag the occupied src buf */
     Uint32          instanceQueueCount;
-    Uint32          totalQueueCount;
+    Uint32          reportQueueCount;
     Uint32          encWrPtrSel;
     Uint32          firstCycleCheck;
-    Uint32          PrevEncodeEndTick;
     Uint32          cyclePerTick;
+    Uint32          productCode;
+    Uint32          vlcBufSize;
+    Uint32          paramBufSize;
+    Int32           ringBufferWrapEnable;
+    PhysicalAddress streamBufTobeReadStartAddr;
+    PhysicalAddress streamBufTobeReadEndAddr;
+    Int32           streamBufTobeReadSize;
 } EncInfo;
 
 
@@ -625,6 +638,164 @@ typedef struct
     Int8   duplicate_flag;
 } h265_sei_pic_timing_t;
 
+
+/*******************************************************************************
+ * H.264 USER DATA(VUI and SEI)                                                *
+ *******************************************************************************/
+typedef struct
+{
+    Int16  cpb_cnt;
+    Uint8  bit_rate_scale;
+    Uint8  cbp_size_scale;
+    Int16  initial_cpb_removal_delay_length;
+    Int16  cpb_removal_delay_length;
+    Int16  dpb_output_delay_length;
+    Int16  time_offset_length;
+    Uint32 bit_rate_value[32];
+    Uint32 cpb_size_value[32];
+    Uint8  cbr_flag[32];
+} avc_hrd_param_t;
+
+typedef struct
+{
+    Uint8     aspect_ratio_info_present_flag;
+    Uint8     aspect_ratio_idc;
+    Uint16    sar_width;
+    Uint16    sar_height;
+
+    Uint8     overscan_info_present_flag;
+    Uint8     overscan_appropriate_flag;
+
+    Uint8     video_signal_type_present_flag;
+    Int8      video_format;
+    Uint8     video_full_range_flag;
+    Uint8     colour_description_present_flag;
+    Uint8     colour_primaries;
+    Uint8     transfer_characteristics;
+    Uint8     matrix_coefficients;
+
+    Uint8     chroma_loc_info_present_flag;
+    Int8      chroma_sample_loc_type_top_field;
+    Int8      chroma_sample_loc_type_bottom_field;
+
+    Uint8     vui_timing_info_present_flag;
+    Uint32    vui_num_units_in_tick;
+    Uint32    vui_time_scale;
+    Uint8     vui_fixed_frame_rate_flag;
+
+    Uint8     vcl_hrd_parameters_present_flag;
+    Uint8     nal_hrd_parameters_present_flag;
+
+    Uint8     low_delay_hrd_flag;
+
+    Uint8     pic_struct_present_flag;
+
+    Uint8     bitstream_restriction_flag;
+    Uint8     motion_vectors_over_pic_boundaries_flag;
+    Int8      max_bytes_per_pic_denom;
+    Int8      max_bits_per_mincu_denom;
+    Int8      log2_max_mv_length_horizontal;
+    Int8      log2_max_mv_length_vertical;
+    Int8      max_num_reorder_frames;
+    Int8      max_dec_frame_buffering;
+
+    avc_hrd_param_t vcl_hrd;
+    avc_hrd_param_t nal_hrd;
+} avc_vui_info_t;
+
+typedef struct
+{
+    Uint32  cpb_removal_delay;
+    Uint32  dpb_output_delay;
+    Uint8   pic_struct;
+    Uint8   num_clock_ts;
+} avc_sei_pic_timing_t;
+
+#define AVC_MAX_NUM_FILM_GRAIN_COMPONENT   3
+#define AVC_MAX_NUM_INTENSITY_INTERVALS    256
+#define AVC_MAX_NUM_MODEL_VALUES           5
+#define AVC_MAX_NUM_TONE_VALUE             1024
+
+typedef struct
+{
+    Uint8 film_grain_characteristics_cancel_flag;
+    Uint8 film_grain_model_id;
+    Uint8 separate_colour_description_present_flag;
+    Uint8 film_grain_bit_depth_luma_minus8;
+    Uint8 film_grain_bit_depth_chroma_minus8;
+    Uint8 film_grain_full_range_flag;
+    Uint8 film_grain_colour_primaries;
+    Uint8 film_grain_transfer_characteristics;
+    Uint8 film_grain_matrix_coeffs;
+
+    Uint8 blending_mode_id;
+    Uint8 log2_scale_factor;
+
+    Uint8 comp_model_present_flag[AVC_MAX_NUM_FILM_GRAIN_COMPONENT];
+    Uint8 num_intensity_intervals_minus1[AVC_MAX_NUM_FILM_GRAIN_COMPONENT];
+    Uint8 num_model_values_minus1[AVC_MAX_NUM_FILM_GRAIN_COMPONENT];
+    Uint8 intensity_interval_lower_bound[AVC_MAX_NUM_FILM_GRAIN_COMPONENT][AVC_MAX_NUM_INTENSITY_INTERVALS];
+    Uint8 intensity_interval_upper_bound[AVC_MAX_NUM_FILM_GRAIN_COMPONENT][AVC_MAX_NUM_INTENSITY_INTERVALS];
+    Uint32  comp_model_value[AVC_MAX_NUM_FILM_GRAIN_COMPONENT][AVC_MAX_NUM_INTENSITY_INTERVALS][AVC_MAX_NUM_MODEL_VALUES];
+
+    Uint8 film_grain_characteristics_persistence_flag;
+} avc_sei_film_grain_t;
+
+typedef struct
+{
+    Uint32 tone_map_id;
+    Uint8  tone_map_cancel_flag;
+
+    Uint32 tone_map_repetition_period;
+    Uint32 coded_data_bit_depth;
+    Uint32 target_bit_depth;
+    Uint8  tone_map_model_id;
+    Uint32 min_value;
+    Uint32 max_value;
+    Uint32 sigmoid_midpoint;
+    Uint32 sigmoid_width;
+    Uint16 start_of_coded_interval[AVC_MAX_NUM_TONE_VALUE];
+    Uint16 num_pivots;
+    Uint16 coded_pivot_value[AVC_MAX_NUM_TONE_VALUE];
+    Uint16 target_pivot_value[AVC_MAX_NUM_TONE_VALUE];
+    Uint8  camera_iso_speed_idc;
+    Uint32 camera_iso_speed_value;
+    Uint8  exposure_index_idc;
+    Uint32 exposure_index_value;
+    Uint8  exposure_compensation_value_sign_flag;
+    Uint16 exposure_compensation_value_numerator;
+    Uint16 exposure_compensation_value_denom_idc;
+    Uint32 ref_screen_luminance_white;
+    Uint32 extended_range_white_level;
+    Uint16 nominal_black_level_code_value;
+    Uint16 nominal_white_level_code_value;
+    Uint16 extended_white_level_code_value;
+} avc_sei_tone_mapping_info_t;
+
+typedef struct
+{
+    Uint32  colour_remap_id;
+    Uint8   colour_cancel_flag;
+    Uint16  colour_remap_repetition_period;
+    Uint8   colour_remap_video_signal_info_present_flag;
+    Uint8   colour_remap_full_range_flag;
+    Uint8   colour_remap_primaries;
+    Uint8   colour_remap_transfer_function;
+    Uint8   colour_remap_matrix_coefficients;
+    Uint8   colour_remap_input_bit_depth;
+    Uint8   colour_remap_output_bit_depth;
+    Uint8   pre_lut_num_val_minus1[3];
+    Uint16  pre_lut_coded_value[3][33];
+    Uint16  pre_lut_target_value[3][33];
+    Uint8   colour_remap_matrix_present_flag;
+    Uint8   log2_matrix_denom;
+    Uint8   colour_remap_coeffs[3][3];
+    Uint8   post_lut_num_val_minus1[3];
+    Uint16  post_lut_coded_value[3][33];
+    Uint16  post_lut_target_value[3][33];
+} avc_sei_colour_remap_info_t;
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -659,6 +830,7 @@ RetCode CheckEncInstanceValidity(EncHandle handle);
 RetCode CheckEncOpenParam(EncOpenParam * pop);
 RetCode CheckEncParam(EncHandle handle, EncParam * param);
 
+
 RetCode EnterLock(Uint32 coreIdx);
 RetCode LeaveLock(Uint32 coreIdx);
 RetCode EnterLock_noclk(Uint32 coreIdx);
@@ -688,6 +860,7 @@ Int32 CalcStride(
     );
 
 Int32 CalcLumaSize(
+    CodecInst*          inst,
     Int32               productId,
     Int32               stride,
     Int32               height,
@@ -698,6 +871,7 @@ Int32 CalcLumaSize(
     );
 
 Int32 CalcChromaSize(
+    CodecInst*          inst,
     Int32               productId,
     Int32               stride,
     Int32               height,
@@ -727,6 +901,12 @@ typedef struct {
 
 
 
+
+typedef struct {
+    Uint32 priReason;
+    Uint32 debugInfo0;
+    Uint32 debugInfo1;
+} VPUDebugInfo;
 
 int LevelCalculation(int MbNumX, int MbNumY, int frameRateInfo, int interlaceFlag, int BitRate, int SliceNum);
 

@@ -46,7 +46,7 @@
 #define SUPPORT_MULTI_CORE_IN_ONE_DRIVER
 #define MAX_VPU_CORE_NUM MAX_NUM_VPU_CORE
 
-#define MAX_VPU_BUFFER_POOL (64*MAX_NUM_INSTANCE+12*3)//+12*3 => mvCol + YOfsTable + COfsTable
+#define MAX_VPU_BUFFER_POOL (1000)
 
 #define VpuWriteReg( CORE, ADDR, DATA )                 vdi_write_register( CORE, ADDR, DATA )					// system register write
 #define VpuReadReg( CORE, ADDR )                        vdi_read_register( CORE, ADDR )							// system register read
@@ -83,7 +83,7 @@ typedef struct vpudrv_intr_info_t {
 typedef struct vpu_buffer_t {
     u32 size;
     u32 cached;
-    ulong phys_addr;
+    PhysicalAddress phys_addr;
     ulong base;
     ulong virt_addr;
 } vpu_buffer_t;
@@ -178,29 +178,6 @@ typedef enum {
 
 #define VDI_128BIT_ENDIAN_MASK      0xf
 
-typedef struct vpu_pending_intr_t {
-    int instance_id[COMMAND_QUEUE_DEPTH];
-    int int_reason[COMMAND_QUEUE_DEPTH];
-    int order_num[COMMAND_QUEUE_DEPTH];
-    int in_use[COMMAND_QUEUE_DEPTH];
-    int num_pending_intr;
-    int count;
-} vpu_pending_intr_t;
-
-typedef enum {
-    VDI_LINEAR_FRAME_MAP  = 0,
-    VDI_TILED_FRAME_V_MAP = 1,
-    VDI_TILED_FRAME_H_MAP = 2,
-    VDI_TILED_FIELD_V_MAP = 3,
-    VDI_TILED_MIXED_V_MAP = 4,
-    VDI_TILED_FRAME_MB_RASTER_MAP = 5,
-    VDI_TILED_FIELD_MB_RASTER_MAP = 6,
-    VDI_TILED_FRAME_NO_BANK_MAP = 7,
-    VDI_TILED_FIELD_NO_BANK_MAP = 8,
-    VDI_LINEAR_FIELD_MAP  = 9,
-    VDI_TILED_MAP_TYPE_MAX
-} vdi_gdi_tiled_map;
-
 typedef struct vpu_instance_pool_t {
     /* Since VDI don't know the size of CodecInst structure, VDI should have
     the enough space not to overflow. */
@@ -210,13 +187,12 @@ typedef struct vpu_instance_pool_t {
     u8 instance_pool_inited;
     void* pendingInst;
     u32 pendingInstIdxPlus1;
-//    video_mm_t vmem;
-//    vpu_pending_intr_t pending_intr_list;
+    u32 lastPerformanceCycles;
 } vpu_instance_pool_t;
 
 #if defined (__cplusplus)
 extern "C" {
-#endif 
+#endif
     int vdi_probe(u32 core_idx);
     int vdi_init(u32 core_idx);
     int vdi_release(u32 core_idx);	//this function may be called only at system off.
@@ -224,9 +200,9 @@ extern "C" {
     vpu_instance_pool_t * vdi_get_instance_pool(u32 core_idx);
     int vdi_allocate_common_memory(u32 core_idx);
     int vdi_get_common_memory(u32 core_idx, vpu_buffer_t *vb);
-    int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb);
+    int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int instIndex);
     int vdi_attach_dma_memory(u32 core_idx, vpu_buffer_t *vb);
-    void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb);
+    void vdi_free_dma_memory(u32 core_idx, vpu_buffer_t *vb, int memTypes, int instIndex);
     int vdi_get_sram_memory(u32 core_idx, vpu_buffer_t *vb);
     int vdi_dettach_dma_memory(u32 core_idx, vpu_buffer_t *vb);
     int vdi_flush_memory(u32 core_idx, vpu_buffer_t *vb);
@@ -260,9 +236,9 @@ extern "C" {
     unsigned int vdi_read_register(u32 core_idx, unsigned int addr);
     void vdi_fio_write_register(u32 core_idx, unsigned int addr, unsigned int data);
     unsigned int vdi_fio_read_register(u32 core_idx, unsigned int addr);
-    int vdi_clear_memory(u32 core_idx, unsigned int addr, int len, int endian);
-    int vdi_write_memory(u32 core_idx, unsigned int addr, unsigned char *data, int len, int endian);
-    int vdi_read_memory(u32 core_idx, unsigned int addr, unsigned char *data, int len, int endian);
+    int vdi_clear_memory(u32 core_idx, PhysicalAddress addr, int len, int endian);
+    int vdi_write_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian);
+    int vdi_read_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian);
 
     int vdi_lock(u32 core_idx);
     void vdi_unlock(u32 core_idx);

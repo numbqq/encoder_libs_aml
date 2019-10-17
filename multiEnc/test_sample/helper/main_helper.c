@@ -40,7 +40,7 @@
 #include "vpuerror.h"
 #include "main_helper.h"
 #include "debug.h"
-#if defined(PLATFORM_NON_OS) || defined (PLATFORM_LINUX) 
+#if defined(PLATFORM_NON_OS) || defined (PLATFORM_LINUX)
 #include <getopt.h>
 #endif
 
@@ -69,12 +69,85 @@ char* EncPicTypeStringMPEG4[] = {
     "P",
 };
 
-char* productNameList[] = {
-    "VP512",
-    "VP520",
-    "VP515",
-    "Unknown",
+
+static osal_mutex_t s_loadBalancerLock;
+static Uint32       s_nextInstance;
+static BOOL         s_enableLoadBalance;
+static Uint32       s_instances[MAX_NUM_INSTANCE];
+enum {
+    LB_STATE_NONE,
+    LB_STATE_RUNNING
 };
+
+void LoadBalancerInit(void)
+{
+    s_loadBalancerLock  = osal_mutex_create();
+    s_nextInstance      = 0;
+    s_enableLoadBalance = TRUE;
+    osal_memset((void*)s_instances, 0x00, sizeof(s_instances));
+}
+
+void LoadBalancerRelease(void)
+{
+    if (TRUE == s_enableLoadBalance) {
+        osal_mutex_destroy(s_loadBalancerLock);
+    }
+}
+
+void LoadBalancerAddInstance(Uint32 instanceIndex)
+{
+    if (TRUE == s_enableLoadBalance) {
+        osal_mutex_lock(s_loadBalancerLock);
+        s_instances[instanceIndex] = LB_STATE_RUNNING;
+        osal_mutex_unlock(s_loadBalancerLock);
+    }
+}
+
+void LoadBalancerRemoveInstance(Uint32 instanceIndex)
+{
+    if (TRUE == s_enableLoadBalance) {
+        osal_mutex_lock(s_loadBalancerLock);
+        s_instances[instanceIndex] = LB_STATE_NONE;
+        if (s_nextInstance == instanceIndex) {
+            Uint32 i = instanceIndex;
+            Uint32 count=0;
+            while (MAX_NUM_INSTANCE > count) {
+                i = (i+1) % MAX_NUM_INSTANCE;
+                if (LB_STATE_RUNNING == s_instances[i]) {
+                    s_nextInstance = i;
+                    break;
+                }
+                count++;
+            }
+        }
+        osal_mutex_unlock(s_loadBalancerLock);
+    }
+}
+
+BOOL LoadBalancerGetMyTurn(Uint32 myInstance)
+{
+    BOOL   myTurn = TRUE;
+
+    if (TRUE == s_enableLoadBalance) {
+        osal_mutex_lock(s_loadBalancerLock);
+        myTurn = (BOOL)(myInstance == s_nextInstance);
+        osal_mutex_unlock(s_loadBalancerLock);
+    }
+
+    return myTurn;
+}
+
+void LoadBalancerSetNextTurn(void)
+{
+    if (TRUE == s_enableLoadBalance) {
+        osal_mutex_lock(s_loadBalancerLock);
+        do {
+            s_nextInstance++;
+            s_nextInstance %= MAX_NUM_INSTANCE;
+        } while (LB_STATE_NONE == s_instances[s_nextInstance]);
+        osal_mutex_unlock(s_loadBalancerLock);
+    }
+}
 
 Uint32 randomSeed;
 static BOOL initializedRandom;
@@ -104,16 +177,16 @@ Uint32 GetRandom(
 }
 
 Int32 LoadFirmware(
-    Int32       productId, 
-    Uint8**     retFirmware, 
-    Uint32*     retSizeInWord, 
+    Int32       productId,
+    Uint8**     retFirmware,
+    Uint32*     retSizeInWord,
     const char* path
     )
 {
     Int32       nread;
     Uint32      totalRead, allocSize, readSize = 1024*1024;
     Uint8*      firmware = NULL;
-    osal_file_t fp;    
+    osal_file_t fp;
 
     if ((fp=osal_fopen(path, "rb")) == NULL)
     {
@@ -122,14 +195,14 @@ Int32 LoadFirmware(
     }
 
     totalRead = 0;
-    if (PRODUCT_ID_VP_SERIES(productId)) 
+    if (PRODUCT_ID_VP_SERIES(productId))
     {
         firmware = (Uint8*)osal_malloc(readSize);
         allocSize = readSize;
         nread = 0;
         while (TRUE)
         {
-            if (allocSize < (totalRead+readSize)) 
+            if (allocSize < (totalRead+readSize))
             {
                 allocSize += 2*nread;
                 firmware = (Uint8*)realloc(firmware, allocSize);
@@ -180,52 +253,13 @@ void PrintVpuVersionInfo(
     VPU_GetVersionInfo(core_idx, &version, &revision, &productId);
 
     VLOG(INFO, "VPU coreNum : [%d]\n", core_idx);
-    VLOG(INFO, "Firmware : CustomerCode: %04x | version : %d.%d.%d rev.%d\n", 
+    VLOG(INFO, "Firmware : CustomerCode: %04x | version : %d.%d.%d rev.%d\n",
         (Uint32)(version>>16), (Uint32)((version>>(12))&0x0f), (Uint32)((version>>(8))&0x0f), (Uint32)((version)&0xff), revision);
     VLOG(INFO, "Hardware : %04x\n", productId);
-    VLOG(INFO, "API      : %d.%d.%d\n\n", API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);	
+    VLOG(INFO, "API      : %d.%d.%d\n\n", API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);
 }
 
 
-RetCode VPU_GetFBCOffsetTableSize(CodStd codStd, int width, int height, int* ysize, int* csize)
-{
-    if (ysize == NULL || csize == NULL)
-        return RETCODE_INVALID_PARAM;
-
-    *ysize = ProductCalculateAuxBufferSize(AUX_BUF_TYPE_FBC_Y_OFFSET, codStd, width, height);
-    *csize = ProductCalculateAuxBufferSize(AUX_BUF_TYPE_FBC_C_OFFSET, codStd, width, height);
-
-    return RETCODE_SUCCESS;
-}
-
-void FreePreviousFramebuffer(
-    Uint32              coreIdx, 
-    DecGetFramebufInfo* fb
-    )
-{
-    int i;
-
-    vdi_lock(coreIdx);
-    if (fb->vbFrame.size > 0) {
-        vdi_free_dma_memory(coreIdx, &fb->vbFrame);
-        osal_memset((void*)&fb->vbFrame, 0x00, sizeof(vpu_buffer_t));
-    }
-    if (fb->vbWTL.size > 0) {
-        vdi_free_dma_memory(coreIdx, &fb->vbWTL);
-        osal_memset((void*)&fb->vbWTL, 0x00, sizeof(vpu_buffer_t));
-    }
-    for ( i=0 ; i<MAX_REG_FRAME; i++) {
-        if (fb->vbFbcYTbl[i].size > 0) {
-            vdi_free_dma_memory(coreIdx, &fb->vbFbcYTbl[i]);
-            osal_memset((void*)fb->vbFbcYTbl, 0x00, sizeof(vpu_buffer_t));
-        }
-        if (fb->vbFbcCTbl[i].size > 0) {
-            vdi_free_dma_memory(coreIdx, &fb->vbFbcCTbl[i]);
-            osal_memset((void*)fb->vbFbcCTbl, 0x00, sizeof(vpu_buffer_t));
-        }
-    }
-    vdi_unlock(coreIdx);
-}
 
 void SetDefaultEncTestConfig(TestEncConfig* testConfig) {
     osal_memset(testConfig, 0, sizeof(TestEncConfig));
@@ -236,14 +270,19 @@ void SetDefaultEncTestConfig(TestEncConfig* testConfig) {
     testConfig->source_endian  = VPU_SOURCE_ENDIAN;
     testConfig->mapType        = COMPRESSED_FRAME_MAP;
     testConfig->lineBufIntEn   = TRUE;
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+    testConfig->srcReleaseIntEnable     = FALSE;
+#endif
+    testConfig->ringBufferEnable        = FALSE;
+    testConfig->ringBufferWrapEnable    = FALSE;
 
 }
 
 
 static void Vp5DisplayEncodedInformation(
-    EncHandle       handle, 
+    EncHandle       handle,
     CodStd          codec,
-    Uint32          frameNo, 
+    Uint32          frameNo,
     EncOutputInfo*  encodedInfo,
     Int32           srcEndFlag,
     Int32           srcFrameIdx,
@@ -256,43 +295,47 @@ static void Vp5DisplayEncodedInformation(
 
     if (encodedInfo == NULL) {
         if (performance == TRUE ) {
-            VLOG(INFO, "------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-            VLOG(INFO, "                                                                        | FRAME  | HOST | PREP_S PREP_E    PREP  | PROCE_S PROCE_E  PROCE | ENC_S  ENC_E   ENC   |\n");
-            VLOG(INFO, "I     NO     T   RECON   RD_PTR    WR_PTR     BYTES  SRCIDX  USEDSRCIDX | CYCLE  | TICK |  TICK   TICK     CYCLE |  TICK    TICK    CYCLE |  TICK   TICK   CYCLE | TQ IQ\n");
-            VLOG(INFO, "------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+            VLOG(INFO, "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+            VLOG(INFO, "                                                           USEDSRC            | FRAME  |  HOST  |  PREP_S   PREP_E    PREP   |  PROCE_S   PROCE_E  PROCE  |  ENC_S    ENC_E     ENC    |\n");
+            VLOG(INFO, "I     NO     T   RECON  RD_PTR   WR_PTR     BYTES  SRCIDX  IDX IDC      Vcore | CYCLE  |  TICK  |   TICK     TICK     CYCLE  |   TICK      TICK    CYCLE  |   TICK     TICK     CYCLE  | RQ IQ\n");
+            VLOG(INFO, "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
         }
         else {
-            VLOG(INFO, "---------------------------------------------------------------------------------------------------------------------\n");
-            VLOG(INFO, "                                                                        |                CYCLE\n");
-            VLOG(INFO, "I     NO     T   RECON   RD_PTR    WR_PTR     BYTES  SRCIDX  USEDSRCIDX | FRAME PREPARING PROCESSING ENCODING | TQ IQ\n");
-            VLOG(INFO, "---------------------------------------------------------------------------------------------------------------------\n");
+            VLOG(INFO, "---------------------------------------------------------------------------------------------------------------------------\n");
+            VLOG(INFO, "                                                              USEDSRC         |                CYCLE\n");
+            VLOG(INFO, "I     NO     T   RECON   RD_PTR    WR_PTR     BYTES  SRCIDX   IDX IDC   Vcore | FRAME PREPARING PROCESSING ENCODING | RQ IQ\n");
+            VLOG(INFO, "---------------------------------------------------------------------------------------------------------------------------\n");
         }
     } else {
         if (performance == TRUE) {
-            VLOG(INFO, "%02d %5d %5d %5d    %08x  %08x %8x     %2d        %2d    %8d %6d (%6d,%6d,%8d) (%6d,%6d,%8d) (%6d,%6d,%8d) %d %d\n", 
-                handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr, 
-                encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx, 
+            VLOG(INFO, "%02d %5d %5d %5d   %08x %08x %8x    %2d     %2d %08x    %2d  %8u %8u (%8u,%8u,%8u) (%8u,%8u,%8u) (%8u,%8u,%8u)   %d  %d\n",
+                handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr,
+                encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx,
+                encodedInfo->releaseSrcFlag,
+                0,
                 encodedInfo->frameCycle, encodedInfo->encHostCmdTick,
                 encodedInfo->encPrepareStartTick, encodedInfo->encPrepareEndTick, encodedInfo->prepareCycle,
                 encodedInfo->encProcessingStartTick, encodedInfo->encProcessingEndTick, encodedInfo->processing,
                 encodedInfo->encEncodeStartTick, encodedInfo->encEncodeEndTick, encodedInfo->EncodedCycle,
-                queueStatus.totalQueueCount, queueStatus.instanceQueueCount);
-        } 
-        else { 
-            VLOG(INFO, "%02d %5d %5d %5d    %08x  %08x %8x     %2d        %2d    %8d %8d %8d %8d      %d %d\n", 
-                handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr, 
-                encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx, 
+                queueStatus.reportQueueCount, queueStatus.instanceQueueCount);
+        }
+        else {
+            VLOG(INFO, "%02d %5d %5d %5d    %08x  %08x %8x     %2d     %2d %04x    %d  %8d %8d %8d %8d      %d %d\n",
+                handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr,
+                encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx,
+                encodedInfo->releaseSrcFlag,
+                0,
                 encodedInfo->frameCycle, encodedInfo->prepareCycle, encodedInfo->processing, encodedInfo->EncodedCycle,
-                queueStatus.totalQueueCount, queueStatus.instanceQueueCount);
+                queueStatus.reportQueueCount, queueStatus.instanceQueueCount);
         }
     }
 }
 /*lint -esym(438, ap) */
-void 
+void
     DisplayEncodedInformation(
-    EncHandle      handle, 
-    CodStd         codec, 
-    Uint32         frameNo, 
+    EncHandle      handle,
+    CodStd         codec,
+    Uint32         frameNo,
     EncOutputInfo* encodedInfo,
     ...
     )
@@ -330,7 +373,6 @@ void
 /*lint +esym(438, ap) */
 
 
-
 void replace_character(char* str,
     char  c,
     char  r)
@@ -354,20 +396,22 @@ void ChangePathStyle(
 {
 }
 
-void ReleaseVideoMemory(
-    Uint32          coreIndex,
-    vpu_buffer_t*   memoryArr,
-    Uint32          count
-    )
+BOOL AllocFBMemory(Uint32 coreIdx, vpu_buffer_t *pFbMem, FrameBuffer* pFb,Uint32 memSize, Uint32 memNum, Int32 memTypes, Int32 instIndex)
 {
-    Uint32      idx;
-
-    vdi_lock(coreIndex);
-    for (idx=0; idx<count; idx++) {
-        if (memoryArr[idx].size) 
-            vdi_free_dma_memory(coreIndex, &memoryArr[idx]);
+    Uint32 i =0;
+    for (i = 0; i < memNum; i++) {
+        pFbMem[i].size = memSize;
+        if (vdi_allocate_dma_memory(coreIdx, &pFbMem[i], memTypes, instIndex) < 0) {
+            VLOG(ERR, "fail to allocate src buffer\n");
+            return FALSE;
+        }
+        pFb[i].bufY         = pFbMem[i].phys_addr;
+        pFb[i].bufCb        = (PhysicalAddress) - 1;
+        pFb[i].bufCr        = (PhysicalAddress) - 1;
+        pFb[i].size         = memSize;
+        pFb[i].updateFbInfo = TRUE;
     }
-    vdi_unlock(coreIndex);
+    return TRUE;
 }
 #if defined(_WIN32) || defined(__MSDOS__)
 #define DOS_FILESYSTEM
@@ -429,7 +473,7 @@ char* GetBasename(
 }
 
 char* GetFileExtension(
-    const char* filename 
+    const char* filename
     )
 {
     Int32      len;
@@ -666,7 +710,7 @@ BOOL CalcYuvSize(
 }
 
 FrameBufferFormat GetPackedFormat (
-    int srcBitDepth, 
+    int srcBitDepth,
     int packedType,
     int p10bits,
     int msb)
@@ -708,7 +752,7 @@ FrameBufferFormat GetPackedFormat (
             break;
         case PACKED_YVYU:
             if (p10bits == 16) {
-                format = (msb == 0) ? FORMAT_YVYU_P10_16BIT_LSB : FORMAT_YVYU_P10_16BIT_MSB; 
+                format = (msb == 0) ? FORMAT_YVYU_P10_16BIT_LSB : FORMAT_YVYU_P10_16BIT_MSB;
             }
             else if (p10bits == 32) {
                 format = (msb == 0) ? FORMAT_YVYU_P10_32BIT_LSB : FORMAT_YVYU_P10_32BIT_MSB;
@@ -753,12 +797,13 @@ FrameBufferFormat GetPackedFormat (
 
 BOOL SetupEncoderOpenParam(
     EncOpenParam*   param,
-    TestEncConfig*  config
+    TestEncConfig*  config,
+    ENC_CFG*        encCfg
     )
 {
     param->bitstreamFormat = config->stdMode;
     if (strlen(config->cfgFileName) != 0) {
-        if (GetEncOpenParam(param, config, NULL) == FALSE) {
+        if (GetEncOpenParam(param, config, encCfg) == FALSE) {
             VLOG(ERR, "[ERROR] Failed to parse CFG file(GetEncOpenParam)\n");
             return FALSE;
         }
@@ -769,23 +814,17 @@ BOOL SetupEncoderOpenParam(
             return FALSE;
         }
     }
-    param->streamBufCount = ENC_STREAM_BUF_COUNT;
-    param->streamBufSize  = ENC_STREAM_BUF_SIZE;
-
-    if ( param->streamBufCount < COMMAND_QUEUE_DEPTH )
-        param->streamBufCount = COMMAND_QUEUE_DEPTH; //for encoder->numSinkPortQueue
+    if (0 == param->streamBufCount) param->streamBufCount = ENC_STREAM_BUF_COUNT;
+    if (0 == param->streamBufSize)  param->streamBufSize  = ENC_STREAM_BUF_SIZE;
 
     if (strlen(config->cfgFileName) != 0) {
         if (param->srcBitDepth == 8) {
             config->srcFormat = FORMAT_420;
         }
         else if (param->srcBitDepth == 10) {
-            config->srcFormat = FORMAT_420_P10_16BIT_MSB;
-            if (config->srcFormat3p4b == 1) {
-                config->srcFormat = FORMAT_420_P10_32BIT_MSB;
-            }
-            if (config->srcFormat3p4b == 2) {
-                config->srcFormat = FORMAT_420_P10_32BIT_LSB;
+            if (config->srcFormat == FORMAT_420) {
+                config->srcFormat = FORMAT_420_P10_16BIT_MSB; //set srcFormat in ParseArgumentAndSetTestConfig function
+                return FALSE;
             }
         }
     }
@@ -793,13 +832,16 @@ BOOL SetupEncoderOpenParam(
     if (config->optYuvPath[0] != 0)
         strcpy(config->yuvFileName, config->optYuvPath);
 
-    if (config->packedFormat >= 1)
-        config->srcFormat = FORMAT_422;
 
-    if (config->srcFormat == FORMAT_422 && config->packedFormat >= PACKED_YUYV) {    
-        int p10bits = config->srcFormat3p4b == 0 ? 16 : 32;
-        FrameBufferFormat packedFormat = GetPackedFormat(param->srcBitDepth, config->packedFormat, p10bits, 1);
+    if (config->packedFormat >= PACKED_YUYV) {
+        int p10bits = 0;
+        FrameBufferFormat packedFormat;
+        if (config->srcFormat == FORMAT_420_P10_16BIT_MSB || config->srcFormat == FORMAT_420_P10_16BIT_LSB )
+            p10bits = 16;
+        if (config->srcFormat == FORMAT_420_P10_32BIT_MSB || config->srcFormat == FORMAT_420_P10_32BIT_LSB )
+            p10bits = 32;
 
+        packedFormat = GetPackedFormat(param->srcBitDepth, config->packedFormat, p10bits, 1);
         if (packedFormat == -1) {
             VLOG(ERR, "[ERROR] Failed to GetPackedFormat\n");
             return FALSE;
@@ -822,6 +864,19 @@ BOOL SetupEncoderOpenParam(
     param->cbcrOrder      = CBCR_ORDER_NORMAL;
     param->lowLatencyMode = (config->lowLatencyMode&0x3);		// 2bits lowlatency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable.
     param->EncStdParam.vpParam.useLongTerm = (config->useAsLongtermPeriod > 0 && config->refLongtermPeriod > 0) ? 1 : 0;
+
+    if (PRODUCT_ID_VP_SERIES(config->productId)) {
+#ifdef SUPPORT_SOURCE_RELEASE_INTERRUPT
+        param->srcReleaseIntEnable    = config->srcReleaseIntEnable;
+#endif
+        param->ringBufferEnable       = config->ringBufferEnable;
+        param->ringBufferWrapEnable   = config->ringBufferWrapEnable;
+        if (config->ringBufferEnable == TRUE) {
+            param->streamBufCount = 1;
+            param->lineBufIntEn = FALSE;
+        }
+
+    }
     return TRUE;
 }
 
@@ -892,7 +947,8 @@ void GenRegionToQpMap(
 
 
 
-int openRoiMapFile(TestEncConfig *encConfig) 
+
+int openRoiMapFile(TestEncConfig *encConfig)
 {
     if (encConfig->roi_enable) {
         if (encConfig->roi_file_name) {
@@ -906,21 +962,19 @@ int openRoiMapFile(TestEncConfig *encConfig)
     return TRUE;
 }
 
-int allocateRoiMapBuf(int coreIdx, TestEncConfig encConfig, vpu_buffer_t *vbRoi, int srcFbNum, int ctuNum)
+int allocateRoiMapBuf(EncHandle handle, TestEncConfig encConfig, vpu_buffer_t *vbRoi, int srcFbNum, int ctuNum)
 {
     int i;
+    Int32 coreIdx = handle->coreIdx;
     if (encConfig.roi_enable) {
         //number of roi buffer should be the same as source buffer num.
-        vdi_lock(coreIdx);
         for (i = 0; i < srcFbNum ; i++) {
             vbRoi[i].size = ctuNum;
-            if (vdi_allocate_dma_memory(coreIdx, &vbRoi[i]) < 0) {
-                vdi_unlock(coreIdx);
+            if (vdi_allocate_dma_memory(coreIdx, &vbRoi[i], ENC_ETC, handle->instIndex) < 0) {
                 VLOG(ERR, "fail to allocate ROI buffer\n" );
                 return FALSE;
             }
         }
-        vdi_unlock(coreIdx);
     }
     return TRUE;
 }
@@ -928,9 +982,9 @@ int allocateRoiMapBuf(int coreIdx, TestEncConfig encConfig, vpu_buffer_t *vbRoi,
 // Define tokens for parsing scaling list file
 const char* MatrixType[SCALING_LIST_SIZE_NUM][SL_NUM_MATRIX] =
 {
-    {"INTRA4X4_LUMA", "INTRA4X4_CHROMAU", "INTRA4X4_CHROMAV", "INTER4X4_LUMA", "INTER4X4_CHROMAU", "INTER4X4_CHROMAV"},  
-    {"INTRA8X8_LUMA", "INTRA8X8_CHROMAU", "INTRA8X8_CHROMAV", "INTER8X8_LUMA", "INTER8X8_CHROMAU", "INTER8X8_CHROMAV"},  
-    {"INTRA16X16_LUMA", "INTRA16X16_CHROMAU", "INTRA16X16_CHROMAV", "INTER16X16_LUMA", "INTER16X16_CHROMAU", "INTER16X16_CHROMAV"},    
+    {"INTRA4X4_LUMA", "INTRA4X4_CHROMAU", "INTRA4X4_CHROMAV", "INTER4X4_LUMA", "INTER4X4_CHROMAU", "INTER4X4_CHROMAV"},
+    {"INTRA8X8_LUMA", "INTRA8X8_CHROMAU", "INTRA8X8_CHROMAV", "INTER8X8_LUMA", "INTER8X8_CHROMAU", "INTER8X8_CHROMAV"},
+    {"INTRA16X16_LUMA", "INTRA16X16_CHROMAU", "INTRA16X16_CHROMAV", "INTER16X16_LUMA", "INTER16X16_CHROMAU", "INTER16X16_CHROMAV"},
     {"INTRA32X32_LUMA", "INTRA32X32_CHROMAU_FROM16x16_CHROMAU", "INTRA32X32_CHROMAV_FROM16x16_CHROMAV","INTER32X32_LUMA", "INTER32X32_CHROMAU_FROM16x16_CHROMAU", "INTER32X32_CHROMAV_FROM16x16_CHROMAV"}
 };
 
@@ -980,6 +1034,9 @@ int parse_user_scaling_list(UserScalingList* sl, FILE* fp_sl, CodStd  stdMode)
     for(size_id = 0; size_id < SCALING_LIST_SIZE_NUM; size_id++)  {// for 4, 8, 16, 32
         num_coef = scaling_list_size[size_id];//lint !e644
 
+        if (stdMode == STD_AVC && size_id > SCALING_LIST_8x8)
+            break;
+
         for(mat_id = 0; mat_id < SL_NUM_MATRIX; mat_id++) { // for intra_y, intra_cb, intra_cr, inter_y, inter_cb, inter_cr
             src = get_sl_addr(sl, size_id, mat_id);
 
@@ -1019,7 +1076,7 @@ int parse_user_scaling_list(UserScalingList* sl, FILE* fp_sl, CodStd  stdMode)
                     fseek(fp_sl,0,0);
                     type_str = MatrixType_DC[size_id - 2][mat_id];
 
-                    do { 
+                    do {
                         ret = fgets(line, LINE_SIZE, fp_sl);
                         if((ret == NULL) || (strstr(line, type_str) == NULL && feof(fp_sl))) {
                             VLOG(ERR,"Error: can't read a scaling list matrix(%s)\n", type_str);
@@ -1077,7 +1134,7 @@ int parse_custom_lambda(Uint32 buf[NUM_CUSTOM_LAMBDA], FILE* fp)
 }
 
 
-#if defined(PLATFORM_NON_OS) || defined (PLATFORM_LINUX) 
+#if defined(PLATFORM_NON_OS) || defined (PLATFORM_LINUX)
 struct option* ConvertOptions(
     struct OptionExt*   cnmOpt,
     Uint32              nItems
@@ -1101,7 +1158,7 @@ struct option* ConvertOptions(
 
 #ifdef PLATFORM_LINUX
 int mkdir_recursive(
-    char *path, 
+    char *path,
     mode_t omode
     )
 {
@@ -1317,7 +1374,7 @@ void SetMapData(int coreIdx, TestEncConfig encConfig, EncOpenParam encOP, EncPar
                     fgets(lineStr, 256, encConfig.roi_file);
                     sscanf(lineStr, "%d\n", &val);  // picture index
 
-                    fgets(lineStr, 256, encConfig.roi_file);   
+                    fgets(lineStr, 256, encConfig.roi_file);
                     sscanf(lineStr, "%d\n", &roiNum);   // number of roi regions
 
                     for (i = 0; i < roiNum; i++) {
@@ -1331,7 +1388,7 @@ void SetMapData(int coreIdx, TestEncConfig encConfig, EncOpenParam encOP, EncPar
 
                 if (encParam->customMapOpt.customRoiMapEnable) {
                     initQp = encConfig.roi_avg_qp;
-                    GenRegionToQpMap(&region[0], &roiQp[0], roiNum, initQp, subCtuMapStride, VPU_ALIGN64(encOP.picHeight) >> 5, &roiMapBuf[0]);   
+                    GenRegionToQpMap(&region[0], &roiQp[0], roiNum, initQp, subCtuMapStride, VPU_ALIGN64(encOP.picHeight) >> 5, &roiMapBuf[0]);
                 }
             }
 
@@ -1408,7 +1465,7 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
 
     osal_memset(&ParaChagCfg, 0x00, sizeof(ENC_CFG));
     osal_memset(&changeParam, 0x00, sizeof(EncChangeParam));
-    
+
     parseVpChangeParamCfgFile(&ParaChagCfg, encConfig.changeParam[changedCount].cfgName);
 
     changeParam.enable_option           = encConfig.changeParam[changedCount].enableOption;
@@ -1438,7 +1495,7 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_DEPEND_SLICE) {
-        changeParam.dependSliceMode				= ParaChagCfg.vpCfg.dependSliceMode;                
+        changeParam.dependSliceMode				= ParaChagCfg.vpCfg.dependSliceMode;
         changeParam.dependSliceModeArg			= ParaChagCfg.vpCfg.dependSliceModeArg;
     }
 
@@ -1466,12 +1523,15 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP) {
         changeParam.minQpI						= ParaChagCfg.vpCfg.minQp;
-        changeParam.minQpP						= ParaChagCfg.vpCfg.minQp;
-        changeParam.minQpB						= ParaChagCfg.vpCfg.minQp;
         changeParam.maxQpI						= ParaChagCfg.vpCfg.maxQp;
-        changeParam.maxQpP						= ParaChagCfg.vpCfg.maxQp;
-        changeParam.maxQpB						= ParaChagCfg.vpCfg.maxQp;
-        changeParam.maxDeltaQp					= ParaChagCfg.vpCfg.maxDeltaQp; 
+        changeParam.hvsMaxDeltaQp   			= ParaChagCfg.vpCfg.maxDeltaQp;
+    }
+
+    if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC_INTER_MIN_MAX_QP) {
+        changeParam.minQpP = ParaChagCfg.vpCfg.minQp;
+        changeParam.minQpB = ParaChagCfg.vpCfg.minQp;
+        changeParam.maxQpP = ParaChagCfg.vpCfg.maxQp;
+        changeParam.maxQpB = ParaChagCfg.vpCfg.maxQp;
     }
 
     if (changeParam.enable_option & ENC_SET_CHANGE_PARAM_RC_BIT_RATIO_LAYER) {
@@ -1497,10 +1557,10 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
         changeParam.nrNoiseSigmaCb				= ParaChagCfg.vpCfg.nrNoiseSigmaCb;
         changeParam.nrNoiseSigmaCr				= ParaChagCfg.vpCfg.nrNoiseSigmaCr;
 
-        changeParam.nrIntraWeightY				= ParaChagCfg.vpCfg.nrIntraWeightY; 
+        changeParam.nrIntraWeightY				= ParaChagCfg.vpCfg.nrIntraWeightY;
         changeParam.nrIntraWeightCb				= ParaChagCfg.vpCfg.nrIntraWeightCb;
         changeParam.nrIntraWeightCr				= ParaChagCfg.vpCfg.nrIntraWeightCr;
-        changeParam.nrInterWeightY				= ParaChagCfg.vpCfg.nrInterWeightY; 
+        changeParam.nrInterWeightY				= ParaChagCfg.vpCfg.nrInterWeightY;
         changeParam.nrInterWeightCb				= ParaChagCfg.vpCfg.nrInterWeightCb;
         changeParam.nrInterWeightCr				= ParaChagCfg.vpCfg.nrInterWeightCr;
     }
@@ -1543,4 +1603,51 @@ RetCode SetChangeParam(EncHandle handle, TestEncConfig encConfig, EncOpenParam e
     return ret;
 }
 
+
+BOOL GetBitstreamToBuffer(
+    EncHandle handle,
+    Uint8* pBuffer,
+    PhysicalAddress rdAddr,
+    PhysicalAddress wrAddr,
+    PhysicalAddress streamBufStartAddr,
+    PhysicalAddress streamBufEndAddr,
+    Uint32 streamSize,
+    EndianMode endian,
+    BOOL ringbufferEnabled
+    )
+{
+    Int32 coreIdx      = -1;
+    Uint32 room         = 0;
+
+    if (NULL == handle) {
+        VLOG(ERR, "<%s:%d> NULL point exception\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+
+    coreIdx = VPU_HANDLE_CORE_INDEX(handle);
+
+    if (0 == streamBufStartAddr || 0 == streamBufEndAddr) {
+        VLOG(ERR, "<%s:%d> Wrong Address, start or end Addr\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    } else if (0 == rdAddr || 0 == wrAddr) {
+        VLOG(ERR, "<%s:%d> Wrong Address, read or write Addr\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+
+    if (TRUE == ringbufferEnabled) {
+        if ((rdAddr + streamSize) > streamBufEndAddr) {
+            //wrap around on ringbuffer
+            room = streamBufEndAddr - rdAddr;
+            vdi_read_memory(coreIdx, rdAddr, pBuffer, room, endian);
+            vdi_read_memory(coreIdx, streamBufStartAddr, pBuffer + room, (streamSize-room), endian);
+        }
+        else {
+            vdi_read_memory(coreIdx, rdAddr, pBuffer, streamSize, endian);
+        }
+    } else { //Line buffer
+        vdi_read_memory(coreIdx, rdAddr, pBuffer, streamSize, endian);
+    }
+
+    return TRUE;
+}
 

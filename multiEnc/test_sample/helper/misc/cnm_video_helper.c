@@ -33,7 +33,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "main_helper.h"
 #include <libavformat/avformat.h>
-
 // include in the ffmpeg header
 typedef struct {
     CodStd      codStd;
@@ -106,9 +105,9 @@ static const CodStdTab codstd_tab[] = {
     { STD_MPEG4,        1, AV_CODEC_ID_MSMPEG4V3,       MKTAG('D', 'I', 'V', '6') },
     { STD_MPEG4,        5, AV_CODEC_ID_MSMPEG4V3,       MKTAG('D', 'I', 'V', '4') },
     { STD_DIV3,         0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('D', 'V', 'X', '3') },
-    { STD_DIV3,         0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('A', 'P', '4', '1') },    //Another hacked version of Microsoft's MP43 codec. 
+    { STD_DIV3,         0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('A', 'P', '4', '1') },    //Another hacked version of Microsoft's MP43 codec.
     { STD_MPEG4,        0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('C', 'O', 'L', '1') },
-    { STD_MPEG4,        0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('C', 'O', 'L', '0') },    // not support ms mpeg4 v1, 2    
+    { STD_MPEG4,        0, AV_CODEC_ID_MSMPEG4V3,       MKTAG('C', 'O', 'L', '0') },    // not support ms mpeg4 v1, 2
     { STD_MPEG4,      256, AV_CODEC_ID_FLV1,            MKTAG('F', 'L', 'V', '1') }, /* Sorenson spark */
     { STD_VC1,          0, AV_CODEC_ID_WMV1,            MKTAG('W', 'M', 'V', '1') },
     { STD_VC1,          0, AV_CODEC_ID_WMV2,            MKTAG('W', 'M', 'V', '2') },
@@ -259,16 +258,16 @@ Int32 ConvCodecIdToFourcc(
 
 BOOL LoadYuvImageByYCbCrLine(
     EncHandle   handle,
-    Uint32      coreIdx, 
-    Uint8*      src, 
-    size_t      picWidth, 
+    Uint32      coreIdx,
+    Uint8*      src,
+    size_t      picWidth,
     size_t      picHeight,
     FrameBuffer* fb,
     Uint32      srcFbIndex
     )
 {
     Int32                y, nY, nCb;
-    Int32                addrY, addrCb, addrCr;
+    PhysicalAddress      addrY, addrCb, addrCr;
     size_t               lumaSize, chromaSize=0, chromaStride = 0, chromaWidth=0;
     Uint8                *srcY, *srcCb, *srcCr;
     size_t               stride      = fb->stride;
@@ -407,16 +406,16 @@ BOOL LoadYuvImageByYCbCrLine(
 
 //////////////////// DRAM Read/Write helper Function ////////////////////////////
 BOOL LoadYuvImageBurstFormat(
-    Uint32      coreIdx, 
-    Uint8*      src, 
-    size_t      picWidth, 
+    Uint32      coreIdx,
+    Uint8*      src,
+    size_t      picWidth,
     size_t      picHeight,
     FrameBuffer* fb,
     BOOL        convertCbcrIntl
     )
 {
     Int32               y, nY, nCb, nCr;
-    Int32               addr;
+    PhysicalAddress     addr;
     size_t              lumaSize, chromaSize=0, chromaStride = 0, chromaWidth=0;
     Uint8*              puc;
     size_t              stride      = fb->stride;
@@ -599,17 +598,18 @@ BOOL LoadYuvImageBurstFormat(
 
 #if 0
 BOOL LoadTiledImageYuvBurst(
-    Uint32          coreIdx, 
-    BYTE*           pYuv, 
-    size_t          picWidth, 
-    size_t          picHeight, 
-    FrameBuffer*    fb, 
+    VpuHandle       handle,
+    Uint32          coreIdx,
+    BYTE*           pYuv,
+    size_t          picWidth,
+    size_t          picHeight,
+    FrameBuffer*    fb,
     TiledMapConfig  mapCfg
     )
-{   
+{
     BYTE *pSrc;
     size_t              divX, divY;
-    size_t              pix_addr;
+    PhysicalAddress     pix_addr;
     size_t              rrow, ccol;
     size_t              offsetX,offsetY;
     size_t              stride_c;
@@ -651,10 +651,10 @@ BOOL LoadTiledImageYuvBurst(
     pSrc    = pYuv;
 
     // no opt code
-    for (rrow=0; rrow <picHeight; rrow=rrow+1) 
+    for (rrow=0; rrow <picHeight; rrow=rrow+1)
     {
         for (ccol=0; ccol<picWidth; ccol=ccol+dramBusWidth)
-        {    
+        {
             pix_addr = GetXY2AXIAddr(&mapCfg, 0/*luma*/, rrow +offsetY, ccol + offsetX, stride, fb);
             vdi_write_memory(coreIdx, pix_addr, pSrc+rrow*picWidth+ccol, 8, endian);
         }
@@ -664,7 +664,7 @@ BOOL LoadTiledImageYuvBurst(
         return 1;
     }
 
-    if (interLeave == FALSE) { 
+    if (interLeave == FALSE) {
         // CB
         pSrc = pYuv + picWidth*picHeight;
 
@@ -694,20 +694,20 @@ BOOL LoadTiledImageYuvBurst(
         size_t  cbcr_x;
 
         switch( format) {
-        case FORMAT_444 : 
+        case FORMAT_444 :
             cbcr_x = picWidth*2;
-            break; 
-        case FORMAT_420 : 
-            cbcr_x = picWidth  ; 
             break;
-        case FORMAT_422 : 
+        case FORMAT_420 :
             cbcr_x = picWidth  ;
             break;
-        case FORMAT_224 : 
+        case FORMAT_422 :
+            cbcr_x = picWidth  ;
+            break;
+        case FORMAT_224 :
             cbcr_x = picWidth*2;
             break;
-        default: 
-            cbcr_x = picWidth  ; 
+        default:
+            cbcr_x = picWidth  ;
             break;
         }
 
@@ -723,7 +723,7 @@ BOOL LoadTiledImageYuvBurst(
         }
 
         for (rrow=0; rrow <picHeight/divY; rrow=rrow+1) {
-            for (ccol=0; ccol<cbcr_x ; ccol=ccol+dramBusWidth) {     
+            for (ccol=0; ccol<cbcr_x ; ccol=ccol+dramBusWidth) {
 
                 pTemp[0  ] = *srcAddrCb++;
                 pTemp[0+2] = *srcAddrCb++;
@@ -734,7 +734,7 @@ BOOL LoadTiledImageYuvBurst(
                 pTemp[0+5] = *srcAddrCr++;
                 pTemp[0+7] = *srcAddrCr++;
 
-                pix_addr = GetXY2AXIAddr(&mapCfg, 2, rrow + offsetY ,ccol + (offsetX*2), stride, fb);  
+                pix_addr = GetXY2AXIAddr(&mapCfg, 2, rrow + offsetY ,ccol + (offsetX*2), stride, fb);
                 vdi_write_memory(coreIdx, pix_addr, (unsigned char *)pTemp, 8, endian);
             }
         }
@@ -743,6 +743,7 @@ BOOL LoadTiledImageYuvBurst(
 
     return TRUE;
 }
+
 
 static void SwapDword(unsigned char* data, int len)
 {
@@ -792,12 +793,13 @@ static void SwapPixelOrder(
     SwapLword(data, 16);
 }
 
+
 Uint32 StoreYuvImageBurstLinear(
-    Uint32      coreIdx, 
-    FrameBuffer *fbSrc, 
-    TiledMapConfig  mapCfg, 
-    Uint8       *pDst, 
-    VpuRect     cropRect, 
+    Uint32      coreIdx,
+    FrameBuffer *fbSrc,
+    TiledMapConfig  mapCfg,
+    Uint8       *pDst,
+    VpuRect     cropRect,
     BOOL        enableCrop,
     BOOL        isVP9
     )
@@ -913,7 +915,7 @@ Uint32 StoreYuvImageBurstLinear(
         dstChromaHeight = 0;
         chromaHeight    = 0;
         break;
-    case FORMAT_422_P10_16BIT_LSB: 
+    case FORMAT_422_P10_16BIT_LSB:
     case FORMAT_422_P10_16BIT_MSB:
         dstWidth = width * 2;
         bpp = 16;
@@ -922,7 +924,7 @@ Uint32 StoreYuvImageBurstLinear(
         chromaHeight    = height / div_y;
         chroma_stride   = (stride / div_x);
         break;
-    case FORMAT_420_P10_16BIT_LSB: 
+    case FORMAT_420_P10_16BIT_LSB:
     case FORMAT_420_P10_16BIT_MSB:
         dstWidth = width * 2;
         bpp = 16;
@@ -1023,7 +1025,7 @@ Uint32 StoreYuvImageBurstLinear(
         pix_addr = GetXY2AXIAddr(&mapCfg, 0, y+offsetY, 0, stride, fbSrc);
         rowBufferY = pY + (pix_addr - baseY);
         // CHECK POINT
-        for (x=0; x<stride ; x+=dramBusWidth) {  
+        for (x=0; x<stride ; x+=dramBusWidth) {
             if ( fbSrc->format == FORMAT_420_P10_32BIT_MSB )
                 SwapPixelOrder(rowBufferY+x);
         }
@@ -1055,7 +1057,7 @@ Uint32 StoreYuvImageBurstLinear(
             vdi_read_memory(coreIdx, fbSrc->bufCr, pCr, chroma_stride * chromaHeight, endian);
         }
     }
-        
+
     if (interLeave == TRUE || p10_32bit_interleave == TRUE) {
         //Uint8    pTemp[16];
         Uint8*   pTemp;
@@ -1066,7 +1068,7 @@ Uint32 StoreYuvImageBurstLinear(
         Uint32*   pTempLeft32, *pTempRight32;
         Uint32   temp_32;
 
-        dstAddrCb = pDst + dstWidth*dstHeight; 
+        dstAddrCb = pDst + dstWidth*dstHeight;
         dstAddrCr = dstAddrCb + dstChromaWidth*dstChromaHeight;
 
         cbcr_per_2pix = (format==FORMAT_224||format==FORMAT_444) ? 2 : 1;
@@ -1093,7 +1095,7 @@ Uint32 StoreYuvImageBurstLinear(
                                 *ptrCb++ = pTemp[k];
                                 *ptrCr++ = pTemp[k+1];
                             }
-                        } 
+                        }
                         else {
                             if (nv21) {
                                 *ptrCr++ = pTemp[k];
@@ -1163,8 +1165,8 @@ Uint32 StoreYuvImageBurstLinear(
             totSize += dstChromaWidth;
         }
     }
-    else {      
-        puc = pDst + dstWidth*dstHeight; 
+    else {
+        puc = pDst + dstWidth*dstHeight;
 
         for (y = 0 ; y < dstChromaHeight; y += 1) {
             x = 0;
@@ -1213,11 +1215,11 @@ Uint32 StoreYuvImageBurstLinear(
 }
 
 Uint32 StoreYuvImageBurstFormat(
-    Uint32          coreIdx, 
-    FrameBuffer*    fbSrc, 
-    TiledMapConfig  mapCfg, 
-    Uint8*          pDst, 
-    VpuRect         cropRect, 
+    Uint32          coreIdx,
+    FrameBuffer*    fbSrc,
+    TiledMapConfig  mapCfg,
+    Uint8*          pDst,
+    VpuRect         cropRect,
     BOOL            enableCrop
     )
 {
@@ -1282,7 +1284,7 @@ Uint32 StoreYuvImageBurstFormat(
     offsetY   = (enableCrop == TRUE ? cropRect.top  : 0);
 
     switch (fbSrc->format) {
-    case FORMAT_420_P10_16BIT_LSB: 
+    case FORMAT_420_P10_16BIT_LSB:
     case FORMAT_420_P10_16BIT_MSB:
         dstWidth = width * 2;
         bpp = 16;
@@ -1387,10 +1389,10 @@ Uint32 StoreYuvImageBurstFormat(
     if ( !rowBufferCr )
         return 0;
 
-    for ( y=0 ; y<dstHeight ; y+=1 ) 
+    for ( y=0 ; y<dstHeight ; y+=1 )
     {
         for ( x=0; x<stride ; x+=dramBusWidth )
-        {  
+        {
             pix_addr = GetXY2AXIAddr(&mapCfg, 0, y+offsetY, x, stride, fbSrc);
             vdi_read_memory(coreIdx, pix_addr, rowBufferY+x, dramBusWidth,  endian);
         }
@@ -1412,7 +1414,7 @@ Uint32 StoreYuvImageBurstFormat(
         Uint8*   ptrCb, *ptrCr;
         Int32    cbcr_per_2pix=1, k;
 
-        dstAddrCb = pDst + dstWidth*dstHeight; 
+        dstAddrCb = pDst + dstWidth*dstHeight;
         dstAddrCr = dstAddrCb + dstChromaWidth*dstChromaHeight;
 
         cbcr_per_2pix = (format==FORMAT_224||format==FORMAT_444) ? 2 : 1;
@@ -1422,7 +1424,7 @@ Uint32 StoreYuvImageBurstFormat(
             ptrCr = rowBufferCr;
             for ( x = 0 ; x < stride*cbcr_per_2pix ; x += dramBusWidth ) {
                 pix_addr = GetXY2AXIAddr(&mapCfg, 2, y+(offsetY/div_y), x, stride, fbSrc);
-                vdi_read_memory(coreIdx, pix_addr,  pTemp, dramBusWidth,  endian); 
+                vdi_read_memory(coreIdx, pix_addr,  pTemp, dramBusWidth,  endian);
                 // CHECK POINT
                 if ( fbSrc->format == FORMAT_420_P10_32BIT_MSB )
                     SwapPixelOrder(pTemp);
@@ -1437,7 +1439,7 @@ Uint32 StoreYuvImageBurstFormat(
                             *ptrCb++ = pTemp[k];
                             *ptrCr++ = pTemp[k+1];
                         }
-                    } 
+                    }
                     else {
                         if (nv21) {
                             *ptrCr++ = pTemp[k];
@@ -1460,8 +1462,8 @@ Uint32 StoreYuvImageBurstFormat(
                         totSize += dstChromaWidth;
         }
     }
-    else {      
-        puc = pDst + dstWidth*dstHeight; 
+    else {
+        puc = pDst + dstWidth*dstHeight;
 
         for (y = 0 ; y < dstChromaHeight; y += 1) {
             for (x = 0 ; x < chroma_stride; x += dramBusWidth) {
@@ -1556,7 +1558,7 @@ Uint8* GetYUVFromFrameBuffer(
             break;
         default:
             break;
-        }       
+        }
     }
     if ((pYuv=(Uint8*)osal_malloc(frameSize)) == NULL) {
         VLOG(ERR, "%s:%d Failed to allocate memory\n", __FUNCTION__, __LINE__);
@@ -1566,19 +1568,19 @@ Uint8* GetYUVFromFrameBuffer(
     VPU_DecGiveCommand(decHandle, GET_TILEDMAP_CONFIG, &mapCfg);
     if (fb->mapType == LINEAR_FRAME_MAP || fb->mapType == COMPRESSED_FRAME_MAP) {
         if (decHandle->codecMode == W_VP9_DEC) {
-            *retSize = StoreYuvImageBurstLinear(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE, TRUE); 
+            *retSize = StoreYuvImageBurstLinear(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE, TRUE);
         }
         else {
             *retSize = StoreYuvImageBurstLinear(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE, FALSE);
         }
     }
     else {
-        *retSize = StoreYuvImageBurstFormat(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE); 
+        *retSize = StoreYuvImageBurstFormat(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE);
     }
 
     *retWidth  = picWidth;
     *retHeight = picHeight;
-    *retBpp    = Bpp; 
+    *retBpp    = Bpp;
 
     return pYuv;
 }
@@ -1609,8 +1611,8 @@ int ProcessEncodedBitstreamBurst(Uint32 coreIdx, osal_file_t fp, int targetAddr,
     }
     else
     {
-        vdi_read_memory(coreIdx, targetAddr, buffer, size, endian); 
-    }   
+        vdi_read_memory(coreIdx, targetAddr, buffer, size, endian);
+    }
 
     if ( comparator) {
         if (Comparator_Act(comparator, buffer, size) == FALSE) {

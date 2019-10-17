@@ -61,7 +61,7 @@ static BOOL NullComparator_Destroy(
 static BOOL NullComparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
     )
 {
     UNREFERENCED_PARAMETER(impl);
@@ -115,7 +115,7 @@ BOOL BinComparator_Destroy(
 BOOL BinComparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
 );
 
 BOOL BinComparator_Configure(
@@ -136,7 +136,7 @@ BOOL YUVComparator_Destroy(
 BOOL YUVComparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
 );
 
 BOOL YUVComparator_Configure(

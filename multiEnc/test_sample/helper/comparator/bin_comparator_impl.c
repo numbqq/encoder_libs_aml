@@ -78,12 +78,12 @@ BOOL BinComparator_Destroy(
 BOOL BinComparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
     )
 {
-    Uint8*             pBin = NULL;
-    binCompContext*    ctx  = (binCompContext*)impl->context;
-    BOOL               match = FALSE;
+    Uint8*      pBin = NULL;
+    binCompContext*    ctx = (binCompContext*)impl->context;
+    BOOL        match = FALSE;
 
     pBin = (Uint8*)osal_malloc(size);
 
@@ -100,10 +100,6 @@ BOOL BinComparator_Compare(
         FILE* fpOutput;
         char tmp[200];
 
-        if ( impl->curIndex == 1 )//because of header
-            VLOG(ERR, "MISMATCH WITH GOLDEN bin at header\n");
-        else
-            VLOG(ERR, "MISMATCH WITH GOLDEN bin at %d frame\n", impl->curIndex - 1);
 
         sprintf(tmp, "./golden_%s_%05d.bin", GetBasename(impl->filename), impl->curIndex-1);
         if ((fpGolden=osal_fopen(tmp, "wb")) == NULL) {

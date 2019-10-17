@@ -37,7 +37,7 @@
 #include "vputypes.h"
 
 #define MAX_TASKS_IN_APP            8
-#define MAX_COMPONENTS_IN_TASK      3
+#define MAX_COMPONENTS_IN_TASK      6
 
 extern BOOL supportThread;
 #ifdef __cplusplus

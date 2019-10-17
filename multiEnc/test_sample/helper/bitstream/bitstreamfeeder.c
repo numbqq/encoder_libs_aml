@@ -126,8 +126,12 @@ extern BOOL BSFeederSizePlusEs_Rewind(
     void*       feeder
     );
 
+extern Int32 BSFeederFrameSize_GetStandard(
+    void*       feeder
+    );
+
 /**
-* Abstract Bitstream Feeader Functions 
+* Abstract Bitstream Feeader Functions
 */
 void* BitstreamFeeder_Create(
     Uint32          coreIdx,
@@ -227,7 +231,7 @@ Uint32 BitstreamFeeder_Act(
     Int32            feedingSize = 0;
     BSChunk          chunk = {0};
     EndianMode       endian;
-    
+
     if (bsf == NULL) {
         VLOG(ERR, "%s:%d Null handle\n", __FUNCTION__, __LINE__);
         return 0;
@@ -236,7 +240,7 @@ Uint32 BitstreamFeeder_Act(
     endian = bsf->endian;
 
     if (bsf->remainData == NULL) {
-        chunk.size = bsBuffer->size; 
+        chunk.size = bsBuffer->size;
         chunk.data = osal_malloc(chunk.size);
         chunk.eos  = FALSE;
         if (chunk.data == NULL) {
@@ -295,7 +299,7 @@ Uint32 BitstreamFeeder_Act(
                 wrPtr = base;
             }
         }
-        
+
         VpuWriteMem(bsf->coreIdx, wrPtr, (unsigned char*)chunk.data+rightSize, leftSize, (int)endian);
         *newWrPtr = wrPtr + leftSize;
     }
@@ -325,16 +329,41 @@ BOOL BitstreamFeeder_IsEos(
 }
 
 Uint32 BitstreamFeeder_GetSeqHeaderSize(
-	BSFeeder    feeder
-	)
+    BSFeeder    feeder
+    )
 {
-	BitstreamFeeder* bsf = (BitstreamFeeder*)feeder;
+    BitstreamFeeder* bsf = (BitstreamFeeder*)feeder;
 
-	if (bsf == NULL) {
-		VLOG(ERR, "%s:%d Null handle\n", __FUNCTION__, __LINE__);
-		return FALSE;
-	}
-	return bsf->sequenceHeaderSize;
+    if (bsf == NULL) {
+        VLOG(ERR, "%s:%d Null handle\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    return bsf->sequenceHeaderSize;
+}
+
+Int32 BitstreamFeeder_GetStandard(
+    BSFeeder    feeder
+    )
+{
+    BitstreamFeeder* bsf = (BitstreamFeeder*)feeder;
+    Int32 standard = -1;
+
+    if (bsf == NULL) {
+        VLOG(ERR, "%s:%d Null handle\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+
+    switch (bsf->method) {
+    case FEEDING_METHOD_FRAME_SIZE:
+        standard = BSFeederFrameSize_GetStandard(bsf->actualFeeder);
+        break;
+    case FEEDING_METHOD_FIXED_SIZE:
+    case FEEDING_METHOD_SIZE_PLUS_ES:
+    default:
+        VLOG(ERR, "%s:%d Invalid return value (%d),  method(%d)\n", __FUNCTION__, __LINE__, -1, bsf->method);
+        break;
+    }
+    return standard;
 }
 
 void BitstreamFeeder_Stop(

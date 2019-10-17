@@ -41,7 +41,6 @@ typedef struct {
     Uint32          loopCount;
 } md5CompContext;
 
-
 BOOL MD5Comparator_Create(
     ComparatorImpl* impl,
     char*           path
@@ -92,7 +91,7 @@ BOOL MD5Comparator_Destroy(
 BOOL MD5Comparator_Compare(
     ComparatorImpl* impl,
     void*           data,
-    Uint32          size
+    PhysicalAddress size
     )
 {
     md5CompContext*    ctx = (md5CompContext*)impl->context;
@@ -211,4 +210,4 @@ ComparatorImpl md5ComparatorImpl = {
     MD5Comparator_Configure,
     MD5Comparator_Rewind,
 };
- 
+

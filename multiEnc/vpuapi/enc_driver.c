@@ -63,9 +63,7 @@ Int32 VpVpuGetProductId(Uint32  coreIdx)
 
     switch (val) {
     case VP512_CODE:   productId = PRODUCT_ID_512;   break;
-    case VP520_CODE:   productId = PRODUCT_ID_520;   break;
     case VP515_CODE:   productId = PRODUCT_ID_515;   break;
-    case VP525_CODE:   productId = PRODUCT_ID_525;   break;
     case VP521_CODE:   productId = PRODUCT_ID_521;   break;
     case VP521C_CODE:  productId = PRODUCT_ID_521;   break;
     case VP511_CODE:   productId = PRODUCT_ID_511;   break;
@@ -157,7 +155,9 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
         pAttr->productName[4] = 0;
 
         pAttr->productId       = VpVpuGetProductId(coreIdx);
-
+        pAttr->productVersion  = VpuReadReg(coreIdx, VP5_RET_PRODUCT_VERSION);
+        pAttr->fwVersion       = VpuReadReg(coreIdx, VP5_RET_FW_VERSION);
+        pAttr->customerId      = VpuReadReg(coreIdx, VP5_RET_CUSTOMER_ID);
         pAttr->hwConfigDef0    = VpuReadReg(coreIdx, VP5_RET_STD_DEF0);
         pAttr->hwConfigDef1    = VpuReadReg(coreIdx, VP5_RET_STD_DEF1);
         pAttr->hwConfigFeature = VpuReadReg(coreIdx, VP5_RET_CONF_FEATURE);
@@ -165,6 +165,12 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
         pAttr->hwConfigRev     = VpuReadReg(coreIdx, VP5_RET_CONF_REVISION);
         pAttr->hwConfigType    = VpuReadReg(coreIdx, VP5_RET_CONF_TYPE);
 
+        pAttr->supportHEVC10bitEnc = (pAttr->hwConfigFeature>>3)&1;
+        if ( pAttr->hwConfigRev > 167455 ) {//20190321
+            pAttr->supportAVC10bitEnc =  (pAttr->hwConfigFeature>>11)&1;
+        } else {
+            pAttr->supportAVC10bitEnc = pAttr->supportHEVC10bitEnc;
+        }
         pAttr->supportGDIHW          = TRUE;
         pAttr->supportDecoders       = (1<<STD_HEVC);
         if (pAttr->productId == PRODUCT_ID_512) {
@@ -176,19 +182,6 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
         }
 
         pAttr->supportEncoders       = 0;
-        if (pAttr->productId == PRODUCT_ID_520) {
-            pAttr->supportEncoders |= (1<<STD_HEVC);
-            pAttr->supportBackbone  = TRUE;
-        }
-
-        if (pAttr->productId == PRODUCT_ID_525) {
-            pAttr->supportDecoders       = (1<<STD_HEVC);
-            pAttr->supportDecoders       |= (1<<STD_SVAC);
-            pAttr->supportEncoders       = (1<<STD_HEVC);
-            pAttr->supportEncoders       |= (1<<STD_SVAC);
-            pAttr->supportBackbone       = TRUE;
-        }
-
         if (pAttr->productId == PRODUCT_ID_521) {
             pAttr->supportDecoders       |= (1<<STD_AVC);
             pAttr->supportEncoders       = (1<<STD_HEVC);
@@ -202,27 +195,24 @@ static RetCode SetupVp5Properties(Uint32 coreIdx)
                 pAttr->supportBackbone = TRUE;
             }
         }
-        pAttr->support2AlignScaler   = (BOOL)((pAttr->hwConfigDef0>>23)&1);
 
-        pAttr->supportCommandQueue   = TRUE;
-
+        pAttr->support2AlignScaler      = (BOOL)((pAttr->hwConfigDef0>>23)&0x01);
+        pAttr->supportVcoreBackbone     = (BOOL)((pAttr->hwConfigDef0>>22)&0x01);
+        pAttr->supportCommandQueue      = TRUE;
         pAttr->supportFBCBWOptimization = (BOOL)((pAttr->hwConfigDef1>>15)&0x01);
         pAttr->supportNewTimer          = (BOOL)((pAttr->hwConfigDef1>>27)&0x01);
-        if (pAttr->productId == PRODUCT_ID_520)
-            pAttr->supportWTL        = FALSE;
-        else
-            pAttr->supportWTL        = TRUE;
-
-        pAttr->supportTiled2Linear   = FALSE;
-        pAttr->supportMapTypes       = FALSE;
-        pAttr->support128bitBus      = TRUE;
-        pAttr->supportThumbnailMode  = TRUE;
-        pAttr->supportEndianMask     = (Uint32)((1<<VDI_LITTLE_ENDIAN) | (1<<VDI_BIG_ENDIAN) | (1<<VDI_32BIT_LITTLE_ENDIAN) | (1<<VDI_32BIT_BIG_ENDIAN) | (0xffffUL<<16));
-        pAttr->supportBitstreamMode  = (1<<BS_MODE_INTERRUPT) | (1<<BS_MODE_PIC_END);
-        pAttr->framebufferCacheType  = 0; //FramebufCacheNone;
-        pAttr->bitstreamBufferMargin = 0;
-        pAttr->numberOfVCores        = MAX_NUM_VCORE;
-        pAttr->numberOfMemProtectRgns = 10;
+        pAttr->supportWTL               = TRUE;
+        pAttr->supportDualCore          = (BOOL)((pAttr->hwConfigDef1>>26)&0x01);
+        pAttr->supportTiled2Linear      = FALSE;
+        pAttr->supportMapTypes          = FALSE;
+        pAttr->support128bitBus         = TRUE;
+        pAttr->supportThumbnailMode     = TRUE;
+        pAttr->supportEndianMask        = (Uint32)((1<<VDI_LITTLE_ENDIAN) | (1<<VDI_BIG_ENDIAN) | (1<<VDI_32BIT_LITTLE_ENDIAN) | (1<<VDI_32BIT_BIG_ENDIAN) | (0xffffUL<<16));
+        pAttr->supportBitstreamMode     = (1<<BS_MODE_INTERRUPT) | (1<<BS_MODE_PIC_END);
+        pAttr->framebufferCacheType     = 0; //FramebufCacheNone;
+        pAttr->bitstreamBufferMargin    = 0;
+        pAttr->maxNumVcores             = MAX_NUM_VCORE;
+        pAttr->numberOfMemProtectRgns   = 10;
     }
 
     return ret;
@@ -257,51 +247,15 @@ RetCode Vp5VpuGetVersion(Uint32 coreIdx, Uint32* versionInfo, Uint32* revision)
     return RETCODE_SUCCESS;
 }
 
-RetCode Vp5VpuGetProductInfo(Uint32 coreIdx, ProductInfo *productInfo)
-{
-    /* GET FIRMWARE&HARDWARE INFORMATION */
-    VpuWriteReg(coreIdx, VP5_QUERY_OPTION, GET_VPU_INFO);
-    VpuWriteReg(coreIdx, VP5_VPU_BUSY_STATUS, 1);
-    VpuWriteReg(coreIdx, VP5_COMMAND, VP5_QUERY);
-    VpuWriteReg(coreIdx, VP5_VPU_HOST_INT_REQ, 1);
-    if (vdi_wait_vpu_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_BUSY_STATUS) == -1) {
-        VLOG(ERR, "Vp5VpuGetProductInfo timeout\n");
-        return RETCODE_VPU_RESPONSE_TIMEOUT;
-    }
-
-    if (VpuReadReg(coreIdx, VP5_RET_SUCCESS) == FALSE) {
-        VLOG(ERR, "Vp5VpuGetProductInfo FALSE\n");
-        return RETCODE_QUERY_FAILURE;
-    }
-
-    productInfo->fwVersion      = VpuReadReg(coreIdx, VP5_RET_FW_VERSION);
-    productInfo->productName    = ('V' <<24) | ('P' <<16) | ('5'<<8) | ('X');
-    productInfo->productVersion = VpuReadReg(coreIdx, VP5_RET_PRODUCT_VERSION);
-    productInfo->customerId     = VpuReadReg(coreIdx, VP5_RET_CUSTOMER_ID);
-    productInfo->stdDef0        = VpuReadReg(coreIdx, VP5_RET_STD_DEF0);
-    productInfo->stdDef1        = VpuReadReg(coreIdx, VP5_RET_STD_DEF1);
-    productInfo->confFeature    = VpuReadReg(coreIdx, VP5_RET_CONF_FEATURE);
-    productInfo->configDate     = VpuReadReg(coreIdx, VP5_RET_CONF_DATE);
-    productInfo->configRevision = VpuReadReg(coreIdx, VP5_RET_CONF_REVISION);
-    productInfo->configType     = VpuReadReg(coreIdx, VP5_RET_CONF_TYPE);
-
-    productInfo->configVcore[0]  = 0;
-    productInfo->configVcore[1]  = 0;
-    productInfo->configVcore[2]  = 0;
-    productInfo->configVcore[3]  = 0;
-
-    return RETCODE_SUCCESS;
-}
-
 RetCode Vp5VpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
 {
     vpu_buffer_t    vb;
     PhysicalAddress codeBase, tempBase;
-    PhysicalAddress taskBufBase;
     Uint32          codeSize, tempSize;
     Uint32          i, regVal, remapSize;
     Uint32          hwOption    = 0;
     RetCode         ret = RETCODE_SUCCESS;
+
 
     vdi_get_common_memory(coreIdx, &vb);
 
@@ -323,16 +277,16 @@ RetCode Vp5VpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
     regVal = 0;
     VpuWriteReg(coreIdx, VP5_PO_CONF, regVal);
 
-	/* clear registers */
+    /* clear registers */
 
-	for (i=VP5_CMD_REG_BASE; i<VP5_CMD_REG_END; i+=4)
-	{
+    for (i=VP5_CMD_REG_BASE; i<VP5_CMD_REG_END; i+=4)
+    {
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
-		if (i == VP5_SW_UART_STATUS)
-			continue;
+        if (i == VP5_SW_UART_STATUS)
+            continue;
 #endif
-		VpuWriteReg(coreIdx, i, 0x00);
-	}
+        VpuWriteReg(coreIdx, i, 0x00);
+    }
 
     /* remap page size */
     remapSize = (codeSize >> 12) &0x1ff;
@@ -362,23 +316,17 @@ RetCode Vp5VpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
 
     VpuWriteReg(coreIdx, VP5_VPU_VINT_ENABLE,  regVal);
 
-    regVal  =  ((VP5_PROC_AXI_ID<<28)     |
-                (VP5_PRP_AXI_ID<<24)      |
-                (VP5_FBD_Y_AXI_ID<<20)    |
-                (VP5_FBC_Y_AXI_ID<<16)    |
-                (VP5_FBD_C_AXI_ID<<12)    |
-                (VP5_FBC_C_AXI_ID<<8)     |
-                (VP5_PRI_AXI_ID<<4)       |
-                (VP5_SEC_AXI_ID<<0));
-
-    vdi_fio_write_register(coreIdx, VP5_BACKBONE_PROG_AXI_ID, regVal);
-
-    VpuWriteReg(coreIdx, VP5_CMD_INIT_NUM_TASK_BUF, COMMAND_QUEUE_DEPTH);
-    VpuWriteReg(coreIdx, VP5_CMD_INIT_TASK_BUF_SIZE, ONE_TASKBUF_SIZE_FOR_CQ);
-    vdi_get_common_memory(coreIdx, &vb);
-    for (i = 0; i < COMMAND_QUEUE_DEPTH; i++) {
-        taskBufBase = vb.phys_addr + VP5_TASK_BUF_OFFSET + (i*ONE_TASKBUF_SIZE_FOR_CQ);
-        VpuWriteReg(coreIdx, VP5_CMD_INIT_ADDR_TASK_BUF0 + (i*4), taskBufBase);
+   regVal = VpuReadReg(coreIdx, VP5_VPU_RET_VPU_CONFIG0);
+    if (((regVal>>16)&1) == 1) {
+        regVal = ((VP5_PROC_AXI_ID << 28) |
+                  (VP5_PRP_AXI_ID << 24) |
+                  (VP5_FBD_Y_AXI_ID << 20) |
+                  (VP5_FBC_Y_AXI_ID << 16) |
+                  (VP5_FBD_C_AXI_ID << 12) |
+                  (VP5_FBC_C_AXI_ID << 8) |
+                  (VP5_PRI_AXI_ID << 4) |
+                  (VP5_SEC_AXI_ID << 0));
+        vdi_fio_write_register(coreIdx, VP5_BACKBONE_PROG_AXI_ID, regVal);
     }
 
     if (vdi_get_sram_memory(coreIdx, &vb) < 0)  // get SRAM base/size
@@ -407,10 +355,10 @@ RetCode Vp5VpuInit(Uint32 coreIdx, void* firmware, Uint32 size)
 RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
 {
     vpu_buffer_t    vb;
-    PhysicalAddress codeBase, tempBase, taskBufBase;
+    PhysicalAddress codeBase, tempBase;
     PhysicalAddress oldCodeBase, tempSize;
     Uint32          codeSize;
-    Uint32          regVal, remapSize, i=0;
+    Uint32          regVal, remapSize;
 
     vdi_get_common_memory(coreIdx, &vb);
 
@@ -434,13 +382,45 @@ RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
         VpuWriteReg(coreIdx, VP5_PO_CONF, regVal);
 
         if (pAttr->supportBackbone == TRUE) {
-            // Step1 : disable request
-            vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x4);
+            if (pAttr->supportDualCore == TRUE) {
+                // check CORE0
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x4);
 
-            // Step2 : Waiting for completion of bus transaction
-            if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_GDI_BUS_STATUS) == -1) {
-                vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x00);
-                return RETCODE_VPU_RESPONSE_TIMEOUT;
+                if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE0) == -1) {
+                    vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                    return RETCODE_VPU_RESPONSE_TIMEOUT;
+                }
+
+                // check CORE1
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x4);
+
+                if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE1) == -1) {
+                    vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x00);
+                    return RETCODE_VPU_RESPONSE_TIMEOUT;
+                }
+
+            }
+            else {
+                if (pAttr->supportVcoreBackbone == TRUE) {
+                    // Step1 : disable request
+                    vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x4);
+
+                    // Step2 : Waiting for completion of bus transaction
+                    if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE0) == -1) {
+                        vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                        return RETCODE_VPU_RESPONSE_TIMEOUT;
+                    }
+                }
+                else {
+                    // Step1 : disable request
+                    vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x4);
+
+                    // Step2 : Waiting for completion of bus transaction
+                    if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_COMBINED_BACKBONE_BUS_STATUS) == -1) {
+                        vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x00);
+                        return RETCODE_VPU_RESPONSE_TIMEOUT;
+                    }
+                }
             }
         }
         else {
@@ -472,7 +452,18 @@ RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
         VpuWriteReg(coreIdx, VP5_VPU_RESET_REQ, 0);
         // Step3 : must clear GDI_BUS_CTRL after done SW_RESET
         if (pAttr->supportBackbone == TRUE) {
-            vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x00);
+            if (pAttr->supportDualCore == TRUE) {
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x00);
+            }
+            else {
+                if (pAttr->supportVcoreBackbone == TRUE) {
+                    vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                }
+                else {
+                    vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x00);
+                }
+            }
         }
         else {
             vdi_fio_write_register(coreIdx, VP5_GDI_BUS_CTRL, 0x00);
@@ -515,15 +506,6 @@ RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
             (VP5_SEC_AXI_ID<<0));
 
         vdi_fio_write_register(coreIdx, VP5_BACKBONE_PROG_AXI_ID, regVal);
-
-
-        VpuWriteReg(coreIdx,VP5_CMD_INIT_NUM_TASK_BUF, COMMAND_QUEUE_DEPTH);
-
-        vdi_get_common_memory(coreIdx, &vb);
-        for (i = 0; i < COMMAND_QUEUE_DEPTH; i++) {
-            taskBufBase = vb.phys_addr + VP5_TASK_BUF_OFFSET + (i*ONE_TASKBUF_SIZE_FOR_CQ);
-            VpuWriteReg(coreIdx, VP5_CMD_INIT_ADDR_TASK_BUF0 + (i*4), taskBufBase);
-        }
 
         if (vdi_get_sram_memory(coreIdx, &vb) < 0)  // get SRAM base/size
             return RETCODE_INSUFFICIENT_RESOURCE;
@@ -584,8 +566,6 @@ RetCode Vp5VpuSleepWake(Uint32 coreIdx, int iSleepWake, const Uint16* code, Uint
     else //restore
     {
         Uint32  hwOption  = 0;
-        Uint32  i;
-        PhysicalAddress taskBufBase;
 
         vdi_get_common_memory(coreIdx, &vb);
         codeBase  = vb.phys_addr;
@@ -651,14 +631,6 @@ RetCode Vp5VpuSleepWake(Uint32 coreIdx, int iSleepWake, const Uint16* code, Uint
 
         vdi_fio_write_register(coreIdx, VP5_BACKBONE_PROG_AXI_ID, regVal);
 
-        VpuWriteReg(coreIdx, VP5_CMD_INIT_NUM_TASK_BUF, COMMAND_QUEUE_DEPTH);
-        VpuWriteReg(coreIdx, VP5_CMD_INIT_TASK_BUF_SIZE, ONE_TASKBUF_SIZE_FOR_CQ);
-        vdi_get_common_memory(coreIdx, &vb);
-        for (i = 0; i < COMMAND_QUEUE_DEPTH; i++) {
-            taskBufBase = vb.phys_addr + VP5_TASK_BUF_OFFSET + (i*ONE_TASKBUF_SIZE_FOR_CQ);
-            VpuWriteReg(coreIdx, VP5_CMD_INIT_ADDR_TASK_BUF0 + (i*4), taskBufBase);
-        }
-
         if (vdi_get_sram_memory(coreIdx, &vb) < 0)  // get SRAM base/size
             return RETCODE_INSUFFICIENT_RESOURCE;
 
@@ -690,24 +662,67 @@ RetCode Vp5VpuReset(Uint32 coreIdx, SWResetMode resetMode)
     Uint32      val = 0;
     RetCode     ret = RETCODE_SUCCESS;
     VpuAttr*    pAttr = &g_VpuCoreAttributes[coreIdx];
-    ProductId   productId = (ProductId)VPU_GetProductId(coreIdx);
 
     // VPU doesn't send response. Force to set BUSY flag to 0.
     VpuWriteReg(coreIdx, VP5_VPU_BUSY_STATUS, 0);
 
-    if (productId == PRODUCT_ID_520 || productId == PRODUCT_ID_525 || productId == PRODUCT_ID_521 || productId == PRODUCT_ID_511)
+    val = VpuReadReg(coreIdx, VP5_VPU_RET_VPU_CONFIG0);
+    if (((val>>16) & 0x1) == 0x01) {
         pAttr->supportBackbone = TRUE;
+    }
+    if (((val>>22) & 0x1) == 0x01) {
+        pAttr->supportVcoreBackbone = TRUE;
+    }
+
+    val = VpuReadReg(coreIdx, VP5_VPU_RET_VPU_CONFIG1);
+    if (((val>>26) & 0x1) == 0x01) {
+       pAttr->supportDualCore = TRUE;
+    }
+
 
     // Waiting for completion of bus transaction
     if (pAttr->supportBackbone == TRUE) {
-        // Step1 : disable request
-        vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x4);
+        if (pAttr->supportDualCore == TRUE) {
+            // check CORE0
+            vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x4);
 
-        // Step2 : Waiting for completion of bus transaction
-        if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_GDI_BUS_STATUS) == -1) {
-            vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x00);
-            VLOG(ERR, "VpuReset Error = %d\n", pAttr->supportBackbone);
-            return RETCODE_VPU_RESPONSE_TIMEOUT;
+            if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE0) == -1) {
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                return RETCODE_VPU_RESPONSE_TIMEOUT;
+            }
+
+            // check CORE1
+            vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x4);
+
+            if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE1) == -1) {
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x00);
+                return RETCODE_VPU_RESPONSE_TIMEOUT;
+            }
+
+        }
+        else {
+            if (pAttr->supportVcoreBackbone == TRUE) {
+                // Step1 : disable request
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x4);
+
+                // Step2 : Waiting for completion of bus transaction
+                if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_BACKBONE_BUS_STATUS_VCORE0) == -1) {
+                    vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+                    VLOG(ERR, "VpuReset Error = %d\n", pAttr->supportBackbone);
+                    return RETCODE_VPU_RESPONSE_TIMEOUT;
+                }
+            }
+            else {
+                // Step1 : disable request
+                vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x4);
+
+                // Step2 : Waiting for completion of bus transaction
+                if (vdi_wait_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_COMBINED_BACKBONE_BUS_STATUS) == -1) {
+                    vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x00);
+                    VLOG(ERR, "VpuReset Error = %d\n", pAttr->supportBackbone);
+                    return RETCODE_VPU_RESPONSE_TIMEOUT;
+                }
+            }
         }
     }
     else {
@@ -722,12 +737,6 @@ RetCode Vp5VpuReset(Uint32 coreIdx, SWResetMode resetMode)
         }
     }
 
-    // Step3 : Waiting for completion of VCPU bus transaction
-    if (resetMode != SW_RESET_ON_BOOT ) {
-        if (vdi_wait_vcpu_bus_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_VCPU_STATUS) == -1) {
-            return RETCODE_VPU_RESPONSE_TIMEOUT;
-        }
-    }
 
     if (resetMode == SW_RESET_SAFETY) {
         if ((ret=Vp5VpuSleepWake(coreIdx, TRUE, NULL, 0, TRUE)) != RETCODE_SUCCESS) {
@@ -757,7 +766,18 @@ RetCode Vp5VpuReset(Uint32 coreIdx, SWResetMode resetMode)
     }
     // Step3 : must clear GDI_BUS_CTRL after done SW_RESET
     if (pAttr->supportBackbone == TRUE) {
-        vdi_fio_write_register(coreIdx, VP5_BACKBONE_GDI_BUS_CTRL, 0x00);
+        if (pAttr->supportDualCore == TRUE) {
+            vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+            vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE1, 0x00);
+        }
+        else {
+            if (pAttr->supportVcoreBackbone == TRUE) {
+                vdi_fio_write_register(coreIdx, VP5_BACKBONE_BUS_CTRL_VCORE0, 0x00);
+            }
+            else {
+                vdi_fio_write_register(coreIdx, VP5_COMBINED_BACKBONE_BUS_CTRL, 0x00);
+            }
+        }
     }
     else {
         vdi_fio_write_register(coreIdx, VP5_GDI_BUS_CTRL, 0x00);
@@ -821,10 +841,33 @@ RetCode Vp5VpuGetBwReport(CodecInst* instance, VPUBWData* bwMon)
     return RETCODE_SUCCESS;
 }
 
+
+RetCode Vp5VpuGetDebugInfo(CodecInst* instance, VPUDebugInfo* info)
+{
+    RetCode     ret = RETCODE_SUCCESS;
+    Int32       coreIdx;
+
+    coreIdx = instance->coreIdx;
+
+    ret = SendQuery(instance, GET_DEBUG_INFO);
+    if (ret != RETCODE_SUCCESS) {
+        if (VpuReadReg(coreIdx, VP5_RET_FAIL_REASON) == VP5_RESULT_NOT_READY)
+            return RETCODE_REPORT_NOT_READY;
+        else
+            return RETCODE_QUERY_FAILURE;
+    }
+
+    info->priReason = VpuReadReg(coreIdx, VP5_RET_QUERY_DEBUG_PRI_REASON);
+
+    return RETCODE_SUCCESS;
+}
+
+
+
 /************************************************************************/
 /*                       ENCODER functions                              */
 /************************************************************************/
-RetCode Vp5VpuEncUpdateBS(CodecInst* instance)
+RetCode Vp5VpuEncUpdateBS(CodecInst* instance, BOOL updateNewBsbuf)
 {
     EncInfo*        pEncInfo;
     Int32           coreIdx;
@@ -857,12 +900,12 @@ RetCode Vp5VpuEncUpdateBS(CodecInst* instance)
 
 RetCode Vp5VpuEncGetRdWrPtr(CodecInst* instance, PhysicalAddress *rdPtr, PhysicalAddress *wrPtr)
 {
-	EncInfo* pEncInfo = VPU_HANDLE_TO_ENCINFO(instance);
+    EncInfo* pEncInfo = VPU_HANDLE_TO_ENCINFO(instance);
     RetCode ret = RETCODE_SUCCESS;
 
-	VpuWriteReg(instance->coreIdx, VP5_CMD_ENC_REASON_SEL, pEncInfo->encWrPtrSel);
+    VpuWriteReg(instance->coreIdx, VP5_CMD_ENC_REASON_SEL, pEncInfo->encWrPtrSel);
 
-	ret = SendQuery(instance, GET_BS_WR_PTR);
+    ret = SendQuery(instance, GET_BS_WR_PTR);
 
     if (ret != RETCODE_SUCCESS)
         return RETCODE_QUERY_FAILURE;
@@ -879,6 +922,8 @@ RetCode Vp5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
     EncInfo*    pEncInfo;
     VpuAttr*    pAttr = &g_VpuCoreAttributes[instance->coreIdx];
     vpu_buffer_t vb;
+    Uint32      regVal = 0;
+    Uint32      bsEndian;
 
     pEncInfo    = VPU_HANDLE_TO_ENCINFO(instance);
 
@@ -904,14 +949,10 @@ RetCode Vp5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
     pEncInfo->vbTemp.virt_addr = pEncInfo->vbTemp.base;
     pEncInfo->vbTemp.size      = VP5_TEMPBUF_SIZE;
 
-    if (instance->productId == PRODUCT_ID_525)
-        pEncInfo->vbWork.size       = VP525ENC_WORKBUF_SIZE;
-    else if (instance->productId == PRODUCT_ID_520)
-        pEncInfo->vbWork.size       = VP520ENC_WORKBUF_SIZE;
-    else if (instance->productId == PRODUCT_ID_521)
+    if (instance->productId == PRODUCT_ID_521)
         pEncInfo->vbWork.size       = VP521ENC_WORKBUF_SIZE;
 
-    if (vdi_allocate_dma_memory(instance->coreIdx, &pEncInfo->vbWork) < 0) {
+    if (vdi_allocate_dma_memory(instance->coreIdx, &pEncInfo->vbWork, ENC_WORK, instance->instIndex) < 0) {
         pEncInfo->vbWork.base       = 0;
         pEncInfo->vbWork.phys_addr  = 0;
         pEncInfo->vbWork.size       = 0;
@@ -924,28 +965,42 @@ RetCode Vp5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
     VpuWriteReg(instance->coreIdx, VP5_ADDR_WORK_BASE, pEncInfo->vbWork.phys_addr);
     VpuWriteReg(instance->coreIdx, VP5_WORK_SIZE,      pEncInfo->vbWork.size);
 
-    VpuWriteReg(instance->coreIdx, VP5_CMD_CREATE_INST_SUB_FRAME_SYNC, 0);
+    regVal = vdi_convert_endian(instance->coreIdx, param->streamEndian);
+    bsEndian = (~regVal&VDI_128BIT_ENDIAN_MASK);
+
+    regVal = (param->lowLatencyMode<<7) | (param->lineBufIntEn<<6) | bsEndian;
+    VpuWriteReg(instance->coreIdx, VP5_CMD_BS_PARAM, regVal);
+    VpuWriteReg(instance->coreIdx, VP5_CMD_NUM_CQ_DEPTH_M1, COMMAND_QUEUE_DEPTH -1 );
+
+    regVal = 0;
+    VpuWriteReg(instance->coreIdx, VP5_CMD_ENC_SRC_OPTIONS, regVal);
 
     VpuWriteReg(instance->coreIdx, VP5_VPU_BUSY_STATUS, 1);
     VpuWriteReg(instance->coreIdx, VP5_RET_SUCCESS, 0);	//for debug
 
     //VpuWriteReg(instance->coreIdx, VP5_CMD_ENC_VCORE_LIMIT, 1);
 
+    VpuWriteReg(instance->coreIdx, VP5_CMD_ENC_VCORE_INFO, 1);
 
     Vp5BitIssueCommand(instance, VP5_CREATE_INSTANCE);
     if (vdi_wait_vpu_busy(instance->coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_BUSY_STATUS) == -1) {   // Check QUEUE_DONE
         if (instance->loggingEnable)
             vdi_log(instance->coreIdx, VP5_CREATE_INSTANCE, 2);
-        vdi_free_dma_memory(instance->coreIdx, &pEncInfo->vbWork);
+        vdi_free_dma_memory(instance->coreIdx, &pEncInfo->vbWork, ENC_WORK, instance->instIndex);
         return RETCODE_VPU_RESPONSE_TIMEOUT;
     }
 
     if (VpuReadReg(instance->coreIdx, VP5_RET_SUCCESS) == FALSE) {  // FAILED for adding into VCPU QUEUE
-        Uint32      regVal;
-        vdi_free_dma_memory(instance->coreIdx, &pEncInfo->vbWork);
+        vdi_free_dma_memory(instance->coreIdx, &pEncInfo->vbWork, ENC_WORK, instance->instIndex);
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
         if (regVal == 2)
             ret = RETCODE_INVALID_SFS_INSTANCE;
+        else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
+            ret = RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            ret = RETCODE_ERROR_FW_FATAL;
         else
             ret = RETCODE_FAILURE;
     }
@@ -956,13 +1011,17 @@ RetCode Vp5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
     pEncInfo->streamBufStartAddr    = param->bitstreamBuffer;
     pEncInfo->streamBufSize         = param->bitstreamBufferSize;
     pEncInfo->streamBufEndAddr      = param->bitstreamBuffer + param->bitstreamBufferSize;
+    pEncInfo->streamBufTobeReadStartAddr    = param->bitstreamBuffer;
+    pEncInfo->streamBufTobeReadSize         = param->bitstreamBufferSize;
+    pEncInfo->streamBufTobeReadEndAddr      = param->bitstreamBuffer + param->bitstreamBufferSize;
+
     pEncInfo->stride                = 0;
     pEncInfo->vbFrame.size          = 0;
     pEncInfo->vbPPU.size            = 0;
     pEncInfo->frameAllocExt         = 0;
     pEncInfo->ppuAllocExt           = 0;
     pEncInfo->initialInfoObtained   = 0;
-
+    pEncInfo->productCode           = VpuReadReg(instance->coreIdx, VP5_PRODUCT_NUMBER);
 
     return ret;
 }
@@ -1079,9 +1138,6 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_CUSTOM_MAP_ENDIAN, VDI_LITTLE_ENDIAN);
 
-#ifdef AUTO_FRM_SKIP_DROP
-    VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_AUTO_FRM_SKIP_DROP, pOpenParam->vbvThreshold<<8 | pOpenParam->qpThreshold<<2 | pOpenParam->enAutoFrmDrop<<1 | pOpenParam->enAutoFrmSkip);
-#endif
 
     if (instance->codecMode == W_SVAC_ENC) {
         regVal = (pParam->profile<<0)                    |
@@ -1109,7 +1165,8 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                  (pParam->tmvpEnable<<23)                |
                  (pParam->saoEnable<<24)                 |
                  (pParam->skipIntraTrans<<25)            |
-                 (pParam->strongIntraSmoothEnable<<27);
+                 (pParam->strongIntraSmoothEnable<<27)   |
+                 (pParam->enStillPicture<<30);
     }
 
 
@@ -1139,9 +1196,12 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_GOP_PARAM,  pParam->gopPresetIdx);
 
-    VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (pParam->decodingRefreshType<<0) | (pParam->intraQP<<3) | (pParam->intraPeriod<<16));
-
-
+    if (instance->codecMode == W_AVC_ENC) {
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (pParam->intraQP<<0) | ((pParam->intraPeriod&0x7ff)<<6) | ((pParam->avcIdrPeriod&0x7ff)<<17) | ((pParam->forcedIdrHeaderEnable&3)<<28));
+    }
+    else {
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (pParam->decodingRefreshType<<0) | (pParam->intraQP<<3) | (pParam->forcedIdrHeaderEnable<<9) | (pParam->intraPeriod<<16));
+    }
 
     regVal  = (pParam->useRecommendEncParam)     |
               (pParam->rdoSkip<<2)               |
@@ -1166,7 +1226,6 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_FRAME_RATE, pOpenParam->frameRateInfo);
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_TARGET_RATE, pOpenParam->bitRate);
-    VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_TARGET_RATE_BL, pOpenParam->bitRateBL);
 
     if (instance->codecMode == W_AVC_ENC) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_PARAM,   (pOpenParam->rcEnable<<0)           |
@@ -1189,10 +1248,11 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                                                         (pOpenParam->vbvBufferSize<<20));
     }
 
+    VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_WEIGHT_PARAM, pParam->rcWeightBuf<<8 | pParam->rcWeightParam);
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_MIN_MAX_QP, (pParam->minQpI<<0)                   |
                                                        (pParam->maxQpI<<6)                   |
-                                                       (pParam->maxDeltaQp<<12));
+                                                       (pParam->hvsMaxDeltaQp<<12));
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_INTER_MIN_MAX_QP, (pParam->minQpP << 0)   |
                                                              (pParam->maxQpP << 6)   |
@@ -1234,6 +1294,9 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
         }
 
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_USER_SCALING_LIST_ADDR, pParam->userScalingListAddr);
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NUM_UNITS_IN_TICK, pParam->numUnitsInTick);
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_TIME_SCALE, pParam->timeScale);
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NUM_TICKS_POC_DIFF_ONE, pParam->numTicksPocDiffOne);
     }
 
     if (instance->codecMode == W_HEVC_ENC) {
@@ -1273,9 +1336,6 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_DEPENDENT_SLICE, pParam->dependSliceModeArg<<16 | pParam->dependSliceMode);
 
-        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NUM_UNITS_IN_TICK, pParam->numUnitsInTick);
-        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_TIME_SCALE, pParam->timeScale);
-        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NUM_TICKS_POC_DIFF_ONE, pParam->numTicksPocDiffOne);
 
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NR_PARAM,   (pParam->nrYEnable<<0)       |
                                                         (pParam->nrCbEnable<<1)      |
@@ -1293,7 +1353,6 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                                                         (pParam->nrInterWeightCr<<25));
 
     }
-
     Vp5BitIssueCommand(instance, VP5_ENC_SET_PARAM);
 
     if (vdi_wait_vpu_busy(coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_BUSY_STATUS) == -1) {
@@ -1304,6 +1363,9 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
     if (VpuReadReg(coreIdx, VP5_RET_SUCCESS) == 0) {
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
+
         if ( regVal == VP5_QUEUEING_FAIL)
             return RETCODE_QUEUEING_FAILURE;
         else if (regVal == VP5_SYSERR_ACCESS_VIOLATION_HW)
@@ -1329,10 +1391,17 @@ RetCode Vp5VpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
     ret = SendQuery(instance, GET_RESULT);
     if (ret != RETCODE_SUCCESS) {
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
+
         if (regVal == VP5_RESULT_NOT_READY)
             return RETCODE_REPORT_NOT_READY;
         else if(regVal == VP5_SYSERR_ACCESS_VIOLATION_HW)
             return RETCODE_MEMORY_ACCESS_VIOLATION;
+        else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
+            return RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            return RETCODE_ERROR_FW_FATAL;
         else
             return RETCODE_QUERY_FAILURE;
     }
@@ -1343,7 +1412,7 @@ RetCode Vp5VpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
     regVal = VpuReadReg(instance->coreIdx, VP5_RET_QUEUE_STATUS);
 
     pEncInfo->instanceQueueCount = (regVal>>16)&0xff;
-    pEncInfo->totalQueueCount    = (regVal & 0xffff);
+    pEncInfo->reportQueueCount    = (regVal & 0xffff);
 
     if (VpuReadReg(instance->coreIdx, VP5_RET_ENC_ENCODING_SUCCESS) != 1) {
         info->seqInitErrReason = VpuReadReg(instance->coreIdx, VP5_RET_ENC_ERR_INFO);
@@ -1353,11 +1422,14 @@ RetCode Vp5VpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
         info->warnInfo = VpuReadReg(instance->coreIdx, VP5_RET_ENC_WARN_INFO);
     }
 
-    VpuReadReg(instance->coreIdx, VP5_RET_DONE_INSTANCE_INFO);
 
     info->minFrameBufferCount   = VpuReadReg(instance->coreIdx, VP5_RET_ENC_NUM_REQUIRED_FB);
     info->minSrcFrameCount      = VpuReadReg(instance->coreIdx, VP5_RET_ENC_MIN_SRC_BUF_NUM);
     info->maxLatencyPictures    = VpuReadReg(instance->coreIdx, VP5_RET_ENC_PIC_MAX_LATENCY_PICTURES);
+    info->vlcBufSize        = VpuReadReg(instance->coreIdx, VP5_RET_VLC_BUF_SIZE);
+    info->paramBufSize      = VpuReadReg(instance->coreIdx, VP5_RET_PARAM_BUF_SIZE);
+    pEncInfo->vlcBufSize    = info->vlcBufSize;
+    pEncInfo->paramBufSize  = info->paramBufSize;
 
     return ret;
 }
@@ -1365,16 +1437,16 @@ RetCode Vp5VpuEncGetSeqInfo(CodecInst* instance, EncInitialInfo* info)
 RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledMapType mapType, Uint32 count)
 {
     RetCode      ret = RETCODE_SUCCESS;
-    Int32        q, j, i, remain, idx, bufHeight = 0, bufWidth = 0, coreIdx, startNo, endNo, stride;
+    Int32        q, j, i, remain, idx, coreIdx, startNo, endNo, stride;
     Uint32       regVal=0, picSize=0, mvColSize, fbcYTblSize, fbcCTblSize, subSampledSize=0;
-    Uint32       endian, nv21=0, cbcrInterleave = 0, lumaStride, chromaStride;
+    Uint32       endian, nv21=0, cbcrInterleave = 0, lumaStride, chromaStride, bufHeight = 0, bufWidth = 0;
     Uint32       addrY, addrCb, addrCr;
     Uint32       svacMvColSize0 = 0, svacMvColSize1 = 0;
     vpu_buffer_t vbMV = {0,};
     vpu_buffer_t vbFbcYTbl = {0,};
     vpu_buffer_t vbFbcCTbl = {0,};
     vpu_buffer_t vbSubSamBuf = {0,};
-
+    vpu_buffer_t vbTask = {0,};
     EncOpenParam*   pOpenParam;
     EncInfo*     pEncInfo = &inst->CodecInfo->encInfo;
     pOpenParam = &pEncInfo->openParam;
@@ -1407,7 +1479,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
 
     picSize = (bufWidth<<16) | bufHeight;
 
-    if (mapType == COMPRESSED_FRAME_MAP || mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL) {
+    if (mapType >= COMPRESSED_FRAME_MAP) {
         nv21 = 0;
         cbcrInterleave = 0;
         if (inst->codecMode == W_SVAC_ENC) {
@@ -1427,7 +1499,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
             vbMV.size      = ((mvColSize*count+4095)&~4095)+4096;   /* 4096 is a margin */
         }
 
-        if (vdi_allocate_dma_memory(inst->coreIdx, &vbMV) < 0)
+        if (vdi_allocate_dma_memory(inst->coreIdx, &vbMV, ENC_MV, inst->instIndex) < 0)
             return RETCODE_INSUFFICIENT_RESOURCE;
 
         if (mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL)
@@ -1439,7 +1511,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
         fbcYTblSize        = VPU_ALIGN16(fbcYTblSize);
         vbFbcYTbl.phys_addr = 0;
         vbFbcYTbl.size      = ((fbcYTblSize*count+4095)&~4095)+4096;
-        if (vdi_allocate_dma_memory(inst->coreIdx, &vbFbcYTbl) < 0)
+        if (vdi_allocate_dma_memory(inst->coreIdx, &vbFbcYTbl, ENC_FBCY_TBL, inst->instIndex) < 0)
             return RETCODE_INSUFFICIENT_RESOURCE;
 
         if (mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL)
@@ -1451,7 +1523,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
         fbcCTblSize        = VPU_ALIGN16(fbcCTblSize);
         vbFbcCTbl.phys_addr = 0;
         vbFbcCTbl.size      = ((fbcCTblSize*count+4095)&~4095)+4096;
-        if (vdi_allocate_dma_memory(inst->coreIdx, &vbFbcCTbl) < 0)
+        if (vdi_allocate_dma_memory(inst->coreIdx, &vbFbcCTbl, ENC_FBCC_TBL, inst->instIndex) < 0)
             return RETCODE_INSUFFICIENT_RESOURCE;
 
         if (mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL)
@@ -1467,12 +1539,26 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
         }
         vbSubSamBuf.size           = ((subSampledSize*count+4095)&~4095)+4096;
         vbSubSamBuf.phys_addr      = 0;
-        if (vdi_allocate_dma_memory(coreIdx, &vbSubSamBuf) < 0)
+        if (vdi_allocate_dma_memory(coreIdx, &vbSubSamBuf, ENC_SUBSAMBUF, inst->instIndex) < 0)
             return RETCODE_INSUFFICIENT_RESOURCE;
         if (mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL)
             pEncInfo->vbSubSamBufBL   = vbSubSamBuf;
         else
             pEncInfo->vbSubSamBuf   = vbSubSamBuf;
+
+        vbTask.size         = (Uint32)((pEncInfo->vlcBufSize * VLC_BUF_NUM) + (pEncInfo->paramBufSize * COMMAND_QUEUE_DEPTH));
+        vbTask.phys_addr    = 0;
+        if (pEncInfo->vbTask.size == 0) {
+            if (vdi_allocate_dma_memory(coreIdx, &vbTask, ENC_TASK, inst->instIndex) < 0)
+                return RETCODE_INSUFFICIENT_RESOURCE;
+
+            vdi_clear_memory(coreIdx, vbTask.phys_addr, vbTask.size, 0);
+
+            pEncInfo->vbTask = vbTask;
+
+            VpuWriteReg(coreIdx, VP5_CMD_SET_FB_ADDR_TASK_BUF, pEncInfo->vbTask.phys_addr);
+            VpuWriteReg(coreIdx, VP5_CMD_SET_FB_TASK_BUF_SIZE, vbTask.size);
+        }
     }
 
     VpuWriteReg(coreIdx, VP5_ADDR_SUB_SAMPLED_FB_BASE, vbSubSamBuf.phys_addr);     // set sub-sampled buffer base addr
@@ -1546,7 +1632,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
             VpuWriteReg(coreIdx, VP5_ADDR_LUMA_BASE0  + (i<<4), addrY);
             VpuWriteReg(coreIdx, VP5_ADDR_CB_BASE0    + (i<<4), addrCb);
             APIDPRINT("REGISTER FB[%02d] Y(0x%08x), Cb(0x%08x) ", i, addrY, addrCb);
-            if (mapType == COMPRESSED_FRAME_MAP || mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL) {
+            if (mapType >= COMPRESSED_FRAME_MAP) {
                 VpuWriteReg(coreIdx, VP5_ADDR_FBC_Y_OFFSET0 + (i<<4), vbFbcYTbl.phys_addr+idx*fbcYTblSize); /* Luma FBC offset table */
                 VpuWriteReg(coreIdx, VP5_ADDR_FBC_C_OFFSET0 + (i<<4), vbFbcCTbl.phys_addr+idx*fbcCTblSize);        /* Chroma FBC offset table */
 
@@ -1686,17 +1772,11 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
 
     srcPixelFormat = justified<<2 | formatNo;
 
-    regVal = vdi_convert_endian(coreIdx, pOpenParam->streamEndian);
-    /* NOTE: When endian mode is 0, SDMA reads MSB first */
-    bsEndian = (~regVal&VDI_128BIT_ENDIAN_MASK);
-
     VpuWriteReg(coreIdx, VP5_CMD_ENC_BS_START_ADDR, option->picStreamBufferAddr);
     VpuWriteReg(coreIdx, VP5_CMD_ENC_BS_SIZE, option->picStreamBufferSize);
     pEncInfo->streamBufStartAddr = option->picStreamBufferAddr;
     pEncInfo->streamBufSize = option->picStreamBufferSize;
     pEncInfo->streamBufEndAddr = option->picStreamBufferAddr + option->picStreamBufferSize;
-
-    VpuWriteReg(coreIdx, VP5_BS_OPTION, (pOpenParam->lowLatencyMode<<7) | (pEncInfo->lineBufIntEn<<6) | bsEndian);
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_SRC_AXI_SEL, DEFAULT_SRC_AXI);
     /* Secondary AXI */
@@ -1793,7 +1873,6 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
         VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_LF_PARAM_1, (option->userFilterLevelEnable<<0) | ((option->lfFilterLevel&0x3f)<<1));
     }
 
-
     Vp5BitIssueCommand(instance, VP5_ENC_PIC);
 
     if (vdi_wait_vpu_busy(instance->coreIdx, __VPU_BUSY_TIMEOUT, VP5_VPU_BUSY_STATUS) == -1) {   // Check QUEUE_DONE
@@ -1805,19 +1884,21 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
     regVal = VpuReadReg(instance->coreIdx, VP5_RET_QUEUE_STATUS);
 
     pEncInfo->instanceQueueCount = (regVal>>16)&0xff;
-    pEncInfo->totalQueueCount    = (regVal & 0xffff);
+    pEncInfo->reportQueueCount    = (regVal & 0xffff);
 
     if (VpuReadReg(instance->coreIdx, VP5_RET_SUCCESS) == FALSE) {           // FAILED for adding a command into VCPU QUEUE
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
-        if (regVal == 1) {
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
+
+        if (regVal == VP5_QUEUEING_FAIL)
             return RETCODE_QUEUEING_FAILURE;
-        }
-        else if ( regVal == 16) {
-            return RETCODE_CP0_EXCEPTION;
-        }
-        else {
+        else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
+            return RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            return RETCODE_ERROR_FW_FATAL;
+        else
             return RETCODE_FAILURE;
-        }
     }
 
     return RETCODE_SUCCESS;
@@ -1825,11 +1906,12 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
 
 RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
 {
-    RetCode     ret = RETCODE_SUCCESS;
-    Uint32      encodingSuccess;
-    Uint32      regVal;
-    Int32       coreIdx;
-    EncInfo*    pEncInfo = VPU_HANDLE_TO_ENCINFO(instance);
+    RetCode              ret = RETCODE_SUCCESS;
+    Uint32               encodingSuccess;
+    Uint32               regVal;
+    Int32                coreIdx;
+    EncInfo*             pEncInfo = VPU_HANDLE_TO_ENCINFO(instance);
+    vpu_instance_pool_t* instancePool = NULL;
 
     coreIdx = instance->coreIdx;
 
@@ -1837,10 +1919,18 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     ret = SendQuery(instance, GET_RESULT);
     if (ret != RETCODE_SUCCESS) {
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
+
         if (regVal == VP5_RESULT_NOT_READY)
             return RETCODE_REPORT_NOT_READY;
         else if(regVal == VP5_SYSERR_ACCESS_VIOLATION_HW)
             return RETCODE_MEMORY_ACCESS_VIOLATION;
+        else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
+            return RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            return RETCODE_ERROR_FW_FATAL;
         else
             return RETCODE_QUERY_FAILURE;
     }
@@ -1850,7 +1940,7 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     regVal = VpuReadReg(coreIdx, VP5_RET_QUEUE_STATUS);
 
     pEncInfo->instanceQueueCount = (regVal>>16)&0xff;
-    pEncInfo->totalQueueCount    = (regVal & 0xffff);
+    pEncInfo->reportQueueCount    = (regVal & 0xffff);
 
     encodingSuccess = VpuReadReg(coreIdx, VP5_RET_ENC_ENCODING_SUCCESS);
     if (encodingSuccess == FALSE) {
@@ -1867,8 +1957,7 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     regVal= VpuReadReg(coreIdx, VP5_RET_ENC_PIC_TYPE);
     result->picType         = regVal & 0xFFFF;
 
-    result->encNuts         = VpuReadReg(coreIdx, VP5_RET_ENC_NUT_0);
-    result->encNuts1        = VpuReadReg(coreIdx, VP5_RET_ENC_NUT_1);
+    result->encVclNut       = VpuReadReg(coreIdx, VP5_RET_ENC_VCL_NUT);
     result->reconFrameIndex = VpuReadReg(coreIdx, VP5_RET_ENC_PIC_IDX);
 
     if (result->reconFrameIndex >= 0)
@@ -1892,15 +1981,14 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     result->encGopPicIdx    = VpuReadReg(coreIdx, VP5_RET_ENC_GOP_PIC_IDX);
     result->encPicPoc       = VpuReadReg(coreIdx, VP5_RET_ENC_PIC_POC);
     result->encSrcIdx       = VpuReadReg(coreIdx, VP5_RET_ENC_USED_SRC_IDX);
+    result->releaseSrcFlag  = VpuReadReg(coreIdx, VP5_RET_ENC_SRC_BUF_FLAG);
     pEncInfo->streamWrPtr   = VpuReadReg(coreIdx, pEncInfo->streamWrPtrRegAddr);
     pEncInfo->streamRdPtr   = VpuReadReg(coreIdx, pEncInfo->streamRdPtrRegAddr);
 
     result->picDistortionLow    = VpuReadReg(coreIdx, VP5_RET_ENC_PIC_DIST_LOW);
     result->picDistortionHigh   = VpuReadReg(coreIdx, VP5_RET_ENC_PIC_DIST_HIGH);
 
-    if (pEncInfo->ringBufferEnable == 0) {
-        result->bitstreamBuffer = VpuReadReg(coreIdx, pEncInfo->streamRdPtrRegAddr);
-    }
+    result->bitstreamBuffer = VpuReadReg(coreIdx, pEncInfo->streamRdPtrRegAddr);
     result->rdPtr = pEncInfo->streamRdPtr;
     result->wrPtr = pEncInfo->streamWrPtr;
 
@@ -1919,41 +2007,32 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     result->encEncodeStartTick         = VpuReadReg(coreIdx, RET_ENC_ENCODING_START_TICK);
     result->encEncodeEndTick           = VpuReadReg(coreIdx, RET_ENC_ENCODING_END_TICK);
 
+    instancePool = vdi_get_instance_pool(instance->coreIdx);
     if ( pEncInfo->firstCycleCheck == FALSE ) {
         result->frameCycle   = (result->encEncodeEndTick - result->encHostCmdTick) * pEncInfo->cyclePerTick;
         pEncInfo->firstCycleCheck = TRUE;
     }
     else {
-        result->frameCycle   = (result->encEncodeEndTick - pEncInfo->PrevEncodeEndTick) * pEncInfo->cyclePerTick;
-        if ( pEncInfo->PrevEncodeEndTick < result->encHostCmdTick)
+        result->frameCycle   = (result->encEncodeEndTick - instancePool->lastPerformanceCycles) * pEncInfo->cyclePerTick;
+        if (instancePool->lastPerformanceCycles < result->encHostCmdTick)
             result->frameCycle   = (result->encEncodeEndTick - result->encHostCmdTick) * pEncInfo->cyclePerTick;
     }
-    pEncInfo->PrevEncodeEndTick = result->encEncodeEndTick;
+    instancePool->lastPerformanceCycles = result->encEncodeEndTick;
     result->prepareCycle = (result->encPrepareEndTick    - result->encPrepareStartTick) * pEncInfo->cyclePerTick;
     result->processing   = (result->encProcessingEndTick - result->encProcessingStartTick) * pEncInfo->cyclePerTick;
     result->EncodedCycle = (result->encEncodeEndTick     - result->encEncodeStartTick) * pEncInfo->cyclePerTick;
-
-
     return RETCODE_SUCCESS;
 }
 
 RetCode Vp5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam)
 {
     Int32           coreIdx;
-    Uint32          regVal = 0, bsEndian;
-    EncInfo*        pEncInfo;
-    EncOpenParam*   pOpenParam;
+    Uint32          regVal = 0;
+    EncInfo*        pEncInfo = VPU_HANDLE_TO_ENCINFO(instance);
 
     coreIdx     = instance->coreIdx;
-    pEncInfo    = VPU_HANDLE_TO_ENCINFO(instance);
-    pOpenParam  = &pEncInfo->openParam;
 
     EnterLock(coreIdx);
-
-
-    regVal = vdi_convert_endian(coreIdx, pOpenParam->streamEndian);
-    /* NOTE: When endian mode is 0, SDMA reads MSB first */
-    bsEndian = (~regVal&VDI_128BIT_ENDIAN_MASK);
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_BS_START_ADDR, encHeaderParam->buf);
     VpuWriteReg(coreIdx, VP5_CMD_ENC_BS_SIZE, encHeaderParam->size);
@@ -1962,10 +2041,6 @@ RetCode Vp5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam)
     pEncInfo->streamBufStartAddr = encHeaderParam->buf;
     pEncInfo->streamBufSize = encHeaderParam->size;
     pEncInfo->streamBufEndAddr = encHeaderParam->buf + encHeaderParam->size;
-
-    VpuWriteReg(coreIdx, VP5_BS_OPTION, (pEncInfo->lineBufIntEn<<6) | bsEndian);
-
-    VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_SRC_AXI_SEL, DEFAULT_SRC_AXI);
 
     /* Secondary AXI */
     VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_USE_SEC_AXI,  (pEncInfo->secAxiInfo.u.vp.useEncImdEnable<<9)    |
@@ -1987,10 +2062,12 @@ RetCode Vp5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam)
     regVal = VpuReadReg(instance->coreIdx, VP5_RET_QUEUE_STATUS);
 
     pEncInfo->instanceQueueCount = (regVal>>16)&0xff;
-    pEncInfo->totalQueueCount    = (regVal & 0xffff);
+    pEncInfo->reportQueueCount    = (regVal & 0xffff);
 
     if (VpuReadReg(instance->coreIdx, VP5_RET_SUCCESS) == FALSE) {           // FAILED for adding a command into VCPU QUEUE
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
         LeaveLock(coreIdx);
 
         if ( regVal == VP5_QUEUEING_FAIL)
@@ -1999,6 +2076,8 @@ RetCode Vp5VpuEncGetHeader(EncHandle instance, EncHeaderParam * encHeaderParam)
             return RETCODE_MEMORY_ACCESS_VIOLATION;
         else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
             return RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            return RETCODE_ERROR_FW_FATAL;
         else
             return RETCODE_FAILURE;
     }
@@ -2062,7 +2141,12 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
     }
 
     if (param->enable_option & ENC_SET_CHANGE_PARAM_INTRA_PARAM) {
-        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (param->intraQP<<3) | (param->intraPeriod<<16));
+        if (instance->codecMode == W_AVC_ENC) {
+            VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (param->intraQP<<0) | ( (param->intraPeriod&0x7ff)<<6) | ( (param->avcIdrPeriod&0x7ff)<<17) | ( (param->forcedIdrHeaderEnable&3)<<28));
+        }
+        else {
+            VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (param->intraQP<<3) | (param->forcedIdrHeaderEnable<<9) | (param->intraPeriod<<16));
+        }
     }
 
     if (param->enable_option & ENC_SET_CHANGE_PARAM_RC_TARGET_RATE) {
@@ -2079,8 +2163,10 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
     if (param->enable_option & ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_MIN_MAX_QP, (param->minQpI<<0)                   |
                                                            (param->maxQpI<<6)                   |
-                                                           (param->maxDeltaQp<<12));
+                                                           (param->hvsMaxDeltaQp<<12));
+    }
 
+    if (param->enable_option & ENC_SET_CHANGE_PARAM_RC_INTER_MIN_MAX_QP) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_INTER_MIN_MAX_QP, (param->minQpP<<0) |
                                                                  (param->maxQpP<<6) |
                                                                  (param->minQpB<<12) |
@@ -2097,6 +2183,10 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
                                                                     (param->fixedBitRatio[5]<<8)  |
                                                                     (param->fixedBitRatio[6]<<16) |
                                                                     (param->fixedBitRatio[7]<<24));
+    }
+    if (param->enable_option & ENC_SET_CHANGE_PARAM_RC_WEIGHT) {
+        regVal  = (param->rcWeightBuf<<8 | param->rcWeightParam);
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_RC_WEIGHT_PARAM, regVal);
     }
 
     if (param->enable_option & ENC_SET_CHANGE_PARAM_RDO) {
@@ -2202,10 +2292,12 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
     regVal = VpuReadReg(coreIdx, VP5_RET_QUEUE_STATUS);
 
     pEncInfo->instanceQueueCount = (regVal>>16) & 0xFF;
-    pEncInfo->totalQueueCount    = (regVal & 0xFFFF);
+    pEncInfo->reportQueueCount    = (regVal & 0xFFFF);
 
     if (VpuReadReg(coreIdx, VP5_RET_SUCCESS) == 0) {
         regVal = VpuReadReg(instance->coreIdx, VP5_RET_FAIL_REASON);
+        if (regVal != VP5_QUEUEING_FAIL)
+            VLOG(ERR, "FAIL_REASON = 0x%x\n", regVal);
         LeaveLock(coreIdx);
 
         if ( regVal == VP5_QUEUEING_FAIL)
@@ -2214,6 +2306,8 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
             return RETCODE_MEMORY_ACCESS_VIOLATION;
         else if (regVal == VP5_SYSERR_WATCHDOG_TIMEOUT)
             return RETCODE_VPU_RESPONSE_TIMEOUT;
+        else if (regVal == VP5_ERROR_FW_FATAL)
+            return RETCODE_ERROR_FW_FATAL;
         else
             return RETCODE_FAILURE;
     }
@@ -2223,6 +2317,20 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
 
 
 
+RetCode Vp5VpuGetSrcBufFlag(CodecInst* instance, Uint32* flag) {
+
+    RetCode ret = RETCODE_SUCCESS;
+
+    ret = SendQuery(instance, GET_SRC_BUF_FLAG);
+
+    if (ret != RETCODE_SUCCESS)
+        return RETCODE_QUERY_FAILURE;
+
+    *flag = VpuReadReg(instance->coreIdx, VP5_RET_ENC_SRC_BUF_FLAG);
+
+
+    return RETCODE_SUCCESS;
+}
 
 //static RetCode CalcEncCropInfo(EncVpParam* param, int rotMode, int srcWidth, int srcHeight);
 
@@ -2285,11 +2393,12 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
             intra_period_gop_step_size = presetGopSize[param->gopPresetIdx];
         }
     }
+
     if (pop->bitstreamFormat == STD_HEVC) {
         if( !low_delay && (param->intraPeriod != 0) && (param->decodingRefreshType != 0) && (intra_period_gop_step_size != 0) &&
-            (param->intraPeriod % intra_period_gop_step_size) != 0) {
+            (param->intraPeriod < intra_period_gop_step_size * 2)) {
                 VLOG(ERR,"CFG FAIL : Not support intra period[%d] for the gop structure\n", param->intraPeriod);
-                VLOG(ERR,"RECOMMEND CONFIG PARAMETER : Intra period = %d\n", intra_period_gop_step_size * (param->intraPeriod / intra_period_gop_step_size));
+                VLOG(ERR,"RECOMMEND CONFIG PARAMETER : Intra period >= %d\n", intra_period_gop_step_size * 2);
                 ret = RETCODE_FAILURE;
         }
     }
@@ -2301,7 +2410,6 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
                 ret = RETCODE_FAILURE;
         }
     }
-
 
     if( !low_delay && (param->intraPeriod != 0) && (intra_period_gop_step_size != 0) && ((param->intraPeriod % intra_period_gop_step_size) == 1) && param->decodingRefreshType == 0)
     {
@@ -2363,9 +2471,17 @@ RetCode CheckEncCommonParamValid(EncOpenParam* pop)
 
     // Slice
     {
+        if ( param->wppEnable == 1 && param->independSliceMode == 1) {
+            int num_ctb_in_width = VPU_ALIGN64(pop->picWidth)>>6;
+            if (param->independSliceModeArg % num_ctb_in_width) {
+                VLOG(ERR, "CFG FAIL : If WaveFrontSynchro(WPP) '1', the number of IndeSliceArg(ctb_num) must be multiple of num_ctb_in_width\n");
+                VLOG(ERR, "RECOMMEND CONFIG PARAMETER : IndeSliceArg = num_ctb_in_width * a\n");
+                ret = RETCODE_FAILURE;
+            }
+        }
+
         // multi-slice & wpp
-        if(param->wppEnable == 1 && (param->independSliceMode != 0 || param->dependSliceMode != 0))
-        {
+        if (param->wppEnable == 1 && param->dependSliceMode != 0) {
             VLOG(ERR,"CFG FAIL : If VpFrontSynchro(WPP) '1', the option of multi-slice must be '0'\n");
             VLOG(ERR,"RECOMMEND CONFIG PARAMETER : independSliceMode = 0, dependSliceMode = 0\n");
             ret = RETCODE_FAILURE;

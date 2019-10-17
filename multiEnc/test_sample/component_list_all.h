@@ -33,13 +33,28 @@
 #ifndef __COMPONENT_LIST_H__
 #define __COMPONENT_LIST_H__
 
+//Common components
+extern ComponentImpl feederComponentImpl;
+extern ComponentImpl rendererComponentImpl;
+
+extern ComponentImpl decoderComponentImpl;
+extern ComponentImpl exampleComponentImpl;
+
+//Common components
+extern ComponentImpl yuvFeederComponentImpl;
+extern ComponentImpl readerComponentImpl;
+
+extern ComponentImpl encoderComponentImpl;
+
+
 static ComponentImpl* componentList[] = {
     &feederComponentImpl,
-    &decoderComponentImpl,
     &rendererComponentImpl,
+    &decoderComponentImpl,
+    &readerComponentImpl,
     &yuvFeederComponentImpl,
     &encoderComponentImpl,
-    &readerComponentImpl,
+
     NULL
 };
 #endif

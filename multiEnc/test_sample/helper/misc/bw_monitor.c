@@ -400,8 +400,6 @@ BWMonitorSetup(
     instIndex = instance->instIndex;
 
     switch (productId) {
-    case PRODUCT_ID_520:
-    case PRODUCT_ID_525:
     case PRODUCT_ID_521:
         bwOps = &s_vp_backbone_ops;
         break;

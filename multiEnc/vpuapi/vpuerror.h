@@ -52,6 +52,7 @@
 #define VP5_INSTANCE_DESTROYED                                        0x00004000
 #define VP5_SYSERR_DEC_VLC_BUF_FULL                                   0x00010000
 #define VP5_SYSERR_WATCHDOG_TIMEOUT                                   0x00020000
+#define VP5_ERROR_FW_FATAL                                            0x00200000
 
 
 /************************************************************************/

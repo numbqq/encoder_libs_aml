@@ -35,7 +35,15 @@
 #include "main_helper.h"
 
 //#define SAVE_WHOLE_LOADED_YUV
-//#define DUMP_REFC_TYPE
+//#define BIG_ENDIAN_YUV            //LITTLE_ENDIAN YUV : ref-c output, cnm YUV style
+
+typedef enum {
+    PIXEL_FORMAT_8BIT      = 0,
+    PIXEL_FORMAT_16BIT_MSB = 1,
+    PIXEL_FORMAT_32BIT_MSB = 2,
+    PIXEL_FORMAT_16BIT_LSB = 5,
+    PIXEL_FORMAT_32BIT_LSB = 6,
+} PixelFormat;
 
 #ifdef SAVE_WHOLE_LOADED_YUV
 FILE *save_fp;
@@ -83,7 +91,7 @@ typedef struct{
     pel* pad_buf;
 }prp_t;
 
-void conv_image (unsigned short *outbuf, unsigned short *inbuf, 
+void conv_image (unsigned short *outbuf, unsigned short *inbuf,
     int pic_width, int pic_height, int out_width, int out_height, int frm_format, int packedFormat)
 {
     int	x, y;
@@ -242,7 +250,7 @@ void conv_image (unsigned short *outbuf, unsigned short *inbuf,
                     oaddr+=2;
                 }
             }
-        } 
+        }
         else {
             printf("Error) Unknown frame format: %d\n", frm_format);
         }
@@ -352,7 +360,7 @@ void conv_image (unsigned short *outbuf, unsigned short *inbuf,
     }
 }
 
-int write_image_to_file (FILE *fp, unsigned short *outbuf, 
+int write_image_to_file (FILE *fp, unsigned short *outbuf,
     int out_width, int out_height, int pxl_format, int frm_format, int packedFormat)
 {
     int i, x, y;
@@ -364,59 +372,59 @@ int write_image_to_file (FILE *fp, unsigned short *outbuf,
 
     size = (packedFormat) ? out_width*out_height*2 : out_width*out_height*3/2;
     //***** 8bit
-    if (pxl_format == 0) {
+    if (pxl_format == PIXEL_FORMAT_8BIT) {
         for (i=0; i<size; i++)
             fputc(temp[i]&0xff, fp);
-    } 
+    }
     //***** 16bit
-    else if (pxl_format == 1) {
+    else if (pxl_format == PIXEL_FORMAT_16BIT_MSB) {
         for (i=0; i<size; i++) {
             //tmp16 = (outbuf[i]&0x3ff)<<6;
             tmp16 = outbuf[i];
-#ifdef DUMP_REFC_TYPE
+#ifdef BIG_ENDIAN_YUV
             byte_swap((unsigned char *)&tmp16, 2);
 #endif
             fputc(tmp16&0xff, fp);
             fputc((tmp16>>8)&0xff, fp);
-            
+
         }
-    } else if (pxl_format == 5) {
+    } else if (pxl_format == PIXEL_FORMAT_16BIT_LSB) {
         for (i=0; i<size; i++) {
             //tmp16 = outbuf[i]&0x3ff;
             tmp16 = outbuf[i];
-#ifdef DUMP_REFC_TYPE
+#ifdef BIG_ENDIAN_YUV
             byte_swap((unsigned char *)&tmp16, 2);
 #endif
             fputc(tmp16&0xff, fp);
             fputc((tmp16>>8)&0xff, fp);
-            
+
         }
-    } 
+    }
     //***** 32bit
-    else {    
+    else {
         // Y
         width  = (packedFormat) ? out_width*2  : out_width;
         height = out_height;
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((outbuf[x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((outbuf[x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((outbuf[x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[x+1+width*y]&0x3ff)<<12) |
                         ((outbuf[x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (outbuf[x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (outbuf[x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[x+0+width*y]&0x3ff) |
                         ((outbuf[x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (outbuf[x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[x+0+width*y]&0x3ff) |
                         ((outbuf[x+1+width*y]&0x3ff)<<10) |
                         ((outbuf[x+2+width*y]&0x3ff)<<20);
                 }
@@ -434,24 +442,24 @@ int write_image_to_file (FILE *fp, unsigned short *outbuf,
         // Cb
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((outbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((outbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[out_width*out_height+x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((outbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[out_width*out_height+x+1+width*y]&0x3ff)<<12) |
                         ((outbuf[out_width*out_height+x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (outbuf[out_width*out_height+x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (outbuf[out_width*out_height+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[out_width*out_height+x+0+width*y]&0x3ff) |
                         ((outbuf[out_width*out_height+x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (outbuf[out_width*out_height+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[out_width*out_height+x+0+width*y]&0x3ff) |
                         ((outbuf[out_width*out_height+x+1+width*y]&0x3ff)<<10) |
                         ((outbuf[out_width*out_height+x+2+width*y]&0x3ff)<<20);
                 }
@@ -469,24 +477,24 @@ int write_image_to_file (FILE *fp, unsigned short *outbuf,
         // Cr
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) |
                         ((outbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<12) |
                         ((outbuf[out_width*out_height*5/4+x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) |
                         ((outbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (outbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) |
                         ((outbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<10) |
                         ((outbuf[out_width*out_height*5/4+x+2+width*y]&0x3ff)<<20);
                 }
@@ -500,7 +508,7 @@ int write_image_to_file (FILE *fp, unsigned short *outbuf,
     return 1;
 }
 
-int write_image_to_mem (unsigned short *out_mem, unsigned short *inbuf, 
+int write_image_to_mem (unsigned short *out_mem, unsigned short *inbuf,
     int out_width, int out_height, int pxl_format, int frm_format, int packedFormat)
 {
     int i, x, y;
@@ -511,43 +519,63 @@ int write_image_to_mem (unsigned short *out_mem, unsigned short *inbuf,
     unsigned char *temp = (unsigned char *)out_mem;
 
     size = (packedFormat) ? out_width*out_height*2 : out_width*out_height*3/2;
-    
+
     // 8BIT
-    if (pxl_format == 0) {
+    if (pxl_format == PIXEL_FORMAT_8BIT) {
         for (i=0; i<size; i++)
             temp[oaddr++] = inbuf[i]&0xff;
-    } 
+    }
+    // 16BIT MSB -> 16BIT_LSB
+    else if ( pxl_format == PIXEL_FORMAT_16BIT_LSB) {
+#ifdef BIG_ENDIAN_YUV
+#else
+        for (i=0; i<size; i++) {
+            out_mem[i] = ((inbuf[i]&0xff)<<8) | ((inbuf[i]>>8)&0xff);
+        }
+        memcpy(inbuf, out_mem, size*2);
+#endif
+        for (i=0; i<size; i++) {
+            out_mem[oaddr++] = inbuf[i]<<6;
+        }
+#ifdef BIG_ENDIAN_YUV
+#else
+        for (i=0; i<size; i++) {
+            inbuf[i] = ((out_mem[i]&0xff)<<8) | ((out_mem[i]>>8)&0xff);
+        }
+        memcpy(out_mem, inbuf, size*2);
+#endif
+    }
     // 16BIT
-    else if (pxl_format == 1 || pxl_format == 5) {
+    else if (pxl_format == PIXEL_FORMAT_16BIT_MSB) {
         for (i=0; i<size; i++) {
             out_mem[oaddr++] = inbuf[i];
         }
-    } 
+    }
     // 32BIT
-    else {    
+    else {
         // Y
         width  = (packedFormat) ? out_width*2  : out_width;
         height = out_height;
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((inbuf[x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((inbuf[x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((inbuf[x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[x+1+width*y]&0x3ff)<<12) |
                         ((inbuf[x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (inbuf[x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (inbuf[x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[x+0+width*y]&0x3ff) |
                         ((inbuf[x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (inbuf[x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[x+0+width*y]&0x3ff) |
                         ((inbuf[x+1+width*y]&0x3ff)<<10) |
                         ((inbuf[x+2+width*y]&0x3ff)<<20);
                 }
@@ -565,24 +593,24 @@ int write_image_to_mem (unsigned short *out_mem, unsigned short *inbuf,
         // Cb
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((inbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((inbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[out_width*out_height+x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((inbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[out_width*out_height+x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[out_width*out_height+x+1+width*y]&0x3ff)<<12) |
                         ((inbuf[out_width*out_height+x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (inbuf[out_width*out_height+x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (inbuf[out_width*out_height+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[out_width*out_height+x+0+width*y]&0x3ff) |
                         ((inbuf[out_width*out_height+x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (inbuf[out_width*out_height+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[out_width*out_height+x+0+width*y]&0x3ff) |
                         ((inbuf[out_width*out_height+x+1+width*y]&0x3ff)<<10) |
                         ((inbuf[out_width*out_height+x+2+width*y]&0x3ff)<<20);
                 }
@@ -600,24 +628,24 @@ int write_image_to_mem (unsigned short *out_mem, unsigned short *inbuf,
         // Cr
         for (y=0; y<height; y++) {
             for (x=0; x<width; x=x+3) {
-                if (pxl_format == 2) {
+                if (pxl_format == PIXEL_FORMAT_32BIT_MSB) {
                     if (x+1 >= width)
                         tmp32 = ((inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22);
                     else if (x+2 >= width)
-                        tmp32 = ((inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<12);
                     else
-                        tmp32 = ((inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) | 
+                        tmp32 = ((inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff)<<22) |
                         ((inbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<12) |
                         ((inbuf[out_width*out_height*5/4+x+2+width*y]&0x3ff)<<2);
-                } else if (pxl_format == 6) {
+                } else if (pxl_format == PIXEL_FORMAT_32BIT_LSB) {
                     if (x+1 >= width)
                         tmp32 = (inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff);
                     else if (x+2 >= width)
-                        tmp32 =  (inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) |
                         ((inbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<10);
                     else
-                        tmp32 =  (inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) | 
+                        tmp32 =  (inbuf[out_width*out_height*5/4+x+0+width*y]&0x3ff) |
                         ((inbuf[out_width*out_height*5/4+x+1+width*y]&0x3ff)<<10) |
                         ((inbuf[out_width*out_height*5/4+x+2+width*y]&0x3ff)<<20);
                 }
@@ -698,7 +726,7 @@ BOOL loaderYuvFeeder_Feed(
     osal_file_t yuvFp = ctx->fp;
     Uint16*     pYuv_int16 = NULL, *pYuv2_int16 = NULL;
     Int32       outsize, out_width, out_height, pxl_format = 0, yuv3p4b = 0;
-    Int32       bitdepth = 0;
+    Int32       bitdepth = 8;
     Uint32      i;
 
     UNREFERENCED_PARAMETER(arg);
@@ -708,18 +736,20 @@ BOOL loaderYuvFeeder_Feed(
             out_frm_format = OUTPUT_NV21 ;
         else
             out_frm_format = OUTPUT_NV12 ;
-    } 
+    }
     else {
         out_frm_format = OUTPUT_PLANAR;
     }
 
     switch (fb->format) {
+    case FORMAT_400:
     case FORMAT_420:
     case FORMAT_YUYV:
     case FORMAT_YVYU:
     case FORMAT_UYVY:
     case FORMAT_VYUY:
-        pxl_format = 0;
+        bitdepth = 8;
+        pxl_format = PIXEL_FORMAT_8BIT;
         break;
     case FORMAT_420_P10_16BIT_LSB:
     case FORMAT_YUYV_P10_16BIT_LSB:
@@ -727,7 +757,7 @@ BOOL loaderYuvFeeder_Feed(
     case FORMAT_UYVY_P10_16BIT_LSB:
     case FORMAT_VYUY_P10_16BIT_LSB:
         bitdepth = 10;
-        pxl_format = 5;
+        pxl_format = PIXEL_FORMAT_16BIT_LSB;
         break;
     case FORMAT_420_P10_16BIT_MSB:
     case FORMAT_YUYV_P10_16BIT_MSB:
@@ -735,7 +765,7 @@ BOOL loaderYuvFeeder_Feed(
     case FORMAT_UYVY_P10_16BIT_MSB:
     case FORMAT_VYUY_P10_16BIT_MSB:
         bitdepth = 10;
-        pxl_format = 1;
+        pxl_format = PIXEL_FORMAT_16BIT_MSB;
         break;
     case FORMAT_420_P10_32BIT_LSB:
     case FORMAT_YUYV_P10_32BIT_LSB:
@@ -743,16 +773,16 @@ BOOL loaderYuvFeeder_Feed(
     case FORMAT_UYVY_P10_32BIT_LSB:
     case FORMAT_VYUY_P10_32BIT_LSB:
         bitdepth = 10;
-        pxl_format = 6;
+        pxl_format = PIXEL_FORMAT_32BIT_LSB;
         yuv3p4b = 1;
         break;
     case FORMAT_420_P10_32BIT_MSB:
-    case FORMAT_YUYV_P10_32BIT_MSB: 
+    case FORMAT_YUYV_P10_32BIT_MSB:
     case FORMAT_YVYU_P10_32BIT_MSB:
     case FORMAT_UYVY_P10_32BIT_MSB:
     case FORMAT_VYUY_P10_32BIT_MSB:
         bitdepth = 10;
-        pxl_format = 2;
+        pxl_format = PIXEL_FORMAT_32BIT_MSB;
         yuv3p4b = 1;
         break;
     default:
@@ -760,16 +790,11 @@ BOOL loaderYuvFeeder_Feed(
         break;
     }
 
-    {
-        int input_format = fb->format;
-        input_format = FORMAT_420;
-        if ( yuv3p4b == 1 )//calculate input YUV(16BIT) size 
-            CalcYuvSize(FORMAT_420_P10_16BIT_LSB, picWidth, picHeight, fb->cbcrInterleave, &lumaSize, &chromaSize, &srcFrameSize, NULL, NULL, NULL);
-        else if (bitdepth == 10)
-            CalcYuvSize(FORMAT_420_P10_16BIT_LSB, picWidth, picHeight, fb->cbcrInterleave, &lumaSize, &chromaSize, &srcFrameSize, NULL, NULL, NULL);
-        else
-            CalcYuvSize(input_format, picWidth, picHeight, fb->cbcrInterleave, &lumaSize, &chromaSize, &srcFrameSize, NULL, NULL, NULL);
-    }
+    //calculate input YUV(8bit, 16BIT) size
+    if (bitdepth == 10)
+        CalcYuvSize(FORMAT_420_P10_16BIT_LSB, picWidth, picHeight, fb->cbcrInterleave, &lumaSize, &chromaSize, &srcFrameSize, NULL, NULL, NULL);
+    else
+        CalcYuvSize(FORMAT_420, picWidth, picHeight, fb->cbcrInterleave, &lumaSize, &chromaSize, &srcFrameSize, NULL, NULL, NULL);
 
     out_width  = (yuv3p4b&&ctx->packedFormat==0) ? ((picWidth+31)/32)*32  : picWidth;
     out_height = (yuv3p4b) ? ((picHeight+3)/4)*4 : picHeight;
@@ -782,65 +807,61 @@ BOOL loaderYuvFeeder_Feed(
         return 0;
     }
     if ((pYuv2_int16 = (Uint16*)osal_malloc(outsize * sizeof(Uint16))) == NULL) {
+        osal_free(pYuv_int16);
         printf("malloc error: outbuf\n");
         return 0;
     }
 
-    if ( bitdepth == 0 ) {
-        if( !osal_fread(pYuv_int8, 1, srcFrameSize, yuvFp) ) 
-        {
+    if ( bitdepth == 8 ) {
+        if ( !osal_fread(pYuv_int8, 1, srcFrameSize, yuvFp) ) {
             if( !osal_feof( yuvFp ) )
-                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%p \n", yuvFp );
-            
+                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%x \n", yuvFp );
             if ( pYuv_int16 )
                 osal_free(pYuv_int16);
             if ( pYuv2_int16 )
                 osal_free(pYuv2_int16);
-            return 0;
+            return FALSE;
         }
         for (i=0; i<srcFrameSize; i++)
             pYuv_int16[i] = (unsigned short) pYuv_int8[i];
     }
-    else {
-        if( !osal_fread(pYuv_int16, 1, srcFrameSize, yuvFp) ) 
-        {
+    else {//10bit
+        if ( !osal_fread(pYuv_int16, 1, srcFrameSize, yuvFp) ) {
             if( !osal_feof( yuvFp ) )
-                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%p \n", yuvFp );
-            
+                VLOG(ERR, "YUV Data osal_fread failed file handle is 0x%x \n", yuvFp );
+
             if ( pYuv_int16 )
                 osal_free(pYuv_int16);
             if ( pYuv2_int16 )
                 osal_free(pYuv2_int16);
             return 0;
         }
-        if ( yuv3p4b == 0 )
-        {
+        if ( yuv3p4b == 0 ) {
             /**************************************************************
-            * when 10bit source YUV == LITTLE ENDIAN, 16LSB, alway do byte-swapping 
+            * when 10bit source YUV == LITTLE ENDIAN, 16LSB, alway do byte-swapping
             **************************************************************/
-            for (i=0; i<srcFrameSize/2; i++) { 
-                pYuv_int8[i*2] = (Uint8)(pYuv_int16[i]>>8)&0xff;    
+            for (i=0; i<srcFrameSize/2; i++) {
+                pYuv_int8[i*2] = (Uint8)(pYuv_int16[i]>>8)&0xff;
                 pYuv_int8[i*2 + 1] = (Uint8)(pYuv_int16[i])&0xff;
             }
-#if 0
+#ifdef BIG_ENDIAN_YUV //big endian yuv
             /***************************************************************
             * when 10bit source YUV == BIG ENDIAN, 16LSB
             **************************************************************/
             osal_memcpy(pYuv_int8, pYuv_int16, srcFrameSize);
 #endif
         }
-        else
-        {
+        else {
             /***************************************************************
             * when 10bit source YUV == LITTLE ENDIAN, 16LSB
             **************************************************************/
             osal_memcpy(pYuv_int8, pYuv_int16, srcFrameSize);
-#if 0
+#ifdef BIG_ENDIAN_YUV
             /***************************************************************
             * when 10bit source YUV == BIG ENDIAN, 16LSB
             **************************************************************/
-            for (i=0; i<srcFrameSize/2; i++) { 
-                pYuv_int8[i*2] = (Uint8)(pYuv_int16[i]>>8)&0xff;    
+            for (i=0; i<srcFrameSize/2; i++) {
+                pYuv_int8[i*2] = (Uint8)(pYuv_int16[i]>>8)&0xff;
                 pYuv_int8[i*2 + 1] = (Uint8)(pYuv_int16[i])&0xff;
             }
 #endif
@@ -854,9 +875,8 @@ BOOL loaderYuvFeeder_Feed(
         ystride = VPU_ALIGN16(picWidth);
     }
 
-    if ( out_frm_format != OUTPUT_PLANAR || ctx->packedFormat || yuv3p4b )
-    {
-        conv_image((unsigned short *)pYuv2_int16, ((bitdepth==0) ? ((unsigned short*)pYuv_int16) : ((unsigned short *)pYuv_int8)), picWidth, picHeight, out_width, out_height, out_frm_format, ctx->packedFormat);
+    if ( out_frm_format != OUTPUT_PLANAR || ctx->packedFormat || yuv3p4b || (pxl_format == PIXEL_FORMAT_16BIT_LSB)) {
+        conv_image((unsigned short *)pYuv2_int16, ((bitdepth==8) ? ((unsigned short*)pYuv_int16) : ((unsigned short *)pYuv_int8)), picWidth, picHeight, out_width, out_height, out_frm_format, ctx->packedFormat);
         write_image_to_mem((unsigned short *)pYuv_int8, (unsigned short *)pYuv2_int16, ystride, out_height, pxl_format, out_frm_format, ctx->packedFormat);
     }
 
@@ -887,10 +907,14 @@ BOOL loaderYuvFeeder_Feed(
             frm_string = "I420";
         }
 
-        if ( yuv3p4b )
-            pixel_string = "3P4B";
-        else if ( bitdepth == 10 )
-            pixel_string = "1P2B";
+        if ( pxl_format == PIXEL_FORMAT_32BIT_MSB )
+            pixel_string = "3P4B_MSB";
+        else if ( pxl_format == PIXEL_FORMAT_32BIT_LSB )
+            pixel_string = "3P4B_LSB";
+        else if ( pxl_format == PIXEL_FORMAT_16BIT_MSB )
+            pixel_string = "1P2B_MSB";
+        else if ( pxl_format == PIXEL_FORMAT_16BIT_LSB )
+            pixel_string = "1P2B_LSB";
         else
             pixel_string = "8b";
 
@@ -922,7 +946,7 @@ BOOL loaderYuvFeeder_Feed(
     }
     else if(ctx->packedFormat) {
         out_width *= 2;           // 8bit packed mode(YUYV) only. (need to add 10bit cases later)
-        if (bitdepth != 0)      // 10bit packed
+        if (bitdepth == 10)      // 10bit packed
             out_width *= 2;
     }
     LoadYuvImageByYCbCrLine(impl->handle, coreIdx, pYuv_int8, out_width, out_height, fb, srcFbIndex);
@@ -960,4 +984,4 @@ YuvFeederImpl loaderYuvFeederImpl = {
     loaderYuvFeeder_Destory,
     loaderYuvFeeder_Configure,
 };
- 
+

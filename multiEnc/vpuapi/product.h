@@ -37,40 +37,6 @@
 #include "vpuapi.h"
 #include "vpuapifunc.h"
 
-typedef struct _tag_VpuAttrStruct {
-    Uint32  productId;
-    Uint32  productNumber;
-    char    productName[8];
-    Uint32  supportDecoders;            /* bitmask: See CodStd in vpuapi.h */
-    Uint32  supportEncoders;            /* bitmask: See CodStd in vpuapi.h */
-    Uint32  numberOfMemProtectRgns;     /* always 10 */
-    Uint32  numberOfVCores;
-    BOOL    supportWTL;
-    BOOL    supportTiled2Linear;
-    BOOL    supportTiledMap;
-    BOOL    supportMapTypes;            /* Framebuffer map type */
-    BOOL    supportLinear2Tiled;        /* Encoder */
-    BOOL    support128bitBus;
-    BOOL    supportThumbnailMode;
-    BOOL    supportBitstreamMode;
-    BOOL    supportFBCBWOptimization;   /* VPUxxx decoder feature */
-    BOOL    supportGDIHW;
-    BOOL    supportCommandQueue;
-    BOOL    supportBackbone;            /* Enhanced version of GDI */
-    BOOL    supportNewTimer;            /* 0 : timeeScale=32768, 1 : timerScale=256 (tick = cycle/timerScale) */
-    BOOL    support2AlignScaler;
-    Uint32  supportEndianMask;
-    Uint32  framebufferCacheType;       /* 0: for None, 1 - Maverick-I, 2 - Maverick-II */
-    Uint32  bitstreamBufferMargin;
-    Uint32  interruptEnableFlag;
-    Uint32  hwConfigDef0;
-    Uint32  hwConfigDef1;
-    Uint32  hwConfigFeature;            /**<< supported codec standards */
-    Uint32  hwConfigDate;               /**<< Configuation Date Decimal, ex)20151130 */
-    Uint32  hwConfigRev;                /**<< SVN revision, ex) 83521 */
-    Uint32  hwConfigType;               /**<< Not defined yet */
-} VpuAttr;
-
 extern VpuAttr g_VpuCoreAttributes[MAX_NUM_VPU_CORE];
 
 #ifdef __cplusplus
@@ -91,14 +57,14 @@ extern Int32 ProductVpuGetId(
     );
 
 extern RetCode ProductVpuGetVersion(
-    Uint32  coreIdx, 
-    Uint32* versionInfo, 
-    Uint32* revision 
+    Uint32  coreIdx,
+    Uint32* versionInfo,
+    Uint32* revision
     );
 
 extern RetCode ProductVpuGetProductInfo(
-    Uint32  coreIdx, 
-    ProductInfo* productInfo 
+    Uint32  coreIdx,
+    VpuAttr* productInfo
     );
 
 extern RetCode ProductVpuInit(
@@ -134,7 +100,7 @@ extern RetCode ProductVpuReset(
 extern RetCode ProductVpuSleepWake(
     Uint32 coreIdx,
     int iSleepWake,
-     const Uint16* code, 
+     const Uint16* code,
      Uint32 size
     );
 
@@ -144,14 +110,14 @@ extern RetCode ProductVpuClearInterrupt(
     );
 
 /**
- *  \brief      Allocate framebuffers with given parameters 
+ *  \brief      Allocate framebuffers with given parameters
  */
 extern RetCode ProductVpuAllocateFramebuffer(
-    CodecInst*          instance, 
-    FrameBuffer*        fbArr, 
-    TiledMapType        mapType, 
-    Int32               num, 
-    Int32               stride, 
+    CodecInst*          instance,
+    FrameBuffer*        fbArr,
+    TiledMapType        mapType,
+    Int32               num,
+    Int32               stride,
     Int32               height,
     FrameBufferFormat   format,
     BOOL                cbcrInterleave,
@@ -170,42 +136,49 @@ extern RetCode ProductVpuRegisterFramebuffer(
     );
 
 extern Int32 ProductCalculateFrameBufSize(
-    Int32               productId, 
-    Int32               stride, 
-    Int32               height, 
-    TiledMapType        mapType, 
+    CodecInst*          inst,
+    Int32               productId,
+    Int32               stride,
+    Int32               height,
+    TiledMapType        mapType,
     FrameBufferFormat   format,
     BOOL                interleave,
     DRAMConfig*         pDramCfg
     );
 extern Int32 ProductCalculateAuxBufferSize(
-    AUX_BUF_TYPE    type, 
-    CodStd          codStd, 
-    Int32           width, 
+    AUX_BUF_TYPE    type,
+    CodStd          codStd,
+    Int32           width,
     Int32           height
     );
 
 extern RetCode ProductVpuGetBandwidth(
-    CodecInst* instance, 
+    CodecInst* instance,
     VPUBWData* data
     );
 
+
+extern RetCode ProductVpuGetDebugInfo(
+    CodecInst* instance,
+    VPUDebugInfo* info
+    );
 
 /************************************************************************/
 /* ENCODER                                                              */
 /************************************************************************/
 extern RetCode ProductVpuEncUpdateBitstreamBuffer(
-    CodecInst* instance
+    CodecInst* instance,
+    Int32 size
     );
 
 extern RetCode ProductVpuEncGetRdWrPtr(
-    CodecInst* instance, 
-    PhysicalAddress* rdPtr, 
+    CodecInst* instance,
+    PhysicalAddress* rdPtr,
     PhysicalAddress* wrPtr
     );
 
 extern RetCode ProductVpuEncBuildUpOpenParam(
-    CodecInst*      pCodec, 
+    CodecInst*      pCodec,
     EncOpenParam*   param
     );
 
@@ -222,32 +195,35 @@ extern RetCode ProductVpuEncSetup(
     );
 
 extern RetCode ProductVpuEncode(
-    CodecInst*      instance, 
+    CodecInst*      instance,
     EncParam*       param
     );
 
 extern RetCode ProductVpuEncGetResult(
-    CodecInst*      instance, 
+    CodecInst*      instance,
     EncOutputInfo*  result
     );
 
 extern RetCode ProductVpuEncGiveCommand(
-    CodecInst* instance, 
-    CodecCommand cmd, 
+    CodecInst* instance,
+    CodecCommand cmd,
     void* param);
 
 extern RetCode ProductVpuEncInitSeq(
     CodecInst*  instance
     );
 extern RetCode ProductVpuEncGetSeqInfo(
-    CodecInst* instance, 
+    CodecInst* instance,
     EncInitialInfo* info
     );
 
+extern RetCode ProductVpuGetSrcBufFlag(
+    CodecInst* instance,
+    Uint32* data
+    );
 
 #ifdef __cplusplus
 };
 #endif /* __cplusplus */
 
 #endif /* __VPUAPI_PRODUCT_ABSTRACT_H__ */
- 

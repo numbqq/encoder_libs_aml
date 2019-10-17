@@ -61,8 +61,8 @@ endif
 
 #VDI_C           = vdi/linux/vdi.c
 #VDI_OSAL_C      = vdi/linux/vdi_osal.c
-MM_C            = 
-PLATFORM_FLAGS  = 
+MM_C            =
+PLATFORM_FLAGS  =
 
 VDI_VPATH       =
 
@@ -71,10 +71,11 @@ INCLUDES += -I./component_encoder -I./ffmpeg/include
 DEFINES += -D$(PRODUCT) 
 
 ifeq ($(USE_RTL_SIM), yes)
-DEFINES += -DCNM_SIM_PLATFORM -DCNM_SIM_DPI_INTERFACE -DSUPPORT_ENCODER 
+DEFINES += -DCNM_SIM_PLATFORM -DCNM_SIM_DPI_INTERFACE -DSUPPORT_ENCODER
 MM_C            = ../vdi/mm.c
 else
 endif	#USE_RTL_SIM
+DEFINES += $(USER_DEFINES)
 
 CFLAGS  += -g -I. -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning $(INCLUDES) $(DEFINES) $(PLATFORM_FLAGS)
 ifeq ($(USE_RTL_SIM), yes)
@@ -84,7 +85,7 @@ endif
 endif
 ARFLAGS += cru
 
-LDFLAGS  += $(PLATFORM_FLAGS) 
+LDFLAGS  += $(PLATFORM_FLAGS)
 
 
 ifeq ($(USE_FFMPEG), yes)
@@ -118,7 +119,6 @@ SOURCES = main_enc_test.c              \
           component.c                  \
           main_helper.c                \
           vpuhelper.c                  \
-          bitstreamfeeder.c            \
           bitstreamreader.c            \
           bin_comparator_impl.c        \
           comparator.c                 \
@@ -135,12 +135,14 @@ SOURCES = main_enc_test.c              \
           pf_monitor.c
 
 
+#SOURCES += bitstreamfeeder.c
+
 ifeq ($(USE_RTL_SIM), yes)
-	SOURCES += sample/main_sim.c							
+	SOURCES += sample/main_sim.c
 endif
 
 VPATH = component_encoder:
-VPATH += component_decoder:
+#VPATH += component_decoder:
 VPATH += helper:
 VPATH += helper/bitstream:
 VPATH += helper/comparator:
@@ -155,7 +157,7 @@ LINT_SRC_INCLUDES += -I./helper -I./helper/bitstream -I./helper/comparator -I./h
 LINT_SRC_INCLUDES += -I./helper/misc -I./helper/yuv -I./helper/comparator -I./helper/display
 
 ifeq ($(USE_RTL_SIM), yes)
-all: CREATE_DIR $(OBJECTPATHS) 
+all: CREATE_DIR $(OBJECTPATHS)
 else
 all: CREATE_DIR $(OBJECTPATHS)
 	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
@@ -163,7 +165,7 @@ endif
 
 -include $(OBJECTPATHS:.o=.dep)
 
-clean: 
+clean:
 	$(RM) $(TARGET)
 	$(RM) $(OBJDIR)/$(ALLOBJS)
 	$(RM) $(OBJDIR)/$(ALLDEPS)

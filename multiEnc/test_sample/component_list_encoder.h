@@ -33,10 +33,17 @@
 #ifndef __COMPONENT_LIST_H__
 #define __COMPONENT_LIST_H__
 
+//Common components
+extern ComponentImpl yuvFeederComponentImpl;
+extern ComponentImpl readerComponentImpl;
+
+
+extern ComponentImpl encoderComponentImpl;
+
 static ComponentImpl* componentList[] = {
     &yuvFeederComponentImpl,
-    &encoderComponentImpl,
     &readerComponentImpl,
+    &encoderComponentImpl,
     NULL
 };
 #endif

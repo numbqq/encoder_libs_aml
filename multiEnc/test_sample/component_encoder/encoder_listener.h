@@ -40,9 +40,6 @@ extern "C" {
 typedef struct EncListenerContext {
     Uint32      coreIdx;
     Comparator  es;
-    Comparator  recon;
-    Comparator  vlc;
-    Comparator  info;
     BOOL        match;
     BOOL        matchOtherInfo;
     EndianMode  streamEndian;
@@ -58,18 +55,20 @@ typedef struct EncListenerContext {
     Uint32      pfClock;
     char        cfgFileName[MAX_FILE_PATH];
     BOOL        headerEncDone[MAX_NUM_INSTANCE];
+    BOOL        ringBufferEnable;
+    BOOL        ringBufferWrapEnable;
 } EncListenerContext;
 
 
 void EncoderListener(
-    Component   com, 
-    Uint32      event, 
-    void*       data, 
+    Component   com,
+    Uint64      event,
+    void*       data,
     void*       context
     );
 
 BOOL SetupEncListenerContext(
-    EncListenerContext* ctx, 
+    EncListenerContext* ctx,
     CNMComponentConfig* config
     );
 
@@ -78,17 +77,22 @@ void ClearEncListenerContext(
     );
 
 void HandleEncGetOutputEvent(
-    Component               com, 
-    CNMComListenerEncDone*  param, 
+    Component               com,
+    CNMComListenerEncDone*  param,
     EncListenerContext*     ctx
     );
 
 void HandleEncCompleteSeqEvent(
-    Component                       com, 
-    CNMComListenerEncCompleteSeq*   param, 
+    Component                       com,
+    CNMComListenerEncCompleteSeq*   param,
     EncListenerContext*             ctx
     );
 
+void HandleEncGetEncCloseEvent(
+    Component               com,
+    CNMComListenerEncClose* param,
+    EncListenerContext*     ctx
+    );
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

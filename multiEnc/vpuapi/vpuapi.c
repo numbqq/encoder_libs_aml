@@ -856,7 +856,7 @@ RetCode VPU_EncStartOneFrame(
         return RETCODE_INVALID_PARAM;
     }
     pSrcFrame = param -> sourceFrame;
-    if (pSrcFrame && pSrcFrame->dma_buf_planes) { // use dma_buf
+    if (pSrcFrame && pSrcFrame->dma_buf_planes && (param->srcEndFlag == 0)) { // use dma_buf
         vpu_dma_buf_info_t dma_info;
         int i;
         if (pSrcFrame->dma_buf_planes > 3)

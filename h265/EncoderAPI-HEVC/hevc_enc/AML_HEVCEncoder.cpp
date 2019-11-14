@@ -110,16 +110,19 @@ static void set_ge2dinfo(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncParams *encParam)
     pge2dinfo->src_info[0].canvas_w = encParam->src_width; //SX_SRC1;
     pge2dinfo->src_info[0].canvas_h = encParam->src_height; //SY_SRC1;
     pge2dinfo->src_info[0].format = SRC1_PIXFORMAT;
+    pge2dinfo->src_info[0].plane_number = 0;
     pge2dinfo->src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
     pge2dinfo->src_info[1].canvas_w = 0;
     pge2dinfo->src_info[1].canvas_h = 0;
     pge2dinfo->src_info[1].format = SRC2_PIXFORMAT;
+    pge2dinfo->src_info[1].plane_number = 0;
 
     pge2dinfo->dst_info.memtype = GE2D_CANVAS_ALLOC;
     pge2dinfo->dst_info.canvas_w = encParam->width; //SX_DST;
     pge2dinfo->dst_info.canvas_h = encParam->height; //SY_DST;
     pge2dinfo->dst_info.format = DST_PIXFORMAT;
     pge2dinfo->dst_info.rotation = GE2D_ROTATION_0;
+    pge2dinfo->dst_info.plane_number = 0;
     pge2dinfo->offset = 0;
     pge2dinfo->ge2d_op = OP;
     pge2dinfo->blend_mode = BLEND_MODE_PREMULTIPLIED;
@@ -1808,16 +1811,16 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
             return AMVENC_FAIL;
         }
         if (Handle->fmt == AMVENC_RGBA8888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], 4 * input->pitch * input->height);
+            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], 4 * input->pitch * input->height);
         else if (Handle->fmt == AMVENC_NV12 || Handle->fmt == AMVENC_NV21) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
+            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
+            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
         } else if (Handle->fmt == AMVENC_YUV420) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
+            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
+            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
+            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
         } else if (Handle->fmt == AMVENC_RGB888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height * 3);
+            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height * 3);
         do_strechblit(&amlge2d.ge2dinfo, input);
         aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
         size_src_luma = luma_stride * wave420l_align32(Handle->enc_height);
@@ -1825,13 +1828,13 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
         y = (char *) Handle->src_vb[Handle->src_idx].virt_addr;
         if (Handle->enc_width % 32) {
             for (int i = 0; i < Handle->enc_height; i++) {
-                memcpy(y + i * luma_stride, (void *) ((char *) amlge2d.ge2dinfo.dst_info.vaddr + i * Handle->enc_width), Handle->enc_width);
+                memcpy(y + i * luma_stride, (void *) ((char *) amlge2d.ge2dinfo.dst_info.vaddr[0] + i * Handle->enc_width), Handle->enc_width);
             }
         } else {
-            memcpy((void *)Handle->src_vb[Handle->src_idx].virt_addr, amlge2d.ge2dinfo.dst_info.vaddr,  Handle->enc_width * Handle->enc_height);
+            memcpy((void *)Handle->src_vb[Handle->src_idx].virt_addr, amlge2d.ge2dinfo.dst_info.vaddr[0],  Handle->enc_width * Handle->enc_height);
         }
         y = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
-        memcpy(y, (void *) ((char *)amlge2d.ge2dinfo.dst_info.vaddr + Handle->enc_width * Handle->enc_height), chroma_stride * Handle->enc_height / 2);
+        memcpy(y, (void *) ((char *)amlge2d.ge2dinfo.dst_info.vaddr[0] + Handle->enc_width * Handle->enc_height), chroma_stride * Handle->enc_height / 2);
     } else
 #endif
     {
@@ -1951,10 +1954,10 @@ AMVEnc_Status AML_HEVCRelease(AMVHEVCEncHandle *Handle) {
     vdi_release(Handle->instance_id);
 
 #if SUPPORT_SCALE
-    if (amlge2d.ge2dinfo.src_info[0].vaddr != NULL) {
+    if (amlge2d.ge2dinfo.src_info[0].vaddr[0] != NULL) {
         aml_ge2d_mem_free(&amlge2d);
         aml_ge2d_exit(&amlge2d);
-        amlge2d.ge2dinfo.src_info[0].vaddr = NULL;
+        amlge2d.ge2dinfo.src_info[0].vaddr[0] = NULL;
         VLOG(DEBUG, "ge2d exit!!!\n");
     }
 #endif

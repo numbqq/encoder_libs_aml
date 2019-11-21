@@ -36,7 +36,7 @@
 #include "vputypes.h"
 enum {
     CNMQC_ENV_NONE,
-    CNMQC_ENV_GDBSERVER,            /*!<< It executes gdb server in order to debug F/W on the C&M FPGA env. */
+    CNMQC_ENV_GDBSERVER,            /*!<< It executes gdb server in order to debug F/W on the FPGA env. */
     CNMQC_ENV_MAX,
 };
 

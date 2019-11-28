@@ -5,12 +5,17 @@
 #include <malloc.h>
 #include <string.h>
 
+#ifdef __ANDROID__
+#include <log/log.h>
+#endif
+
+
 #define AVC_ABS(x)   (((x)<0)? -(x) : (x))
 #define AVC_MAX(x,y) ((x)>(y)? (x):(y))
 #define AVC_MIN(x,y) ((x)<(y)? (x):(y))
 #define AVC_MEDIAN(A,B,C) ((A) > (B) ? ((A) < (C) ? (A) : (B) > (C) ? (B) : (C)): (B) < (C) ? (B) : (C) > (A) ? (C) : (A))
 
-#ifdef MAKEANDROID
+#ifdef __ANDROID__
 	#define LOGAPI ALOGE
 #else
 #if defined(DEBUG)

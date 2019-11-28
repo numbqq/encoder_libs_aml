@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef MAKEANDROID
-#include <utils/Log.h>
-#endif
-
 #include "include/AML_HWEncoder.h"
 #include "include/enc_define.h"
 
@@ -86,21 +82,29 @@ vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int h
     int ret;
     AMVEncHandle *mHandle = new AMVEncHandle;
     bool has_mix = false;
+
     if (mHandle == NULL)
         goto exit;
+
     memset(mHandle, 0, sizeof(AMVEncHandle));
     ret = initEncParams(mHandle, width, height, frame_rate, bit_rate, gop);
     if (ret < 0)
         goto exit;
+
     ret = AML_HWEncInitialize(mHandle, &(mHandle->mEncParams), &has_mix, 2);
+
     if (ret < 0)
         goto exit;
+
     mHandle->mSpsPpsHeaderReceived = false;
     mHandle->mNumInputFrames = -1;  // 1st two buffers contain SPS and PPS
+
     return (vl_codec_handle_t) mHandle;
+
 exit:
     if (mHandle != NULL)
         delete mHandle;
+
     return (vl_codec_handle_t) NULL;
 }
 
@@ -149,19 +153,24 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
 
         videoInput.YCbCr[0] = (unsigned long)&in[0];
         videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
-        if (format == 0) {
+
+        if (format == 0) { //NV12
+            videoInput.fmt = AMVENC_NV12;
+            videoInput.YCbCr[2] = 0;
+        } else if(format == 1) { //NV21
             videoInput.fmt = AMVENC_NV21;
             videoInput.YCbCr[2] = 0;
-        } else if (format == 1) {
+        } else if (format == 2) { //YV12
             videoInput.fmt = AMVENC_YUV420;
             videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
-        } else if (format == 2) {
+        } else if (format == 3) { //rgb888
             videoInput.fmt = AMVENC_RGB888;
             videoInput.YCbCr[1] = 0;
             videoInput.YCbCr[2] = 0;
-        } else if (format == 3) {
+        } else if (format == 4) { //bgr888
             videoInput.fmt = AMVENC_BGR888;
         }
+
         videoInput.canvas = 0xffffffff;
         videoInput.type = VMALLOC_BUFFER;
         videoInput.disp_order = handle->mNumInputFrames;

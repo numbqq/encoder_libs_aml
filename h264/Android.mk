@@ -16,3 +16,5 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE:= testEncApi
 
 include $(BUILD_EXECUTABLE)
+
+include $(call all-makefiles-under,$(LOCAL_PATH))

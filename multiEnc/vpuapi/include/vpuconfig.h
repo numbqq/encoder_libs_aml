@@ -59,7 +59,7 @@
 
 
 #define MAX_INST_HANDLE_SIZE            48              /* DO NOT CHANGE THIS VALUE */
-#define MAX_NUM_INSTANCE                4
+#define MAX_NUM_INSTANCE                6
 #define MAX_NUM_VPU_CORE                1
 #define MAX_NUM_VCORE                   1
 
@@ -107,7 +107,7 @@
 /* VPU COMMON MEMORY                                                    */
 /************************************************************************/
 #define VLC_BUF_NUM              (3)
-#define COMMAND_QUEUE_DEPTH             (4)
+#define COMMAND_QUEUE_DEPTH             (6)
 
 #define ENC_SRC_BUF_NUM             (8+COMMAND_QUEUE_DEPTH)          //!< case of GOPsize = 8 (IBBBBBBBP), max src buffer num  = 12
 

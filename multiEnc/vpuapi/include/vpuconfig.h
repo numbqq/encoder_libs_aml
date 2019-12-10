@@ -47,16 +47,7 @@
 #define PRODUCT_CODE_VP_SERIES(x) (x == VP512_CODE || x == VP515_CODE || x == VP511_CODE || x == VP521_CODE || x == VP521C_CODE)
 
 #define VP5_MAX_CODE_BUF_SIZE             (1024*1024)
-#define VP520ENC_WORKBUF_SIZE             (128*1024)
-#define VP525ENC_WORKBUF_SIZE             (2*1024*1024)	// svac encoder needs 2MB for workbuffer
 #define VP521ENC_WORKBUF_SIZE             (128*1024)      //HEVC 128K, AVC 40K
-
-#define VP512DEC_WORKBUF_SIZE             (2*1024*1024)
-#define VP515DEC_WORKBUF_SIZE             (2*1024*1024)
-#define VP525DEC_WORKBUF_SIZE             (1.5*1024*1024)
-#define VP521DEC_WORKBUF_SIZE             (1.5*1024*1024)
-#define VP525_SVAC_DEC_WORKBUF_SIZE       (7*1024*1024) // max mvcol buffer included in workbuffer due to sequence change.
-
 
 #define MAX_INST_HANDLE_SIZE            48              /* DO NOT CHANGE THIS VALUE */
 #define MAX_NUM_INSTANCE                6
@@ -98,7 +89,7 @@
 #define DRAM_BUS_WIDTH                  16
 
 
-// for VP520
+// for VPU encoder
 #define USE_SRC_PRP_AXI         0
 #define USE_SRC_PRI_AXI         1
 #define DEFAULT_SRC_AXI         USE_SRC_PRP_AXI

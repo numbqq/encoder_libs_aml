@@ -499,7 +499,10 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   param->roiEnable = InitParam->roi_enable; //pCfg->vpCfg.roiEnable;
   // VPS & VUI
   param->numUnitsInTick = 1000;//pCfg->vpCfg.numUnitsInTick;
-  param->timeScale = pEncOP->frameRateInfo * 1000; //pCfg->vpCfg.timeScale;
+  if (pEncOP->bitstreamFormat == STD_AVC)
+    param->timeScale = pEncOP->frameRateInfo * 2000;
+  else
+    param->timeScale = pEncOP->frameRateInfo * 1000; //pCfg->vpCfg.timeScale;
   param->numTicksPocDiffOne = 0;//pCfg->vpCfg.numTicksPocDiffOne;
 
   param->chromaCbQpOffset = 0; //pCfg->vpCfg.chromaCbQpOffset;

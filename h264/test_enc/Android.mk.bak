@@ -41,7 +41,7 @@ LOCAL_SRC_FILES:= amlenc.c \
 LOCAL_STATIC_LIBRARIES :=libcutils
 
 LOCAL_CFLAGS +=-g
-LOCAL_CPPFLAGS := -g
+LOCAL_CPPFLAGS := -g -Wno-error
 
 LOCAL_MODULE := amlenc
 include $(BUILD_EXECUTABLE)

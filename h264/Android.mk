@@ -5,9 +5,10 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= test.cpp
 
 LOCAL_SHARED_LIBRARIES := \
-        libvpcodec
+		libstagefright_foundation \
+        lib_avc_vpcodec
 
-LOCAL_C_INCLUDES:= \
+#LOCAL_C_INCLUDES:= \
 
 LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
 

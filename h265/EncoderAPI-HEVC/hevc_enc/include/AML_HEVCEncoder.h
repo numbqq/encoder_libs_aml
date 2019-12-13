@@ -64,7 +64,8 @@ typedef struct HEVCEncParams_s {
     HEVCFlag auto_scd; /* scene change detection on or off */
     int idr_period; /* idr frame refresh rate in number of target encoded frame (no concept of actual time).*/
 
-    HEVCFlag fullsearch; /* enable full-pel full-search mode */
+    bool prepend_spspps_to_idr_frames; /* if true, prepends spspps header into all idr frames.*/
+	HEVCFlag fullsearch; /* enable full-pel full-search mode */
     int search_range; /* search range for motion vector in (-search_range,+search_range) pixels */
     //HEVCFlag sub_pel;    /* enable sub pel prediction */
     //HEVCFlag submb_pred; /* enable sub MB partition mode */
@@ -157,6 +158,9 @@ typedef struct AMVHEVCEncHandle_s {
     uint32 mOutputBufferLen;
     uint32 mGopIdx;
     uint32 mUvSwap;
+    AMVEncBufferType bufType;
+    int shared_fd[3];
+    u32 mNumPlanes;
 } AMVHEVCEncHandle;
 
 extern AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *encParam, bool* has_mix, int force_mode);

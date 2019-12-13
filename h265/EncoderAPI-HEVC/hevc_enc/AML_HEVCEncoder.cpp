@@ -56,10 +56,11 @@ extern s32 vdi_release(u32 core_idx);
 
 
 #if SUPPORT_SCALE
-#include "ge2d_port.h"
-#include "aml_ge2d.h"
+#include "./libge2d/ge2d_port.h"
+#include "./libge2d/aml_ge2d.h"
 
-aml_ge2d_t amlge2d;
+extern aml_ge2d_t amlge2d;
+aml_ge2d_info_t ge2dinfo;
 
 static int SRC1_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
 static int SRC2_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
@@ -70,7 +71,6 @@ static GE2DOP OP = AML_GE2D_STRETCHBLIT;
 static int do_strechblit(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncFrameIO *input)
 {
     int ret = -1;
-    char code = 0;
     VLOG(DEBUG, "do_strechblit test case:\n");
     pge2dinfo->src_info[0].memtype = GE2D_CANVAS_ALLOC;
     pge2dinfo->dst_info.memtype = GE2D_CANVAS_ALLOC;
@@ -110,19 +110,19 @@ static void set_ge2dinfo(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncParams *encParam)
     pge2dinfo->src_info[0].canvas_w = encParam->src_width; //SX_SRC1;
     pge2dinfo->src_info[0].canvas_h = encParam->src_height; //SY_SRC1;
     pge2dinfo->src_info[0].format = SRC1_PIXFORMAT;
-    pge2dinfo->src_info[0].plane_number = 0;
+    //pge2dinfo->src_info[0].plane_number = 0;
     pge2dinfo->src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
     pge2dinfo->src_info[1].canvas_w = 0;
     pge2dinfo->src_info[1].canvas_h = 0;
     pge2dinfo->src_info[1].format = SRC2_PIXFORMAT;
-    pge2dinfo->src_info[1].plane_number = 0;
+    //pge2dinfo->src_info[1].plane_number = 0;
 
     pge2dinfo->dst_info.memtype = GE2D_CANVAS_ALLOC;
     pge2dinfo->dst_info.canvas_w = encParam->width; //SX_DST;
     pge2dinfo->dst_info.canvas_h = encParam->height; //SY_DST;
     pge2dinfo->dst_info.format = DST_PIXFORMAT;
     pge2dinfo->dst_info.rotation = GE2D_ROTATION_0;
-    pge2dinfo->dst_info.plane_number = 0;
+    //pge2dinfo->dst_info.plane_number = 0;
     pge2dinfo->offset = 0;
     pge2dinfo->ge2d_op = OP;
     pge2dinfo->blend_mode = BLEND_MODE_PREMULTIPLIED;
@@ -1354,7 +1354,11 @@ AMVEnc_Status Wave4VpuEncRegisterFrame(AMVHEVCEncHandle *Handle, int alloc) {
     VpuWriteReg(Handle->instance_id, W4_COMMON_PIC_INFO, temp);
 
     temp = 0;
+    if (Handle->bufType == DMA_BUFF) {
+        temp |= (wave420l_align16(Handle->enc_width) << 16); // [31:16]
+    } else {
     temp |= (wave420l_align32(Handle->enc_width) << 16); // [31:16]
+    }
     temp |= (wave420l_align8(Handle->enc_height) << 0);  // [15: 0]
     VpuWriteReg(Handle->instance_id, W4_PIC_SIZE, temp);
 
@@ -1504,14 +1508,22 @@ AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, u
     Uint32 luma_stride, chroma_stride;
     Uint32 size_src_luma, size_src_chroma;
    // char *y = NULL;
+    if (Handle->bufType == DMA_BUFF) {
+        src_stride = wave420l_align16(Handle->enc_width);
+    } else {
     src_stride = wave420l_align32(Handle->enc_width);
+    }
     luma_stride = src_stride;
     chroma_stride = src_stride;
 
     // set frame buffers
 
     // calculate required buffer size
+    if (Handle->bufType == DMA_BUFF) {
+        size_src_luma = luma_stride * wave420l_align16(Handle->enc_height);
+    } else {
     size_src_luma = luma_stride * wave420l_align32(Handle->enc_height);
+    }
 
     size_src_chroma = luma_stride * (wave420l_align16(Handle->enc_height) / 2);
 
@@ -1558,11 +1570,33 @@ AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, u
         VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_PIC_IDX, 0xffffffff);
     else
         VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_PIC_IDX, idx);
+    if (Handle->bufType == DMA_BUFF) {
+        if (buffer != NULL) {
+          vpu_dma_buf_info_t info;
+          info.width = wave420l_align16(Handle->enc_width);
+          info.height = Handle->enc_height;
+          info.fmt = Handle->fmt;
+          info.num_planes = Handle->mNumPlanes;
+          info.fd[0] = Handle->shared_fd[0];
+          info.fd[1] = Handle->shared_fd[1];
+          info.fd[2] = Handle->shared_fd[2];
+          vdi_config_dma(Handle->instance_id, info);
+        }
+    } else {
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_Y, Handle->src_vb[idx].phys_addr);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_U, Handle->src_vb[idx].phys_addr + size_src_luma);
+        if (Handle->fmt == AMVENC_YUV420) {
+          VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma + size_src_luma / 4);
+        } else {//nv12,nv21
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma);
+        }
+    }
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_STRIDE, (src_stride << 16) | src_stride);
-    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((2 + Handle->mUvSwap) << 0) | (0 << 3) | (gol_endian << 6));
+    if (Handle->fmt == AMVENC_YUV420) {
+        VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((0 << 0) | (0 << 3) | (gol_endian << 6)));
+    } else {//nv12,nv21
+        VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, (((2 + Handle->mUvSwap) << 0) | (0 << 3) | (gol_endian << 6)));
+    }
 
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_ADDR, 0);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_INFO, 0);
@@ -1587,9 +1621,14 @@ AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, u
     if (vdi_wait_interrupt(Handle->instance_id, VPU_BUSY_CHECK_TIMEOUT) == -1) {
         VLOG(ERR, "Wave4VpuEncEncPic error time out\n");
         Wave4VpuReset(Handle, coreIdx, reset_mode);
+        if (Handle->bufType == DMA_BUFF && buffer != NULL) {
+            vdi_unmap_dma(Handle->instance_id);
+        }
         return AMVENC_TIMEOUT;
     }
-
+    if (Handle->bufType == DMA_BUFF && buffer != NULL) {
+        vdi_unmap_dma(Handle->instance_id);
+    }
     if (VpuReadReg(Handle->instance_id, W4_RET_SUCCESS) == 0) {
         uint32_t reasonCode = VpuReadReg(Handle->instance_id, W4_RET_FAIL_REASON);
         VLOG(ERR, "Wave4VpuEncEncPic failedREASON CODE(%08x)\n", reasonCode);
@@ -1597,11 +1636,11 @@ AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, u
         return AMVENC_HARDWARE;
     }
     temp = VpuReadReg(Handle->instance_id, W4_RET_SUCCESS);
-    VLOG(NONE, "W4_RET_SUCCESS %x\n", temp);
+    VLOG(ERR, "W4_RET_SUCCESS %x\n", temp);
     rd_ptr = VpuReadReg(Handle->instance_id, W4_BS_RD_PTR);
     wr_ptr = VpuReadReg(Handle->instance_id, W4_BS_WR_PTR);
     temp = VpuReadReg(Handle->instance_id, W4_RET_ENC_PIC_BYTE);
-    VLOG(NONE, "Wave4VpuEncEncPic, rd:0x%x, wr:0x%x, ret bytes: %d, buffer size:%d\n", rd_ptr, wr_ptr, temp, wr_ptr - rd_ptr);
+    VLOG(ERR, "Wave4VpuEncEncPic, rd:0x%x, wr:0x%x, ret bytes: %d, buffer size:%d\n", rd_ptr, wr_ptr, temp, wr_ptr - rd_ptr);
 
     if (temp > Handle->mOutputBufferLen) {
         VLOG(ERR, "nal size %d bigger than output buffer %d!\n", temp, Handle->mOutputBufferLen);
@@ -1683,7 +1722,7 @@ AMVEnc_Status ge2d_colorFormat(AMVEncFrameFmt format) {
             SRC2_PIXFORMAT = PIXEL_FORMAT_RGBA_8888;
             return AMVENC_SUCCESS;
         default:
-            VLOG(ERR, "not support color format!");
+            VLOG(ERR, "not support color format, format %d!",format);
             return AMVENC_FAIL;
     }
 }
@@ -1706,6 +1745,7 @@ AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *enc
     Handle->mGopIdx = 0;
 
     Handle->idrPeriod = encParam->idr_period;
+    Handle->mNumPlanes = 0;
 
     VLOG(DEBUG, "Handle->idrPeriod: %d\n", Handle->idrPeriod);
 
@@ -1731,22 +1771,23 @@ AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *enc
     Wave4VpuEncRegisterFrame(Handle, 1);
 
 #if SUPPORT_SCALE
-    if ((encParam->width != encParam->src_width) || (encParam->height != encParam->src_height) || true) {
-        memset(&amlge2d,0x0,sizeof(aml_ge2d_t));
-        aml_ge2d_info_t *pge2dinfo = &amlge2d.ge2dinfo;
-        memset(pge2dinfo, 0, sizeof(aml_ge2d_info_t));
-        memset(&(pge2dinfo->src_info[0]), 0, sizeof(buffer_info_t));
-        memset(&(pge2dinfo->src_info[1]), 0, sizeof(buffer_info_t));
-        memset(&(pge2dinfo->dst_info), 0, sizeof(buffer_info_t));
+    if (((uint32)encParam->width != encParam->src_width) || ((uint32)(encParam->height) != encParam->src_height) || true) {
 
-        set_ge2dinfo(pge2dinfo, encParam);
 
-        int ret = aml_ge2d_init(&amlge2d);
+
+        int ret = aml_ge2d_init(/*&amlge2d*/);
         if (ret < 0) {
             VLOG(ERR, "encode open ge2d failed, ret=0x%x", ret);
             return AMVENC_FAIL;
         }
 
+        memset(&amlge2d,0x0,sizeof(aml_ge2d_t));
+        amlge2d.pge2d_info = &ge2dinfo;
+        memset(&ge2dinfo, 0, sizeof(aml_ge2d_info_t));
+        memset(&(ge2dinfo.src_info[0]), 0, sizeof(buffer_info_t));
+        memset(&(ge2dinfo.src_info[1]), 0, sizeof(buffer_info_t));
+        memset(&(ge2dinfo.dst_info), 0, sizeof(buffer_info_t));
+        set_ge2dinfo(&ge2dinfo, encParam);
         INIT_GE2D = true;
     }
 #endif
@@ -1754,11 +1795,33 @@ AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *enc
     return AMVENC_SUCCESS;
 }
 
+void static yuv_plane_memcpy(char *dst, char *src, uint32 width, uint32 height, uint32 stride, bool aligned) {
+    if (dst == NULL || src == NULL) {
+        VLOG(ERR, "yuv_plane_memcpy error ptr\n");
+        return;
+    }
+    if (!aligned) {
+        for (unsigned int i = 0; i < height; i++) {
+            memcpy((void *)dst, (void *)src, width);
+            dst += stride;
+            src += width;
+        }
+    } else {
+        memcpy(dst, (void *)src, stride * height);
+    }
+}
 AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *input) {
     Uint32 src_stride;
     Uint32 luma_stride, chroma_stride;
     Uint32 size_src_luma, size_src_chroma;
-    char *y = NULL;
+    char *y_dst = NULL;
+    char *u_dst = NULL;
+    char *v_dst = NULL;
+    char *src = NULL;
+    bool width32alinged = true; //width is multiple of 32 or not
+    if (Handle->enc_width % 32) {
+        width32alinged = false;
+    }
 
     Handle->op_flag = input->op_flag;
     Handle->fmt = input->fmt;
@@ -1783,19 +1846,25 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
         VLOG(DEBUG, "HEVC set bitrate to %d", Handle->bitrate);
         Wave4VpuEncSeqInit(Handle, 0);
     }
-
+    if (Handle->bufType == DMA_BUFF) {
+        src_stride = wave420l_align16(Handle->enc_width);
+    } else {
     src_stride = wave420l_align32(Handle->enc_width);
+    }
     luma_stride = src_stride;
     chroma_stride = src_stride;
+    if (input->type != DMA_BUFF) {
 #if SUPPORT_SCALE
     if ((input->scale_width !=0 && input->scale_height !=0) || input->crop_left != 0 ||
         input->crop_right != 0 || input->crop_top != 0 || input->crop_bottom != 0 ||
         (Handle->fmt != AMVENC_NV12 && Handle->fmt != AMVENC_NV21 && Handle->fmt != AMVENC_YUV420)) {
         if (INIT_GE2D) {
             INIT_GE2D = false;
-            amlge2d.ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
-            amlge2d.ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
-            int ret = aml_ge2d_mem_alloc(&amlge2d);
+            
+                ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
+                ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            
+                int ret = aml_ge2d_mem_alloc(&ge2dinfo);
             if (ret < 0) {
                 VLOG(ERR, "encode ge2di mem alloc failed, ret=0x%x", ret);
                 return AMVENC_FAIL;
@@ -1811,30 +1880,27 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
             return AMVENC_FAIL;
         }
         if (Handle->fmt == AMVENC_RGBA8888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], 4 * input->pitch * input->height);
+                memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], 4 * input->pitch * input->height);
         else if (Handle->fmt == AMVENC_NV12 || Handle->fmt == AMVENC_NV21) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
+                memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
+                memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
         } else if (Handle->fmt == AMVENC_YUV420) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
+                memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
+                memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
+                memcpy((void *) ((char *)ge2dinfo.src_info[0].vaddr + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
         } else if (Handle->fmt == AMVENC_RGB888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height * 3);
-        do_strechblit(&amlge2d.ge2dinfo, input);
-        aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
+                memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height * 3);
+            do_strechblit(&ge2dinfo, input);
+            aml_ge2d_invalid_cache(&ge2dinfo);
         size_src_luma = luma_stride * wave420l_align32(Handle->enc_height);
         size_src_chroma = luma_stride * (wave420l_align16(Handle->enc_height) / 2);
-        y = (char *) Handle->src_vb[Handle->src_idx].virt_addr;
-        if (Handle->enc_width % 32) {
-            for (int i = 0; i < Handle->enc_height; i++) {
-                memcpy(y + i * luma_stride, (void *) ((char *) amlge2d.ge2dinfo.dst_info.vaddr[0] + i * Handle->enc_width), Handle->enc_width);
-            }
-        } else {
-            memcpy((void *)Handle->src_vb[Handle->src_idx].virt_addr, amlge2d.ge2dinfo.dst_info.vaddr[0],  Handle->enc_width * Handle->enc_height);
-        }
-        y = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
-        memcpy(y, (void *) ((char *)amlge2d.ge2dinfo.dst_info.vaddr[0] + Handle->enc_width * Handle->enc_height), chroma_stride * Handle->enc_height / 2);
+            y_dst = (char *) Handle->src_vb[Handle->src_idx].virt_addr;
+            src = ge2dinfo.dst_info.vaddr;
+            yuv_plane_memcpy(y_dst, src, Handle->enc_width, Handle->enc_height, luma_stride, width32alinged);
+
+            u_dst = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
+            src = (char *)ge2dinfo.dst_info.vaddr + Handle->enc_width * Handle->enc_height;
+            yuv_plane_memcpy(u_dst, src, Handle->enc_width, Handle->enc_height / 2, chroma_stride, width32alinged);
     } else
 #endif
     {
@@ -1845,25 +1911,32 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
 
         size_src_chroma = luma_stride * (wave420l_align16(Handle->enc_height) / 2);
 
-        y = (char *) Handle->src_vb[Handle->src_idx].virt_addr;
-        if (Handle->enc_width % 32) {
-            for (unsigned int i = 0; i < Handle->enc_height; i++) {
-                memcpy(y + i * luma_stride, (void *) ((char *) input->YCbCr[0] + i * Handle->enc_width), Handle->enc_width);
+            y_dst = (char *) Handle->src_vb[Handle->src_idx].virt_addr;
+            src = (char *) input->YCbCr[0];
+            yuv_plane_memcpy(y_dst, src, Handle->enc_width, Handle->enc_height, luma_stride, width32alinged);
+
+            if (Handle->fmt == AMVENC_NV12 || Handle->fmt == AMVENC_NV21) {
+                u_dst = (char *)(Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
+                src = (char *)input->YCbCr[1];
+                yuv_plane_memcpy(u_dst, src, Handle->enc_width, Handle->enc_height / 2, chroma_stride, width32alinged);
+            } else if (Handle->fmt == AMVENC_YUV420) {
+                u_dst = (char *)(Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
+                src = (char *)input->YCbCr[1];
+                yuv_plane_memcpy(u_dst, src, Handle->enc_width / 2, Handle->enc_height / 2, chroma_stride / 2, width32alinged);
+
+                v_dst = (char *)(Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma + size_src_luma / 4);
+                src = (char *)input->YCbCr[2];
+                yuv_plane_memcpy(v_dst, src, Handle->enc_width / 2, Handle->enc_height / 2, chroma_stride / 2, width32alinged);
             }
-        } else {
-            memcpy(y, (void *) input->YCbCr[0], luma_stride * Handle->enc_height);
         }
 
-        y = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
-        if (Handle->enc_width % 32) {
-            for (unsigned int i = 0; i < Handle->enc_height / 2; i++) {
-                memcpy(y + i * chroma_stride, (void *) ((char *) input->YCbCr[1] + i * Handle->enc_width), Handle->enc_width);
-            }
+        flush_memory(Handle->instance_id, &Handle->src_vb[Handle->src_idx]);
         } else {
-            memcpy(y, (void *) input->YCbCr[1], chroma_stride * Handle->enc_height / 2);
+        if (Handle->enc_width % 16) {
+            VLOG(ERR, "dma buffer width must be multiple of 16!");
+            return AMVENC_NOT_SUPPORTED;
         }
     }
-    flush_memory(Handle->instance_id, &Handle->src_vb[Handle->src_idx]);
     return AMVENC_SUCCESS;
 }
 
@@ -1954,10 +2027,10 @@ AMVEnc_Status AML_HEVCRelease(AMVHEVCEncHandle *Handle) {
     vdi_release(Handle->instance_id);
 
 #if SUPPORT_SCALE
-    if (amlge2d.ge2dinfo.src_info[0].vaddr[0] != NULL) {
-        aml_ge2d_mem_free(&amlge2d);
-        aml_ge2d_exit(&amlge2d);
-        amlge2d.ge2dinfo.src_info[0].vaddr[0] = NULL;
+    if (ge2dinfo.src_info[0].vaddr != NULL) {
+        aml_ge2d_mem_free(&ge2dinfo);
+        aml_ge2d_exit();
+        ge2dinfo.src_info[0].vaddr = NULL;
         VLOG(DEBUG, "ge2d exit!!!\n");
     }
 #endif

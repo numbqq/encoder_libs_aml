@@ -9,19 +9,16 @@ LOCAL_SRC_FILES := \
 
 #define MAKEANDROID
 
-LOCAL_CFLAGS = -Wno-multichar -Wno-unused
-LOCAL_SHARED_LIBRARIES  += libcutils libutils
-LOCAL_STATIC_LIBRARIES  += libge2d
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-	$(LOCAL_PATH)/libge2d
+LOCAL_SHARED_LIBRARIES  += libcutils libutils
+
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
+
 
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE:= libvp_hevc_codec
 LOCAL_MODULE_TAGS := optional
 #LOCAL_PRELINK_MODULE := false
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
-
 include $(BUILD_SHARED_LIBRARY)
 
-include $(call all-makefiles-under,$(LOCAL_PATH))

@@ -31,8 +31,10 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(TOP)/system/core/include
 	#$(LIBPLAYER_DIR)/amcodec/include
 
+LOCAL_CFLAGS += -Wno-multichar -Wno-error
+
 LOCAL_ARM_MODE := arm
-LOCAL_MODULE:= libvpcodec
+LOCAL_MODULE:= lib_avc_vpcodec
 LOCAL_MODULE_TAGS := optional
 LOCAL_PRELINK_MODULE := false
 include $(BUILD_SHARED_LIBRARY)

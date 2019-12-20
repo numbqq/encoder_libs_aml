@@ -56,6 +56,7 @@
 #define CHANGE_TARGET_RATE	0x2
 #define CHANGE_MIN_MAX_QP	0x4
 #define CHANGE_GOP_PERIOD	0x8
+#define LONGTERM_REF_SET	0x10
 
 typedef struct {
 	int FrameNum; //change frame number
@@ -75,6 +76,8 @@ typedef struct {
 	//CHANGE_GOP_PERIOD
 	int intraQP;
 	int GOPPeriod;
+	//LONGTERM_REF_SET
+	int LTRFlags; //bit 0: UseCurSrcAsLongtermPic; bit 1: Use LTR frame
 } CfgChangeParam;
 
 static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update);
@@ -90,6 +93,7 @@ int main(int argc, const char *argv[])
 	int datalen = 0;
 	int retry_cnt = 0;
 	int roi_enabled = 0;
+	int ltf_enabled = 0;
 	int cfg_upd_enabled = 0, has_cfg_update = 0;
 	int cfg_option = 0, frame_num = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
@@ -232,13 +236,17 @@ int main(int argc, const char *argv[])
 		if (argc > 14)
 		{
 			cfg_option = atoi(argv[14]);
-			if (cfg_option == 1 && argc > 15)
+			if (cfg_option & 0x80) {
+				printf("longterm reference is enabled\n");
+				ltf_enabled = 1;
+			}
+			if ((cfg_option & 0x1) && argc > 15)
 			{
 				printf("cfg_upd_url is\t: %s ;\n", argv[15]);
 				cfg_upd_enabled = 1;
 				printf("roi_url is\t: %s ;\n", argv[13]);
 				roi_enabled = 1;
-			} else if (cfg_option == 0) {
+			} else if ((cfg_option & 0x1) == 0) {
 				printf("cfg_upd_url is\t: %s ;\n", argv[13]);
 				cfg_upd_enabled = 1;
 			} else {
@@ -291,7 +299,7 @@ int main(int argc, const char *argv[])
 	encode_info.img_format = fmt;
 	encode_info.qp_mode = qp_mode;
 	if (roi_enabled) {
-		encode_info.enc_feature_opts |= 0x1;
+		encode_info.enc_feature_opts |= ENABLE_ROI_FEATURE;
 		roi_size = ((width+15)/16)*((height+15)/16);
 		roi_buffer = (unsigned char *) malloc(roi_size + 1);
 		if (roi_buffer == NULL) {
@@ -300,8 +308,11 @@ int main(int argc, const char *argv[])
 		}
 	}
 	if (cfg_upd_enabled) {
-		encode_info.enc_feature_opts |= 0x2;
+		encode_info.enc_feature_opts |= ENABLE_PARA_UPDATE;
 		memset(&cfgChange, 0, sizeof(CfgChangeParam));
+	}
+	if (ltf_enabled) {
+		encode_info.enc_feature_opts |= ENABLE_LONG_TERM_REF;
 	}
 
 	if (inbuf_info.buf_type == DMA_TYPE)
@@ -459,7 +470,7 @@ int main(int argc, const char *argv[])
 		}
 	}
 	if (cfg_upd_enabled) {
-		if (cfg_option == 0)
+		if ((cfg_option & 0x1) == 0)
 			fp_cfg = fopen((argv[13]), "r");
 		else
 			fp_cfg = fopen((argv[15]), "r");
@@ -616,6 +627,15 @@ retry:
 					    frame_num, cfgChange.intraQP,
 					    cfgChange.GOPPeriod);
 				}
+				if ((cfgChange.enable_option
+				    & LONGTERM_REF_SET) && ltf_enabled)
+				{
+					vl_video_encoder_longterm_ref(
+					    handle_enc,
+					    cfgChange.LTRFlags);
+					printf("Longterm Ref on %d flag 0x%x\n",
+					    frame_num, cfgChange.LTRFlags);
+				}
 			}
 			if (cfgChange.FrameNum <= frame_num) {
 				has_cfg_update =
@@ -693,14 +713,15 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 	static char lineStr[256] = {0, };
 	char valueStr[256] = {0, };
 	int has_update = 0;
-
 	while (1) {
 		if (lineStr[0] == 0x0) { //need a new line;
 			if (fgets(lineStr, 256, fp) == NULL ) {
 				if (cfg_update->enable_option && has_update)
 					return 1;
-				else
-					return 0;
+				else {
+					if (feof(fp)) return 0;
+					continue;
+				}
 			}
 		}
 		if ((lineStr[0] == '#')
@@ -727,8 +748,9 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 		{// done the currrent frame;
 			if (cfg_update->enable_option)
 				return 1;
-			else
-				return 0;
+			has_update = 0;
+			continue;
+
 		} else if (has_update ==0) {// clear the options
 			cfg_update->FrameNum = frameIdx;
 			cfg_update->enable_option = 0;
@@ -796,6 +818,17 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				if (parsed_num == 2)
 					cfg_update->enable_option |=
 					    CHANGE_GOP_PERIOD;
+			}
+		} else if (strcasecmp("SetLongTermRef",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				cfg_update->LTRFlags = atoi(token);
+				cfg_update->enable_option |=
+				    LONGTERM_REF_SET;
 			}
 		}
 		lineStr[0] = 0x0;

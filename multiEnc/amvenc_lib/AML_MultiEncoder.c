@@ -367,7 +367,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   param->losslessEnable = 0;
   param->constIntraPredFlag = 0;
   param->lfCrossSliceBoundaryEnable = 1;
-  param->useLongTerm = 0;
+  param->useLongTerm = InitParam->longterm_ref_enable;
 
   /* for CMD_ENC_SEQ_GOP_PARAM */
    //param->gopPresetIdx     = pCfg->vpCfg.gopPresetIdx;
@@ -403,8 +403,8 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   } else
     param->intraPeriod = InitParam ->idr_period;
 
-  VLOG(ERR, "GopPreset GOP format (%d) period %d \n",
-        param->gopPresetIdx, param->intraPeriod);
+  VLOG(ERR, "GopPreset GOP format (%d) period %d LongTermRef %d\n",
+        param->gopPresetIdx, param->intraPeriod, param->useLongTerm);
 
   param->intraQP = InitParam ->initQP; //pCfg->vpCfg.intraQP;
   param->forcedIdrHeaderEnable = 0; //pCfg->vpCfg.forcedIdrHeaderEnable;
@@ -601,7 +601,6 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   pEncOP->coreIdx        = 0;
   pEncOP->cbcrOrder      = CBCR_ORDER_NORMAL;
   pEncOP->lowLatencyMode = 0; // 2bits lowlatency mode setting. bit[1]: low latency interrupt enable, bit[0]: fast bitstream-packing enable.
-  pEncOP->EncStdParam.vpParam.useLongTerm = 0;
   return TRUE;
 }
 
@@ -1489,15 +1488,6 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   param->srcEndFlag                         = 0; //in->last;
 //    encParam->sourceFrame                        = &in->fb;
   param->sourceFrame->sourceLBurstEn        = 0;
-#if 0
-    if (testEncConfig.useAsLongtermPeriod > 0 && testEncConfig.refLongtermPeriod > 0) {
-        encParam->useCurSrcAsLongtermPic         = (frameIdx % testEncConfig.useAsLongtermPeriod) == 0 ? 1 : 0;
-        encParam->useLongtermRef                 = (frameIdx % testEncConfig.refLongtermPeriod)   == 0 ? 1 : 0;
-    }
-#else
-  param->useCurSrcAsLongtermPic         = 0;
-  param->useLongtermRef                 = 0;
-#endif
   param->skipPicture                        = 0;
   param->forceAllCtuCoefDropEnable	         = 0;
 
@@ -1512,7 +1502,18 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     param->forcePicTypeEnable = 0;
     param->forcePicType = 0;
   }
-
+  if (ctx->op_flag & AMVEncFrameIO_USE_AS_LTR_FLAG) {
+    VLOG(INFO, "Update seCurSrcAsLongtermPic\n");
+    param->useCurSrcAsLongtermPic = 1;
+  } else {
+    param->useCurSrcAsLongtermPic = 0;
+  }
+  if (ctx->op_flag & AMVEncFrameIO_USE_LTR_FLAG) {
+    VLOG(INFO, "Update useLongtermRef\n");
+    param->useLongtermRef = 1;
+  } else {
+    param->useLongtermRef = 0;
+  }
     // FW will encode header data implicitly when changing the header syntaxes
   param->codeOption.implicitHeaderEncode    = 1;
   param->codeOption.encodeAUD               = 0;

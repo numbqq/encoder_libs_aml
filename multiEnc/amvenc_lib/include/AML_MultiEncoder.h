@@ -138,6 +138,7 @@ typedef struct EncInitParams_s {
   uint32 mode_map_enable; /* enable mode map*/
   uint32 weight_pred_enable; /* enable weighted pred */
   uint32 param_change_enable; /* enable on the fly change parameters*/
+  uint32 longterm_ref_enable; /* enable longterm reference*/
 
   int qp_mode;
   int maxQP;

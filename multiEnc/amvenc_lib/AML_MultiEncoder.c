@@ -757,7 +757,7 @@ static BOOL SetSequenceInfo (AMVMultiCtx* ctx)
     return FALSE;
   }
   ctx->fb_num = initialInfo->minFrameBufferCount;
-  ctx->src_num = initialInfo->minSrcFrameCount + COMMAND_QUEUE_DEPTH
+  ctx->src_num = initialInfo->minSrcFrameCount + 2
                 + EXTRA_SRC_BUFFER_NUM;
 
   if (ctx->encOpenParam.sourceBufCount > ctx->src_num)

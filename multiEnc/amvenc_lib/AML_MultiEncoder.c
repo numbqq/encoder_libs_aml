@@ -1922,7 +1922,12 @@ retry_pointB:
 
     if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_CHANGE_PARAM) {
         VLOG(INFO, "CHANGE PARAMETER!\n");
-        retry_cnt =0;
+        retry_cnt = 0;
+        goto retry_pointB; //return TRUE; /* Try again */
+    }
+    else if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_HEADER_ONLY) {
+        VLOG(INFO, "Only have encoded headers !\n");
+        retry_cnt = 0;
         goto retry_pointB; //return TRUE; /* Try again */
     }
     else {
@@ -1945,6 +1950,9 @@ retry_pointB:
     if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_CHANGE_PARAM) {
         VLOG(ERR, "CHANGE PARAMETER!\n");
  //       return TRUE; /* Try again */
+    }
+    if (encOutputInfo.reconFrameIndex == RECON_IDX_FLAG_HEADER_ONLY) {
+        VLOG(ERR, "ENCODED HEADER ONLY!\n");
     }
 
 #if 0  //release flag

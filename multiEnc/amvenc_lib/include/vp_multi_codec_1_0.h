@@ -56,6 +56,7 @@ typedef struct encoding_metadata_e {
   int timestamp_us;  /* timestamp in usec of the encode frame */
   bool is_valid;     /* if true, the encoding was successful */
   enc_frame_extra_info_t extra; /* extra info of encoded frame if is_valid true */
+  int err_cod; /* error code if is_valid is false: >0 normal, others error */
 } encoding_metadata_t;
 
 typedef enum vl_codec_id_e {

@@ -75,7 +75,7 @@ static struct timeval end_test;
 static bool INIT_GE2D = false;
 #define MULTI_ENC_MAGIC ('A' << 24| 'M' <<16 | 'L' << 8 |'G')
 /* timeout in ms */
-#define VPU_WAIT_TIME_OUT_CQ    2
+#define VPU_WAIT_TIME_OUT_CQ    16
 /* extra source frame buffer required.*/
 #define EXTRA_SRC_BUFFER_NUM    0
 
@@ -1702,10 +1702,12 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
 {
   EncHeaderParam encHeaderParam;
   EncOutputInfo  encOutputInfo;
+  QueueStatusInfo queueStatus;
   ENC_INT_STATUS status;
   PhysicalAddress paRdPtr = 0;
   PhysicalAddress paWrPtr = 0;
   int header_size = 0;
+  int need_reset = 0;
   RetCode result= RETCODE_SUCCESS;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
   ENC_QUERY_WRPTR_SEL encWrPtrSel = GET_ENC_PIC_DONE_WRPTR;
@@ -1735,7 +1737,10 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
   while(1)
   {
         result = VPU_EncGiveCommand(ctx->enchandle, ENC_PUT_VIDEO_HEADER, &encHeaderParam);
-        if ( result == RETCODE_QUEUEING_FAILURE ) continue;
+        if ( result == RETCODE_QUEUEING_FAILURE ) {
+           usleep(1000);
+           continue;
+        }
 #if defined(HAPS_SIM) || defined(CNM_SIM_DPI_INTERFACE)
         usleep(1000); //osal_msleep(1);
 #endif
@@ -1745,15 +1750,21 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
       break;
     }
     else if (status == ENC_INT_STATUS_NONE) {
-      usleep(1000); //osal_msleep(1);
+        VLOG(INFO, "INSTANCE #%d INT timeout \n", ctx->enchandle->instIndex);
+        VPU_EncGiveCommand(ctx->enchandle, ENC_GET_QUEUE_STATUS, &queueStatus);
+        if (queueStatus.reportQueueCount >0) {
+            VLOG(ERR, "INSTANCE #%d need reset \n", ctx->enchandle->instIndex);
+            need_reset = 1;
+            break;
+        }
     }
     else if (status == ENC_INT_STATUS_TIMEOUT) {
-       VLOG(INFO, "INSTANCE #%d INTERRUPT TIMEOUT\n", ctx->enchandle->instIndex);
-       HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
-       return AMVENC_FAIL;
+        VLOG(ERR, "INSTANCE #%d INTERRUPT TIMEOUT\n", ctx->enchandle->instIndex);
+        HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
+        return AMVENC_TIMEOUT;
     } else {
-      VLOG(INFO, "Unknown interrupt status: %d\n",status);
-      return AMVENC_FAIL;
+        VLOG(ERR, "Unknown interrupt status: %d\n",status);
+        return AMVENC_FAIL;
     }
     usleep(1000); //osal_msleep(1);
   }
@@ -1764,7 +1775,7 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
   encOutputInfo.result = VPU_EncGetOutputInfo(ctx->enchandle, &encOutputInfo);
 
     if (encOutputInfo.result == RETCODE_REPORT_NOT_READY) {
-        return TRUE; /* Not encoded yet */
+        return AMVENC_SPS_FAIL; /* Not encoded yet */
     }
     else if (encOutputInfo.result == RETCODE_VLC_BUF_FULL) {
         VLOG(ERR, "VLC BUFFER FULL!!! ALLOCATE MORE TASK BUFFER(%d)!!!\n", ONE_TASKBUF_SIZE_FOR_CQ);
@@ -1774,20 +1785,25 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
         VLOG(ERR, "Failed to encode error = %d\n", encOutputInfo.result);
         HandleEncoderError(ctx->enchandle, encOutputInfo.encPicCnt, &encOutputInfo);
         VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
-        return FALSE;
+        return AMVENC_SPS_FAIL;
     }
     else {
         ;/* SUCCESS */
     }
-
+    if (need_reset) {
+        VLOG(ERR, "reset encoder error = %d\n", encOutputInfo.result);
+        HandleEncoderError(ctx->enchandle, encOutputInfo.encPicCnt, &encOutputInfo);
+        VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
+        return AMVENC_SPS_FAIL;
+    }
     paRdPtr = encOutputInfo.rdPtr;
     paWrPtr = encOutputInfo.wrPtr;
     header_size = encOutputInfo.bitstreamSize;
     VLOG(DEBUG, "header_size %d paWrPtr-paRdPtr %d", header_size, paWrPtr-paRdPtr);
-  if (paRdPtr != ctx->bsBuffer[0].phys_addr) {
-    VLOG(ERR, "BS buffer no match!! expect %x acutual %x size %d\n",
-        ctx->bsBuffer[0].phys_addr, paRdPtr, header_size);
-  }
+    if (paRdPtr != ctx->bsBuffer[0].phys_addr) {
+       VLOG(ERR, "BS buffer no match!! expect %x acutual %x size %d\n",
+            ctx->bsBuffer[0].phys_addr, paRdPtr, header_size);
+    }
 
 #if ENCODE_TIME_STATISTICS
   gettimeofday(&end_test, NULL);

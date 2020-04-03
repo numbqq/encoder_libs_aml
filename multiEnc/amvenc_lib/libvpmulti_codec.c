@@ -268,6 +268,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   if (in_buffer_info == NULL) {
     VLOG(ERR, "invalid input buffer_info\n");
     result.is_valid = false;
+    result.err_cod = AMVENC_UNINITIALIZED;
     return result;
   }
   handle->bufType = (AMVEncBufferType)(in_buffer_info->buf_type);
@@ -276,6 +277,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     if (handle->mEncParams.width % 16) {
        VLOG(ERR, "dma buffer width must be multiple of 16!");
        result.is_valid = false;
+       result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
        return result;
     }
   }
@@ -300,6 +302,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       VLOG(ERR, "Encode SPS and PPS error, encoderStatus = %d. handle: %p\n",
            ret, (void*)handle);
       result.is_valid = false;
+      if (ret == AMVENC_FAIL)
+         result.err_cod = AMVENC_INVALID_PARAM;
+      else
+          result.err_cod = ret;
       return result;
     }
   }
@@ -334,6 +340,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
             && dma_info->num_planes != 2) {
           VLOG(ERR, "invalid num_planes %d\n", dma_info->num_planes);
           result.is_valid = false;
+          result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
           return result;
         }
       } else if (handle->fmt == AMVENC_YUV420P) {
@@ -341,6 +348,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
             && dma_info->num_planes != 3) {
           VLOG(ERR, "YUV420P invalid num_planes %d\n", dma_info->num_planes);
           result.is_valid = false;
+          result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
           return result;
         }
       }
@@ -349,6 +357,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         if (dma_info->shared_fd[i] < 0) {
           VLOG(ERR, "invalid dma_fd %d\n", dma_info->shared_fd[i]);
           result.is_valid = false;
+          result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
           return result;
         }
         handle->shared_fd[i] = dma_info->shared_fd[i];
@@ -398,6 +407,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     if (ret < AMVENC_SUCCESS) {
       VLOG(ERR, "encoderStatus = %d, handle: %p", ret,(void*)handle);
       result.is_valid = false;
+      if (ret == AMVENC_FAIL)
+         result.err_cod = AMVENC_INVALID_PARAM;
+      else
+          result.err_cod = ret;
       return result;
     }
 
@@ -443,6 +456,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     if (ret < AMVENC_SUCCESS) {
       VLOG(ERR, "encoderStatus = %d, handle: %p", ret,(void*)handle);
       result.is_valid = false;
+      if (ret == AMVENC_FAIL)
+         result.err_cod = AMVENC_INVALID_PARAM;
+      else
+          result.err_cod = ret;
       return result;
     }
     /* check the returned frame if it has */

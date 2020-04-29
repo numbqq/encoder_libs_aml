@@ -1,3 +1,4 @@
+#define LOG_TAG "libvpcodec"
 #include "vpcodec_1_0.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,15 +21,12 @@ int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, i
     {
         LOGAPI("Video frame size %dx%d must be a multiple of 16", width, height);
         return -1;
-    }
-    else if (height % 16 != 0)
-    {
+    } else if (height % 16 != 0) {
         LOGAPI("Video frame height is not standard:%d", height);
-    }
-    else
-    {
+    } else {
         LOGAPI("Video frame size is %d x %d", width, height);
     }
+
     handle->mEncParams.rate_control = AVC_ON;
     handle->mEncParams.initQP = 0;
     handle->mEncParams.init_CBP_removal_delay = 1600;

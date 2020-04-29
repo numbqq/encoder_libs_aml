@@ -8,9 +8,9 @@ LOCAL_SHARED_LIBRARIES := \
 		libstagefright_foundation \
         lib_avc_vpcodec
 
-#LOCAL_C_INCLUDES:= \
+LOCAL_C_INCLUDES := $(TOP)/frameworks/av/media/libstagefright/foundation/include
+LOCAL_CFLAGS += -Wno-multichar -Wno-unused
 
-LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
 
 LOCAL_MODULE_TAGS := optional
 

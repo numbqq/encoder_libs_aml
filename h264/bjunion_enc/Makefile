@@ -1,3 +1,8 @@
+#export CROSS_CC_PREFIX=aarch64-linux-gnu-
+#export CC=$(CROSS_CC_PREFIX)gcc
+#export CXX=$(CROSS_CC_PREFIX)g++
+#export AR=$(CROSS_CC_PREFIX)ar
+
 CFLAGS +=-O2 -fPIC
 CFLAGS += -g
 LDFLAGS += -lm -lrt -shared

@@ -863,7 +863,7 @@ static BOOL AllocateYuvBufferHeader(AMVMultiCtx* ctx)
   srcFbAllocInfo.num     = ctx->src_num;
   srcFbAllocInfo.nv21    = encOpenParam.nv21;
 
-#if 1  //allocat later when use input buffer, in case DMA buffer no need copy.
+#if 0  //allocat later when use input buffer, in case DMA buffer no need copy.
     for (i = 0; i < ctx->src_num; i++) {
         ctx->pFbSrcMem[i].size = srcFbSize;
         if (vdi_allocate_dma_memory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i],
@@ -879,7 +879,7 @@ static BOOL AllocateYuvBufferHeader(AMVMultiCtx* ctx)
     }
 #else
    for (i = 0; i < ctx->src_num; i++) {
-        ctx->pFbSrc[i].bufY  = (PhysicalAddress) - 1;
+        ctx->pFbSrc[i].bufY  = (PhysicalAddress) 0;
         ctx->pFbSrc[i].bufCb = (PhysicalAddress) - 1;
         ctx->pFbSrc[i].bufCr = (PhysicalAddress) - 1;
         ctx->pFbSrc[i].updateFbInfo = TRUE;
@@ -1356,6 +1356,12 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         return AMVENC_FAIL;
        }
        ctx->pFbSrc[idx].bufY = ctx->pFbSrcMem[idx].phys_addr;
+       if (ctx->pFbSrc[idx].bufCb != -1)
+           ctx->pFbSrc[idx].bufCb += ctx->pFbSrc[idx].bufY;
+       if (ctx->pFbSrc[idx].bufCr != -1)
+           ctx->pFbSrc[idx].bufCr += ctx->pFbSrc[idx].bufY;
+       VLOG(INFO, "New allocate frame idx %d address y:0x%x cb:0x%x cr:0x%x\n",
+                  idx, ctx->pFbSrc[idx].bufY, ctx->pFbSrc[idx].bufCb,ctx->pFbSrc[idx].bufCr);
     }
 #if SUPPORT_SCALE
     if ((input->scale_width !=0 && input->scale_height !=0) || input->crop_left != 0 ||

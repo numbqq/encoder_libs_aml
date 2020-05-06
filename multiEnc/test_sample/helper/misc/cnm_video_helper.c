@@ -32,7 +32,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "main_helper.h"
-#include <libavformat/avformat.h>
+//#include <libavformat/avformat.h>
 // include in the ffmpeg header
 typedef struct {
     CodStd      codStd;
@@ -46,6 +46,7 @@ typedef struct {
 #endif
 
 static const CodStdTab codstd_tab[] = {
+#if 0
     { STD_AVC,          0, AV_CODEC_ID_H264,            MKTAG('H', '2', '6', '4') },
     { STD_AVC,          0, AV_CODEC_ID_H264,            MKTAG('X', '2', '6', '4') },
     { STD_AVC,          0, AV_CODEC_ID_H264,            MKTAG('A', 'V', 'C', '1') },
@@ -152,6 +153,7 @@ static const CodStdTab codstd_tab[] = {
     { STD_HEVC,         0, AV_CODEC_ID_HEVC,            MKTAG('h', 'e', 'v', 'c') },
     { STD_HEVC,         0, AV_CODEC_ID_HEVC,            MKTAG('h', 'e', 'v', '1') },
     { STD_HEVC,         0, AV_CODEC_ID_HEVC,            MKTAG('h', 'v', 'c', '1') }
+#endif
 };
 
 

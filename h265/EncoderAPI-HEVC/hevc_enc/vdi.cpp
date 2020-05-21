@@ -896,34 +896,3 @@ s32 flush_memory(u32 core_idx, vpu_buffer_t *vb) {
         ret = ioctl(vdi->vpu_fd, VDI_IOCTL_FLUSH_BUFFER, (void*) &vdb);
     return ret;
 }
-
-s32 vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t info) {
-    s32 ret;
-    vdi_info_t *vdi;
-
-    if (core_idx >= MAX_NUM_VPU_CORE)
-        return -1;
-
-    vdi = &s_vdi_info[core_idx];
-    if (!vdi || vdi->vpu_fd < 0 || vdi->opened == 0)
-        return -1;
-
-    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_CONFIG_DMA, (void*)&info);
-
-    return ret;
-}
-s32 vdi_unmap_dma(u32 core_idx) {
-    s32 ret;
-    vdi_info_t *vdi;
-
-    if (core_idx >= MAX_NUM_VPU_CORE)
-        return -1;
-
-    vdi = &s_vdi_info[core_idx];
-    if (!vdi || vdi->vpu_fd < 0 || vdi->opened == 0)
-        return -1;
-
-    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_UNMAP_DMA, 0);
-
-    return ret;
-}

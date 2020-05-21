@@ -7,7 +7,6 @@
 #ifndef _VDI_H_
 #define _VDI_H_
 
-#include "enc_define.h"
 #ifdef MAKEANDROID
 #define LOGCAT
 #endif
@@ -108,13 +107,6 @@ typedef struct vpu_instance_pool_t {
     u8 instance_pool_inited;
 } vpu_instance_pool_t;
 
-typedef struct vpu_dma_buf_info_t {
-    u32 width;
-    u32 height;
-    AMVEncFrameFmt fmt;
-    u32 num_planes;
-    s32 fd[3];
-} vpu_dma_buf_info_t;
 #define VPUDRV_BUF_LEN  vpu_buffer_t
 #define VPUDRV_INST_LEN  vpudrv_inst_info_t
 
@@ -157,10 +149,6 @@ typedef struct vpu_dma_buf_info_t {
 
 #define VDI_IOCTL_FLUSH_BUFFER \
   _IOW(VDI_MAGIC, 13, VPUDRV_BUF_LEN)
-#define VDI_IOCTL_CONFIG_DMA \
-  _IOW(VDI_MAGIC, 14, vpu_dma_buf_info_t)
-#define VDI_IOCTL_UNMAP_DMA \
-  _IOW(VDI_MAGIC, 15, u32)
 
 #define VpuWriteReg(CORE, ADDR, DATA)                 vdi_write_register(CORE, ADDR, DATA)
 #define VpuReadReg(CORE, ADDR)                        vdi_read_register(CORE, ADDR)
@@ -196,6 +184,4 @@ s32 vdi_open_instance(u32 core_idx, u32 inst_idx);
 s32 vdi_close_instance(u32 core_idx, u32 inst_idx);
 s32 vdi_set_bit_firmware_to_pm(u32 core_idx, const u16 *code);
 s32 flush_memory(u32 core_idx, vpu_buffer_t *vb);
-s32 vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t info);
-s32 vdi_unmap_dma(u32 core_idx);
 #endif //#ifndef _VDI_H_

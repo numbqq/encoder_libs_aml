@@ -5,7 +5,8 @@
 
 TARGET=testApi
 AMLENC_LIB=test.o
-LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec
+#LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -Lbjunion_enc/h264bitstream -lh264bitstream
+LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -lh264bitstream
 CFLAGS +=-O2 -g
 
 $(TARGET):$(AMLENC_LIB)

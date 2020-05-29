@@ -133,6 +133,9 @@ typedef struct AMVEncHandle_s {
     uint8_t *mSPSPPSData;
     int64_t mNumInputFrames;
     bool mKeyFrameRequested;
+
+    int fd_in;
+    int fd_out;
 } AMVEncHandle;
 
 extern AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, bool* has_mix, int force_mode);

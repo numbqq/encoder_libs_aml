@@ -9,7 +9,11 @@
 #include <errno.h>
 #include "include/AML_HWEncoder.h"
 #include "include/enc_define.h"
+
+#ifndef __ANDROID__
 #include <h264bitstream/h264_stream.h>
+#endif
+
 #define LOG_LINE() printf("[%s:%d]\n", __FUNCTION__, __LINE__)
 const char version[] = "Amlogic libvpcodec version 1.0";
 
@@ -168,7 +172,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
                 handle->mSPSPPSDataSize = in_size;
                 memcpy(handle->mSPSPPSData, (unsigned char *)out, handle->mSPSPPSDataSize);
                 LOGAPI("get mSPSPPSData size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
-
+#ifndef __ANDROID__
                 size_t merge_size = sizeof(sps_t) + sizeof(pps_t) + 5 + 5;
 				uint8_t *merge_buf = (uint8_t *) malloc(merge_size);
 				size_t merge_pos = 0;
@@ -240,6 +244,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
 				handle->mSPSPPSData = merge_buf;
 				handle->mSPSPPSDataSize = merge_pos;
 				free(aux_buf);
+#endif
             }
 
             handle->mNumInputFrames = 0;

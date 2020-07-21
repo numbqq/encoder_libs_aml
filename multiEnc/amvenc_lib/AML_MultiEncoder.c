@@ -341,8 +341,9 @@ static void set_ge2dinfo(aml_ge2d_info_t* pge2dinfo,
 }
 #endif
 
-void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint32 height, uint32 stride,
-                        bool aligned, EndianMode endian) {
+void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width,
+                             uint32 height, uint32 stride, uint32 src_stride,
+                             bool aligned, EndianMode endian) {
     unsigned i;
   if (dst == 0 || src == NULL) {
     VLOG(ERR, "yuv_plane_memcpy error ptr\n");
@@ -352,7 +353,7 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width, uint
     for (i = 0; i < height; i++) {
       vdi_write_memory(coreIdx, dst, (Uint8 *)src, width, endian);
       dst += stride;
-      src += width;
+      src += src_stride;
     }
   } else {
      vdi_write_memory(coreIdx, dst, (Uint8 *)src, stride * height, endian);
@@ -1382,9 +1383,20 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   VLOG(INFO, "fmt %d , is dma %d \n", ctx->fmt, is_DMA_buffer);
 
   if (is_DMA_buffer) {
-    src_stride = vp_align16(ctx->enc_width);
+    if (!input->pitch) {
+      src_stride = vp_align16(ctx->enc_width);
+    } else {
+      src_stride = input->pitch;
+      if (src_stride % 16) {
+        VLOG(ERR, "DMA buffer stride to 16 byte align\n");
+        return AMVENC_FAIL;
+      }
+    }
   } else {
     src_stride = vp_align32(ctx->enc_width);
+  }
+  if (src_stride != input->pitch) {
+    width32alinged = false;
   }
   luma_stride = src_stride;
   chroma_stride = src_stride;
@@ -1488,23 +1500,30 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     //memset(y_dst + size_src_luma, 0x80, size_src_chroma);
 
       src = (char *) input->YCbCr[0];
-      VLOG(INFO, "idx %d luma %d src %p dst %p  width %d, height %d \n", idx, size_src_luma, src, y_dst, ctx->enc_width, ctx->enc_height);
+      VLOG(INFO, "idx %d luma %d src %p dst %p  width %d, height %d \n",
+          idx, size_src_luma, src, y_dst, ctx->enc_width, ctx->enc_height);
 
       yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufY, src,
-                              ctx->enc_width, ctx->enc_height, luma_stride, width32alinged, endian);
+                       ctx->enc_width, ctx->enc_height, luma_stride,
+                       input->pitch, width32alinged, endian);
 
       if (ctx->fmt == AMVENC_NV12 || ctx->fmt == AMVENC_NV21) {
         src = (char *)input->YCbCr[1];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
-                              src, ctx->enc_width, ctx->enc_height / 2, chroma_stride, width32alinged, endian);
+                         src, ctx->enc_width, ctx->enc_height / 2,
+                         chroma_stride, input->pitch, width32alinged,endian);
       } else if (ctx->fmt == AMVENC_YUV420P) {
         src = (char *)input->YCbCr[1];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
-                        src, ctx->enc_width/2, ctx->enc_height/ 2, chroma_stride / 2, width32alinged, endian);
+                         src, ctx->enc_width/2, ctx->enc_height/ 2,
+                         chroma_stride / 2, input->pitch / 2, width32alinged,
+                         endian);
 //        v_dst = (char *)(ctx->pFbSrcMem[idx].virt_addr + size_src_luma + size_src_luma / 4);
         src = (char *)input->YCbCr[2];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCr,
-                        src, ctx->enc_width/2, ctx->enc_height/ 2, chroma_stride / 2, width32alinged, endian);
+                         src, ctx->enc_width/2, ctx->enc_height/ 2,
+                         chroma_stride / 2, input->pitch / 2, width32alinged,
+                         endian);
       }
     }
     vdi_flush_memory(ctx->encOpenParam.coreIdx, &ctx->pFbSrcMem[idx]);

@@ -155,6 +155,7 @@ typedef union {
 typedef struct vl_buffer_info {
   vl_buffer_type_t buf_type;
   vl_buf_info_u buf_info;
+  int buf_stride; //buf stride for Y, if 0,use width as stride (default)
 } vl_buffer_info_t;
 
 /* noise reduction type*/

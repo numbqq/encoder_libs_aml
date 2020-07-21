@@ -278,8 +278,9 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   handle->bufType = (AMVEncBufferType)(in_buffer_info->buf_type);
 
   if (handle->bufType == DMA_BUFF) {
-    if (handle->mEncParams.width % 16) {
-       VLOG(ERR, "dma buffer width must be multiple of 16!");
+    if (handle->mEncParams.width % 16 ||
+        in_buffer_info-> buf_stride % 16) {
+       VLOG(ERR, "dma buffer width and stride must be multiple of 16!");
        result.is_valid = false;
        result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
        return result;
@@ -322,7 +323,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     memset(&videoInput, 0, sizeof(videoInput));
     memset(&videoInput, 0, sizeof(videoRet));
     videoInput.height = handle->mEncParams.height;
-    videoInput.pitch = handle->mEncParams.width; //((handle->mEncParams.width + 15) >> 4) << 4;
+    if (!in_buffer_info-> buf_stride)
+        videoInput.pitch = handle->mEncParams.width; //((handle->mEncParams.width + 15) >> 4) << 4;
+    else
+        videoInput.pitch = in_buffer_info-> buf_stride;
     /* TODO*/
     videoInput.bitrate = handle->mEncParams.bitrate;
     videoInput.frame_rate = handle->mEncParams.frame_rate / 1000.0f;

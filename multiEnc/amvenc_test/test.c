@@ -108,6 +108,8 @@ int main(int argc, const char *argv[])
 	int ltf_enabled = 0;
 	int cfg_upd_enabled = 0, has_cfg_update = 0;
 	int cfg_option = 0, frame_num = 0, gop_pattern = 0;
+	int src_buf_stride = 0, conver_stride = 0;
+	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
 	vl_frame_type_t enc_frame_type;
@@ -119,6 +121,11 @@ int main(int argc, const char *argv[])
 	vl_codec_id_t codec_id;
 	encoding_metadata_t encoding_metadata;
 
+	unsigned int framesize;
+	unsigned ysize;
+	unsigned usize;
+	unsigned vsize;
+	unsigned uvsize;
 
 	int tmp_idr;
 	int fd = -1;
@@ -154,8 +161,11 @@ int main(int argc, const char *argv[])
 		printf("            \t\t\t 0 default(IP) 1:I only    2:IP_only    3: IBBBP\n");
 		printf("            \t\t\t 4:IP_SVC1     5:IP_SVC2   6: IP_SVC3   7: IP_SVC4\n");
 		printf("            \t\t  bit 7:long term refereces. 0: disabled (default) 1: enabled\n");
+		printf("            \t\t  bit 8:cust source buffer stride . 0: disabled (default) 1: enabled\n");
+		printf("            \t\t  bit 9: convert normal source file stride to cust source stride. 0: disabled (default) 1: enabled\n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
+		printf("  src_buf_stride \t: optional, source buffer stride\n");
 		return -1;
 	} else
 	{
@@ -268,31 +278,42 @@ int main(int argc, const char *argv[])
 		}
 		if (argc > 14)
 		{
-			if ((cfg_option & 0x3) == 0x1)
+			arg_count = 14;
+			if ((cfg_option & 0x1) == 0x1 && argc > arg_count)
 			{
-				printf("roi_url is\t: %s ;\n", argv[14]);
+				printf("roi_url is\t: %s ;\n",
+					argv[arg_count]);
 				roi_enabled = 1;
-			} else if ((cfg_option & 0x3) == 0x2) {
-				printf("cfg_upd_url is\t: %s ;\n", argv[14]);
+				arg_roi = arg_count;
+				arg_count ++;
+			}
+			if ((cfg_option & 0x2) == 0x2 && argc > arg_count) {
+				printf("cfg_upd_url is\t: %s ;\n",
+					argv[arg_count]);
 				cfg_upd_enabled = 1;
-			} else if((cfg_option & 0x3) == 0x3 && argc > 15) {
-				printf("roi_url is\t: %s ;\n", argv[14]);
-				roi_enabled = 1;
-				printf("cfg_upd_url is\t: %s ;\n", argv[15]);
-				cfg_upd_enabled = 1;
-			} else {
-				printf("unknown options opt %d argc %d\n",
-					cfg_option ,argc);
+				arg_upd = arg_count;
+				arg_count ++;
+			}
+			if ((cfg_option & 0x100) == 0x100 && argc > arg_count) {
+				src_buf_stride  = atoi(argv[arg_count]);
+				conver_stride = (cfg_option & 0x200) >> 9;
+				printf("cust stride is\t: %d  convert: %d;\n",
+					src_buf_stride, conver_stride);
+				arg_count ++;
+			}
+			if (arg_count != argc) {
+				printf("config no match conf %d argc %d\n",
+					cfg_option, argc);
 				return -1;
 			}
 		}
 	}
 
-	unsigned int framesize = width * height * 3 / 2;
-	unsigned ysize = width * height;
-	unsigned usize = width * height / 4;
-	unsigned vsize = width * height / 4;
-	unsigned uvsize = width * height / 2;
+	if (src_buf_stride && src_buf_stride < width) {
+		printf("incorrect cust source stride %d width %d",
+			src_buf_stride, width);
+		return -1;
+	}
 
 	unsigned int outbuffer_len = 1024 * 1024 * sizeof(char);
 	unsigned char *outbuffer = (unsigned char *) malloc(outbuffer_len);
@@ -303,8 +324,24 @@ int main(int argc, const char *argv[])
 	unsigned char *roi_buffer = NULL;
 	unsigned int roi_size;
 
+	if (src_buf_stride) {
+		framesize = src_buf_stride * height * 3 / 2;
+		ysize = src_buf_stride * height;
+		usize = src_buf_stride * height / 4;
+		vsize = src_buf_stride * height / 4;
+		uvsize = src_buf_stride * height / 2;
+	} else {
+		framesize = width * height * 3 / 2;
+		ysize = width * height;
+		usize = width * height / 4;
+		vsize = width * height / 4;
+		uvsize = width * height / 2;
+	}
+
 	memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
 	inbuf_info.buf_type = (vl_buffer_type_t) buf_type;
+	inbuf_info.buf_stride = src_buf_stride;
+
 	memset(&qp_tbl, 0, sizeof(qp_param_t));
 	qp_tbl.qp_min = 0;
 	qp_tbl.qp_max = 51;
@@ -476,9 +513,9 @@ int main(int argc, const char *argv[])
 		inputBuffer = (unsigned char *) malloc(framesize);
 		inbuf_info.buf_info.in_ptr[0] = (ulong) (inputBuffer);
 		inbuf_info.buf_info.in_ptr[1] =
-		    (ulong) (inputBuffer + width * height);
+		    (ulong) (inputBuffer + ysize);
 		inbuf_info.buf_info.in_ptr[2] =
-		    (ulong) (inputBuffer + width * height * 5 / 4);
+		    (ulong) (inputBuffer + ysize + usize);
 	}
 
 	fp = fopen((argv[1]), "rb");
@@ -489,7 +526,7 @@ int main(int argc, const char *argv[])
 	}
 
 	if (roi_enabled) {
-		fp_roi = fopen((argv[14]), "rb");
+		fp_roi = fopen((argv[arg_roi]), "rb");
 		if (fp_roi == NULL)
 		{
 			printf("open roi file error!\n");
@@ -497,10 +534,7 @@ int main(int argc, const char *argv[])
 		}
 	}
 	if (cfg_upd_enabled) {
-		if ((cfg_option & 0x1) == 0)
-			fp_cfg = fopen((argv[14]), "r");
-		else
-			fp_cfg = fopen((argv[15]), "r");
+		fp_cfg = fopen((argv[arg_upd]), "r");
 		if (fp_cfg == NULL)
 		{
 			printf("open cfg file error!\n");
@@ -532,8 +566,56 @@ retry:
 
 	while (num > 0)
 	{
-		if (inbuf_info.buf_type == DMA_TYPE)	// read data to dma buf vaddr
-		{
+		if (conver_stride) { // exmaple of covert normal with stride to cust stride
+			int line;
+			unsigned char *dst;
+			/* y */
+			if (inbuf_info.buf_type == DMA_TYPE)
+				dst = input[0];
+			else
+				dst = inputBuffer;
+			memset(dst, 0, ysize);
+			for (line = 0; line < height; line++) {
+				if (fread(dst, 1, width, fp) != width) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+				dst += src_buf_stride;
+			}
+			if (inbuf_info.buf_type == DMA_TYPE &&
+			    dma_info->num_planes > 1)
+				dst = input[1];
+			if (fmt != IMG_FMT_YUV420P) { //nv12 or nv21
+				memset(dst, 0, uvsize);
+				for (line = 0; line < height / 2; line++) {
+					if (fread(dst, 1, width, fp) != width) {
+						printf("read input file error!\n");
+						goto exit;
+					}
+					dst += src_buf_stride;
+				}
+			} else { // YUV420p seperated
+				memset(dst, 0, usize);
+				for (line = 0; line < height / 2; line++) {
+					if (fread(dst, 1, width / 2, fp) != width / 2) {
+						printf("read input file error!\n");
+						goto exit;
+					}
+					dst += (src_buf_stride / 2);
+				}
+				if (inbuf_info.buf_type == DMA_TYPE &&
+				    dma_info->num_planes ==3)
+					dst = input[2];
+				memset(dst, 0, vsize);
+				for (line = 0; line < height / 2; line++) {
+					if (fread(dst, 1, width / 2, fp) != width / 2) {
+						printf("read input file error!\n");
+						goto exit;
+					}
+					dst += (src_buf_stride / 2);
+				}
+			}
+		} else if (inbuf_info.buf_type == DMA_TYPE) {	// read data to dma buf vaddr
 			if (dma_info->num_planes == 1)
 			{
 				if (fread(input[0], 1, framesize, fp) !=

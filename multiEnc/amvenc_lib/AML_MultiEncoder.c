@@ -480,8 +480,18 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   param->dependSliceModeArg = 0; //pCfg->vpCfg.dependSliceModeArg;
 
   /* for CMD_ENC_SEQ_INTRA_REFRESH_PARAM */
-  param->intraRefreshMode = 0; //pCfg->vpCfg.intraRefreshMode;
-  param->intraRefreshArg = 0; //pCfg->vpCfg.intraRefreshArg;
+  if (InitParam->IntraRefreshMode &&
+      InitParam->IntraRefreshMode <= 4 &&
+      InitParam->IntraRefreshArg &&
+      pEncOP->bitstreamFormat == STD_HEVC) {
+    param->intraRefreshMode = InitParam->IntraRefreshMode;
+    param->intraRefreshArg = InitParam->IntraRefreshArg;
+    VLOG(INFO, "HEVC:intraRefreshMode %d, intraRefreshArg %d\n",
+         param->intraRefreshMode, param->intraRefreshArg);
+  } else {
+    param->intraRefreshMode = 0; //pCfg->vpCfg.intraRefreshMode;
+    param->intraRefreshArg = 0; //pCfg->vpCfg.intraRefreshArg;
+  }
   param->useRecommendEncParam = 0; //pCfg->vpCfg.useRecommendEncParam;
 
   /* for CMD_ENC_PARAM */
@@ -635,8 +645,18 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   param->transform8x8Enable = 1; //pCfg->vpCfg.transform8x8;
   param->avcSliceMode = 0; //pCfg->vpCfg.avcSliceMode;
   param->avcSliceArg = 0; //pCfg->vpCfg.avcSliceArg;
-  param->intraMbRefreshMode = 0; //pCfg->vpCfg.intraMbRefreshMode;
-  param->intraMbRefreshArg = 1; //pCfg->vpCfg.intraMbRefreshArg;
+  if (InitParam->IntraRefreshMode &&
+      InitParam->IntraRefreshMode <= 3 &&
+      InitParam->IntraRefreshArg &&
+      pEncOP->bitstreamFormat == STD_AVC) {
+    param->intraMbRefreshMode = InitParam->IntraRefreshMode;
+    param->intraMbRefreshArg = InitParam->IntraRefreshArg;
+    VLOG(INFO, "AVC:intraMbRefreshMode %d , intraMbRefreshArg %d\n",
+         param->intraMbRefreshMode, param->intraMbRefreshArg);
+  } else {
+    param->intraMbRefreshMode = 0; //pCfg->vpCfg.intraMbRefreshMode;
+    param->intraMbRefreshArg = 1; //pCfg->vpCfg.intraMbRefreshArg;
+  }
   param->mbLevelRcEnable = 0; //pCfg->vpCfg.mbLevelRc;
   param->entropyCodingMode = 1; //pCfg->vpCfg.entropyCodingMode;;
 

@@ -126,6 +126,10 @@ typedef struct vl_encode_info {
                        /*                     6: IP_SVC3, 7: IP_SVC4 */
                        /*                     see define of AMVGOPModeOPT */
                        /* bit 7:LTR control   0:disable (default) 1: enable*/
+  int intra_refresh_mode; /* refresh mode select */
+                       /* 0: no refresh, 1:row 2:column, 3: step size */
+                       /* 4 (for HEVC only): adaptive */
+  int intra_refresh_arg; /* number of MB(CTU) rows, columns, MB(CTU)s */
 } vl_encode_info_t;
 
 /* dma buffer info*/

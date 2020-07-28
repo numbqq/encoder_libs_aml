@@ -122,8 +122,8 @@ typedef struct EncInitParams_s {
   /* note, frame rate is only needed by the rate control, AVC is timestamp
    * agnostic. */
 
-  uint32 MBsIntraRefresh;
-  uint32 MBsIntraOverlap;
+  uint32 IntraRefreshMode;
+  uint32 IntraRefreshArg;
 
   uint32 out_of_band_param_set; /* flag to set whether param sets are to be */
                                  /* retrieved up front or not */

@@ -108,7 +108,7 @@ int main(int argc, const char *argv[])
 	int ltf_enabled = 0;
 	int cfg_upd_enabled = 0, has_cfg_update = 0;
 	int cfg_option = 0, frame_num = 0, gop_pattern = 0;
-	int src_buf_stride = 0, conver_stride = 0;
+	int src_buf_stride = 0, conver_stride = 0, intra_refresh_comb = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
@@ -163,9 +163,11 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 7:long term refereces. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 8:cust source buffer stride . 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 9: convert normal source file stride to cust source stride. 0: disabled (default) 1: enabled\n");
+		printf("            \t\t  bit 10:enable intraRefresh. 0: disabled (default) 1: enabled\n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
+		printf("  intraRefresh \t: optional, lower 4 bits for intra-refresh mode; others for refresh parameter, controlled by intraRefresh bit\n");
 		return -1;
 	} else
 	{
@@ -301,6 +303,13 @@ int main(int argc, const char *argv[])
 					src_buf_stride, conver_stride);
 				arg_count ++;
 			}
+			if ((cfg_option & 0x400) == 0x400 && argc > arg_count) {
+				intra_refresh_comb = atoi(argv[arg_count]);
+				printf("IntraRefresh mode %d, arg %d;\n",
+					(intra_refresh_comb & 0xf),
+					(intra_refresh_comb >> 4));
+				arg_count ++;
+			}
 			if (arg_count != argc) {
 				printf("config no match conf %d argc %d\n",
 					cfg_option, argc);
@@ -360,6 +369,10 @@ int main(int argc, const char *argv[])
 	encode_info.gop = gop;
 	encode_info.img_format = fmt;
 	encode_info.qp_mode = qp_mode;
+	if (intra_refresh_comb) {
+		encode_info.intra_refresh_mode = intra_refresh_comb & 0xf;
+		encode_info.intra_refresh_arg = intra_refresh_comb >> 4;
+	}
 	if (roi_enabled) {
 		encode_info.enc_feature_opts |= ENABLE_ROI_FEATURE;
 		roi_size = ((width+15)/16)*((height+15)/16);

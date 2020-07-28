@@ -124,8 +124,14 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.frame_rate = encode_info.frame_rate;
     handle->mEncParams.CPB_size = (uint32)(encode_info.bit_rate >> 1);
     handle->mEncParams.FreeRun = ENC_SETTING_OFF;
-    handle->mEncParams.MBsIntraRefresh = 0;
-    handle->mEncParams.MBsIntraOverlap = 0;
+
+    if (encode_info.intra_refresh_mode && encode_info.intra_refresh_mode <= 4) {
+      handle->mEncParams.IntraRefreshMode = encode_info.intra_refresh_mode;
+      handle->mEncParams.IntraRefreshArg = encode_info.intra_refresh_arg;
+    } else {
+      handle->mEncParams.IntraRefreshMode = 0;
+      handle->mEncParams.IntraRefreshArg = 0;
+    }
     handle->mEncParams.encode_once = 1;
 
     if (encode_info.enc_feature_opts & ENABLE_ROI_FEATURE)

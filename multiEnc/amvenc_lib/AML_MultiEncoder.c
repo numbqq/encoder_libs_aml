@@ -363,7 +363,7 @@ void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width,
 static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitParam)
 {
   int i;
-  CustomGopPicParam *GopParam;
+  CustomGopPicParam *GopParam = NULL;
   EncVpParam *param = &pEncOP->EncStdParam.vpParam;
   /*basic settings */
   if (InitParam->stream_type == AMV_AVC)
@@ -387,10 +387,21 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
 
   if ( param->internalBitDepth == 10 ) {
     pEncOP->outputFormat = FORMAT_420_P10_16BIT_MSB;
-    param->profile = HEVC_PROFILE_MAIN10;
+    if (pEncOP->bitstreamFormat == STD_HEVC) {
+        param->profile = HEVC_PROFILE_MAIN10;
+    } else {
+        param->profile = AVC_PROFILE_HIGH10;
+    }
   } else if ( param->internalBitDepth == 8 ) {
     pEncOP->outputFormat = FORMAT_420;
-    param->profile = HEVC_PROFILE_MAIN;
+    if (pEncOP->bitstreamFormat == STD_HEVC) {
+        param->profile = HEVC_PROFILE_MAIN;
+    } else {//AVC
+        if (InitParam->profile < AVC_PROFILE_HIGH10)
+            param->profile = InitParam->profile;
+        else
+            param->profile = 0;
+    }
   }
   param->losslessEnable = 0;
   param->constIntraPredFlag = 0;
@@ -642,7 +653,14 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
 
   param->rdoSkip = 1; //pCfg->vpCfg.rdoSkip;
   param->lambdaScalingEnable = 1; //pCfg->vpCfg.lambdaScalingEnable;
-  param->transform8x8Enable = 1; //pCfg->vpCfg.transform8x8;
+  if (pEncOP->bitstreamFormat == STD_AVC &&
+      (param->profile == AVC_PROFILE_BASE ||
+       param->profile == AVC_PROFILE_MAIN)) {
+    param->transform8x8Enable = 0; //pCfg->vpCfg.transform8x8;
+  } else {
+    param->transform8x8Enable = 1; //pCfg->vpCfg.transform8x8;
+  }
+
   param->avcSliceMode = 0; //pCfg->vpCfg.avcSliceMode;
   param->avcSliceArg = 0; //pCfg->vpCfg.avcSliceArg;
   if (InitParam->IntraRefreshMode &&
@@ -658,8 +676,13 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->intraMbRefreshArg = 1; //pCfg->vpCfg.intraMbRefreshArg;
   }
   param->mbLevelRcEnable = 0; //pCfg->vpCfg.mbLevelRc;
-  param->entropyCodingMode = 1; //pCfg->vpCfg.entropyCodingMode;;
 
+  if (pEncOP->bitstreamFormat == STD_AVC &&
+        param->profile == AVC_PROFILE_BASE) {
+    param->entropyCodingMode = 0; //pCfg->vpCfg.entropyCodingMode;
+  } else {
+    param->entropyCodingMode = 1; //pCfg->vpCfg.entropyCodingMode;
+  }
 
   pEncOP->streamBufCount = ENC_STREAM_BUF_COUNT;
   pEncOP->streamBufSize  = ENC_STREAM_BUF_SIZE;

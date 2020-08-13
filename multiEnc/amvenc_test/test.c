@@ -107,7 +107,7 @@ int main(int argc, const char *argv[])
 	int roi_enabled = 0;
 	int ltf_enabled = 0;
 	int cfg_upd_enabled = 0, has_cfg_update = 0;
-	int cfg_option = 0, frame_num = 0, gop_pattern = 0;
+	int cfg_option = 0, frame_num = 0, gop_pattern = 0, profile = 0;
 	int src_buf_stride = 0, conver_stride = 0, intra_refresh_comb = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
@@ -164,6 +164,9 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 8:cust source buffer stride . 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 9: convert normal source file stride to cust source stride. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 10:enable intraRefresh. 0: disabled (default) 1: enabled\n");
+		printf("            \t\t  bit 11 ~ bit 13: profile 0: auto (default) others as following\n");
+		printf("            \t\t                   1: BASELINE(AVC) MAIN (HEVC);      2 MAIN (AVC) main10 (HEVC) \n");
+		printf("            \t\t                   3: HIGH (AVC) STILLPICTURE (HEVC); 4 HIGH10 (AVC) \n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
@@ -274,6 +277,16 @@ int main(int argc, const char *argv[])
 			printf("gop_pattern_is \t: %d --> %s;\n",
 				gop_pattern, Gop_string[gop_pattern]);
 		}
+		profile = (cfg_option >>11) & 0x7;
+		if (profile) {
+			if ((profile > 3 && codec_id == CODEC_ID_H265) ||
+			    profile > 4) {
+				printf("profile: %d invalid;\n",
+					profile);
+				return -1;
+			}
+			printf("profile is \t: %d\n", profile);
+		}
 		if (cfg_option & 0x80) {
 			printf("longterm reference is enabled\n");
 			ltf_enabled = 1;
@@ -369,6 +382,7 @@ int main(int argc, const char *argv[])
 	encode_info.gop = gop;
 	encode_info.img_format = fmt;
 	encode_info.qp_mode = qp_mode;
+	encode_info.profile = profile;
 	if (intra_refresh_comb) {
 		encode_info.intra_refresh_mode = intra_refresh_comb & 0xf;
 		encode_info.intra_refresh_arg = intra_refresh_comb >> 4;

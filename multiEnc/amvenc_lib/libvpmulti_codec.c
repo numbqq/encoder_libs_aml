@@ -169,7 +169,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     // Set profile and level
     if (codec_id == CODEC_ID_H265) {
         handle->mEncParams.stream_type = AMV_HEVC;
-        handle->mEncParams.profile = HEVC_MAIN;
+        handle->mEncParams.profile = encode_info.profile;
         handle->mEncParams.level = HEVC_LEVEL_NONE; // firmware determines a level.
         handle->mEncParams.hevc_tier = HEVC_TIER_MAIN;
         handle->mEncParams.initQP = 30;
@@ -177,7 +177,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.refresh_type = HEVC_CRA;
     } else if(codec_id == CODEC_ID_H264) {
         handle->mEncParams.stream_type = AMV_AVC;
-        handle->mEncParams.profile = AVC_MAIN;
+        handle->mEncParams.profile = encode_info.profile;
         handle->mEncParams.level = AVC_LEVEL4;
         handle->mEncParams.initQP = 30;
         handle->mEncParams.BitrateScale = ENC_SETTING_OFF;
@@ -185,7 +185,6 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         VLOG(ERR, "No surpported codec_id %d\n", codec_id);
         return AMVENC_FAIL;
     }
-
     return AMVENC_SUCCESS;
 }
 

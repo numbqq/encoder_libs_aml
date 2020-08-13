@@ -152,6 +152,13 @@ typedef enum {
 #define HEVC_PROFILE_STILLPICTURE           3
 #define HEVC_PROFILE_MAIN10_STILLPICTURE    2
 
+/* AVC profile index for registers */
+#define AVC_PROFILE_AUTO                    0
+#define AVC_PROFILE_BASE                    1
+#define AVC_PROFILE_MAIN                    2
+#define AVC_PROFILE_HIGH                    3
+#define AVC_PROFILE_HIGH10                  4
+
 /* VP9 */
 #define VP9_PROFILE_0                       0
 #define VP9_PROFILE_1                       1

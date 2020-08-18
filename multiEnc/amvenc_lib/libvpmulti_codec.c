@@ -106,6 +106,8 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.minQP_B = qp_tbl->qp_B_min;
     handle->mEncParams.qp_mode = encode_info.qp_mode;
 
+    handle->mEncParams.rotate_angle = encode_info.frame_rotation;
+    handle->mEncParams.mirror = encode_info.frame_mirroring;
     handle->mEncParams.init_CBP_removal_delay = 1600;
     handle->mEncParams.auto_scd = ENC_SETTING_OFF;
     handle->mEncParams.out_of_band_param_set = ENC_SETTING_OFF;

@@ -1295,6 +1295,8 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   // set rotate and mirror
   //VPU_EncGiveCommand(ctx->enchandle, ENABLE_LOGGING, 0);
   if (encParam->rotate_angle != 0 || encParam->mirror != 0) {
+        VLOG(DEBUG, "set rotate and mirror, angle:%d, mirror:%d\n",
+          ctx->mInitParams.rotate_angle, ctx->mInitParams.mirror);
         VPU_EncGiveCommand(ctx->enchandle, ENABLE_ROTATION, 0);
         VPU_EncGiveCommand(ctx->enchandle, ENABLE_MIRRORING, 0);
         VPU_EncGiveCommand(ctx->enchandle, SET_ROTATION_ANGLE, &ctx->mInitParams.rotate_angle);

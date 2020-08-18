@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <stdint.h>
 #define vl_codec_handle_t long
 
 
@@ -132,6 +133,18 @@ typedef struct vl_encode_info {
   int intra_refresh_arg; /* number of MB(CTU) rows, columns, MB(CTU)s */
   int profile; /* encoding profile: 0 auto (H.264 high, H.265 main profile) */
                /* H.264 1: baseline 2: Main, 3 High profile*/
+  /*frame rotation angle before encoding, counter clock-wise
+	0: no rotation
+	90: rotate 90 degree
+	180: rotate 180 degree
+	270: rotate 270 degree*/
+  uint32_t frame_rotation;
+  /*frame mirroring before encoding
+	0: no mirroring
+	1: vertical mirroring
+	2: horizontal mirroring
+	3: both v and h mirroring*/
+  uint32_t frame_mirroring;
 
 } vl_encode_info_t;
 

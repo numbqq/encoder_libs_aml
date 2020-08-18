@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "./test_dma_api.h"
 #include "../amvenc_lib/include/vp_multi_codec_1_0.h"
 
@@ -119,6 +120,8 @@ int main(int argc, const char *argv[])
 	vl_encode_info_t encode_info;
 	vl_buffer_info_t ret_buf;
 	vl_codec_id_t codec_id;
+	uint32_t frame_rotation;
+	uint32_t frame_mirroring;
 	encoding_metadata_t encoding_metadata;
 
 	unsigned int framesize;
@@ -167,6 +170,8 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 11 ~ bit 13: profile 0: auto (default) others as following\n");
 		printf("            \t\t                   1: BASELINE(AVC) MAIN (HEVC);      2 MAIN (AVC) main10 (HEVC) \n");
 		printf("            \t\t                   3: HIGH (AVC) STILLPICTURE (HEVC); 4 HIGH10 (AVC) \n");
+		printf("            \t\t  bit 14 ~ bit 15: frame rotation(counter-clockwise, in degree): 0:none, 1:90, 2:180, 3:270\n");
+		printf("            \t\t  bit 16 ~ bit 17: frame mirroring: 0:none, 1:vertical, 2:horizontal, 3:both V and H\n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
@@ -268,6 +273,10 @@ int main(int argc, const char *argv[])
 	if (argc > 13) {
 		cfg_option = atoi(argv[13]);
 		gop_pattern = (cfg_option >>2) & 0x1f;
+		frame_rotation = (cfg_option >> 14) & 0x03;
+		frame_mirroring = (cfg_option >> 16) & 0x03;
+		printf("frame_rotation=%u, frame_mirroring=%u\n",
+				frame_rotation, frame_mirroring);
 		if (gop_pattern) {
 			if (gop_pattern > 7) {
 				printf("gop_pattern_is: %d invalid;\n",
@@ -383,6 +392,22 @@ int main(int argc, const char *argv[])
 	encode_info.img_format = fmt;
 	encode_info.qp_mode = qp_mode;
 	encode_info.profile = profile;
+	if (frame_rotation == 0)
+		encode_info.frame_rotation = 0;
+	else if (frame_rotation == 1)
+		encode_info.frame_rotation = 90;
+	else if (frame_rotation == 2)
+		encode_info.frame_rotation = 180;
+	else if (frame_rotation == 3)
+		encode_info.frame_rotation = 270;
+	else {
+		printf("frame rotation angle is wrong\n");
+		encode_info.frame_rotation = 0;
+	}
+	if (frame_mirroring >= 0 && frame_mirroring <=3)
+		encode_info.frame_mirroring = frame_mirroring;
+	else
+		encode_info.frame_mirroring = 0;
 	if (intra_refresh_comb) {
 		encode_info.intra_refresh_mode = intra_refresh_comb & 0xf;
 		encode_info.intra_refresh_arg = intra_refresh_comb >> 4;

@@ -1,3 +1,4 @@
+CXX := aarch64-linux-gnu-g++
 CFLAGS +=-O2 -fPIC
 CFLAGS += -g
 LDFLAGS += -lm -lrt -shared
@@ -16,8 +17,9 @@ DEPFILES := $(patsubst %c,%d,$(C_SRCS))
 DEPFILES += $(patsubst %cpp,%d,$(CXX_SRCS))
 
 
-INC = -I./include -I.
+INC = -I./include -I. -I./../../../.././libge2d/libge2d/include
 TARGET = libvphevcodec.so
+LIBS += -L./../../../../libge2d/libge2d
 
 all: $(TARGET)
 
@@ -28,7 +30,7 @@ endif
 
 $(TARGET): $(C_OBJS) $(CXX_OBJS)
 	@echo " [LINK] $@"
-	$(CXX) $(LDFLAGS) -o $@ $^
+	@$(CXX) $(LDFLAGS) $(LIBS) -o $@ $^
 
 %.o: %.c
 	@echo " [CXX] $<"
@@ -40,13 +42,13 @@ $(TARGET): $(C_OBJS) $(CXX_OBJS)
 
 %.d: %.cpp
 	@echo " [DEP] $<"
-	@$(CXX) $(CFLAGS) -MM -MT "$(patsubst %.cpp,%.o,$<)" $< -MF $@
+	@$(CXX) $(CFLAGS) $(INC) -MM -MT "$(patsubst %.cpp,%.o,$<)" $< -MF $@
 
 %.d: %.c
 	@echo " [DEP] $<"
-	@$(CC) $(CFLAGS) -MM -MT "$(patsubst %.c,%.o,$<)" $< -MF $@
+	@$(CC) $(CFLAGS) $(INC) -MM -MT "$(patsubst %.c,%.o,$<)" $< -MF $@
 
 clean:
-	@rm -f $(DEPFILES)
-	@rm -f $(C_OBJS) $(CXX_OBJS)
-	@rm -f $(TARGET)
+	rm -f $(DEPFILES)
+	rm -f $(C_OBJS) $(CXX_OBJS)
+	rm -f $(TARGET)

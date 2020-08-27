@@ -3,7 +3,7 @@ export CC=$(CROSS_CC_PREFIX)gcc
 export CXX=$(CROSS_CC_PREFIX)g++
 export AR=$(CROSS_CC_PREFIX)ar
 
-TARGET=testApi
+TARGET=h264EncoderDemo
 AMLENC_LIB=test.o
 LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec
 CFLAGS +=-O2 -g

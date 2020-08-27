@@ -1,6 +1,7 @@
 #
 ## makefile for libion and iontest
 #
+CC = aarch64-linux-gnu-gcc
 LIBION_OBJ = ion.o IONmem.o
 CFLAGS += -I ./include/
 CFLAGS += -I ./kernel-headers/
@@ -24,5 +25,5 @@ $(IONTEST): $(IONTEST_OBJ) $(LIBION)
 	$(CC) $^ $(CFLAGS)  -o $@
 
 clean:
-	rm -f $(OBJ)
+	rm -f $(LIBION) $(IONTEST) *.o
 

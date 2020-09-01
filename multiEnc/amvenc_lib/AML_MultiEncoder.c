@@ -685,7 +685,11 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   }
 
   pEncOP->streamBufCount = ENC_STREAM_BUF_COUNT;
-  pEncOP->streamBufSize  = ENC_STREAM_BUF_SIZE;
+
+  if (InitParam->es_buf_sz)
+    pEncOP->streamBufSize = InitParam->es_buf_sz;
+  else
+    pEncOP->streamBufSize  = ENC_STREAM_BUF_SIZE;
 
   if (pEncOP->streamBufCount < COMMAND_QUEUE_DEPTH )
     pEncOP->streamBufCount = COMMAND_QUEUE_DEPTH; //for encoder->numSinkPortQueue
@@ -1241,7 +1245,10 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
   if (TRUE == productInfo.supportNewTimer)
     ctx->cyclePerTick = 256;
   /* prepare stream buffers */
-  ctx->bsBuffer[0].size = ENC_STREAM_BUF_SIZE;
+  if (encParam->es_buf_sz)
+       ctx->bsBuffer[0].size = encParam->es_buf_sz; //ENC_STREAM_BUF_SIZE;
+  else
+       ctx->bsBuffer[0].size = ENC_STREAM_BUF_SIZE; // default value
   if (vdi_allocate_dma_memory(coreIdx, &ctx->bsBuffer[0], ENC_BS, 0) < 0) {
     VLOG(ERR, "fail to allocate bitstream buffer\n");
     ctx->bsBuffer[0].size = 0;
@@ -1603,7 +1610,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
   VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",param->srcIdx, idx, src_stride);
   if (ctx->bsBuffer[idx].size == 0) { // allocate buffer
-    ctx->bsBuffer[idx].size = ENC_STREAM_BUF_SIZE;
+    ctx->bsBuffer[idx].size = ctx->bsBuffer[0].size; //ENC_STREAM_BUF_SIZE;
     if (vdi_allocate_dma_memory(ctx->encOpenParam.coreIdx, &ctx->bsBuffer[idx], ENC_BS, 0) < 0) {
         VLOG(ERR, "fail to allocate bitstream buffer\n");
         ctx->bsBuffer[idx].size = 0;

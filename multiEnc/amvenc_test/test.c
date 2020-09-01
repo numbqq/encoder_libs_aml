@@ -145,6 +145,7 @@ int main(int argc, const char *argv[])
 	int cfg_upd_enabled = 0, has_cfg_update = 0;
 	int cfg_option = 0, frame_num = 0, gop_pattern = 0, profile = 0;
 	int src_buf_stride = 0, conver_stride = 0, intra_refresh_comb = 0;
+	int bitstream_buf_size = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
@@ -209,10 +210,12 @@ int main(int argc, const char *argv[])
 		printf("            \t\t                   3: HIGH (AVC) STILLPICTURE (HEVC); 4 HIGH10 (AVC) \n");
 		printf("            \t\t  bit 14 ~ bit 15: frame rotation(counter-clockwise, in degree): 0:none, 1:90, 2:180, 3:270\n");
 		printf("            \t\t  bit 16 ~ bit 17: frame mirroring: 0:none, 1:vertical, 2:horizontal, 3:both V and H\n");
+		printf("            \t\t  bit 18: enable customer bitstream buffer size\n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
 		printf("  intraRefresh \t: optional, lower 4 bits for intra-refresh mode; others for refresh parameter, controlled by intraRefresh bit\n");
+		printf("  bitStreamBuf \t: optional, encoded bitstream buffer size in MB\n");
 		return -1;
 	} else
 	{
@@ -369,6 +372,12 @@ int main(int argc, const char *argv[])
 					(intra_refresh_comb >> 4));
 				arg_count ++;
 			}
+			if ((cfg_option & 0x40000) == 0x40000 && argc > arg_count) {
+				bitstream_buf_size = atoi(argv[arg_count]);
+				printf("bitstream_buf_size: %d \n",
+					bitstream_buf_size);
+				arg_count ++;
+			}
 			if (arg_count != argc) {
 				printf("config no match conf %d argc %d\n",
 					cfg_option, argc);
@@ -383,7 +392,9 @@ int main(int argc, const char *argv[])
 		return -1;
 	}
 
-	unsigned int outbuffer_len = 1024 * 1024 * sizeof(char);
+	unsigned int outbuffer_len = 8*1024 * 1024 * sizeof(char);
+	if (bitstream_buf_size > 8)
+		outbuffer_len = bitstream_buf_size*1024 * 1024 * sizeof(char);
 	unsigned char *outbuffer = (unsigned char *) malloc(outbuffer_len);
 	unsigned char *inputBuffer = NULL;
 	unsigned char *input[3] = { NULL };
@@ -469,6 +480,9 @@ int main(int argc, const char *argv[])
 	}
 	if (gop_pattern) {
 		encode_info.enc_feature_opts |= ((gop_pattern<<2) & 0x7c);
+	}
+	if (bitstream_buf_size) {
+		encode_info.bitstream_buf_sz = bitstream_buf_size;
 	}
 
 	if (inbuf_info.buf_type == DMA_TYPE)

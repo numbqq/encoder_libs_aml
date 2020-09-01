@@ -155,6 +155,7 @@ typedef struct EncInitParams_s {
   int minQP_P;          /* min QP P frame */
   int maxQP_B;          /* max QP B frame*/
   int minQP_B;          /* min QP B frame */
+  int es_buf_sz;        /* ES buffer size */
 } AMVEncInitParams;
 
 extern amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam);

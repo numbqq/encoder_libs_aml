@@ -145,7 +145,8 @@ typedef struct vl_encode_info {
 	2: horizontal mirroring
 	3: both v and h mirroring*/
   uint32_t frame_mirroring;
-
+  int bitstream_buf_sz; /* the encoded bitstream buffer size in MB (range 1-32)*/
+                        /* 0: use the default value 2MB */
 } vl_encode_info_t;
 
 /* dma buffer info*/

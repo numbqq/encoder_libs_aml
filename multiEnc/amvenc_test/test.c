@@ -58,6 +58,8 @@
 #define CHANGE_MIN_MAX_QP	0x4
 #define CHANGE_GOP_PERIOD	0x8
 #define LONGTERM_REF_SET	0x10
+#define CUST_SIZE_SMOOTH	0x20
+#define CUST_APP_H264_PLUS	0x40
 
 // GOP mode strings
 static const char *Gop_string[] = {
@@ -91,13 +93,46 @@ typedef struct {
 	int GOPPeriod;
 	//LONGTERM_REF_SET
 	int LTRFlags; //bit 0: UseCurSrcAsLongtermPic; bit 1: Use LTR frame
+	// CUST_SIZE_SMOOTH
+	int smooth_level; //0 normal, 50(middle), 100 (high)
+	// CUST_APP_H264_PLUS
+	int newIDRIntervel; // shall be multiply of gop length
+	int QPdelta_IDR;     // QP delta apply to IDRs
+	int QPdelta_LTR;     // QP delta apply to LTR P frames
 } CfgChangeParam;
+
+typedef struct {
+	int CurFrameNum; //current frame number
+	int CurGOPSize;  // current
+	int CurGOPCounter;
+	int PrevFrameQP; // previous frame QP value
+
+	int minQpI_base;
+	int maxQpI_base;
+	int maxDeltaQp_base;
+	int minQpP_base;
+	int maxQpP_base;
+	int minQpB_base;
+	int maxQpB_base;
+	int temp_QP_change; // QP enforcing flag
+
+	int cust_size_smooth_enable; // flag indentify size_smooth is on going
+	int smooth_qpdelta; // QP delata apply to I frames.
+	// CUST_APP_H264_PLUS
+	int cust_ltr_enable; //CUST H264 feature enabled
+	int GopLTRIntervel;  // LTR P frame interval.
+	int GopLTRCounter;   // counter to decide LTR P frames.
+	int QPdelta_IDR;     // QP delta apply to IDRs
+	int QPdelta_LTR;     // QP delta apply to LTR P frames
+	int qp_idr;  // real applied qp_idr
+	int qp_ltr;  //real applied qp_ltr
+} PlayStatInfo;
 
 static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update);
 
 int main(int argc, const char *argv[])
 {
-	int width, height, gop, framerate, bitrate, num;
+	int width, height, gop, framerate, bitrate, num, my_qp;
 	int ret = 0;
 	int outfd = -1;
 	FILE *fp = NULL;
@@ -114,6 +149,7 @@ int main(int argc, const char *argv[])
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
 	vl_frame_type_t enc_frame_type;
+	PlayStatInfo playStat;
 
 	unsigned char *vaddr = NULL;
 	vl_codec_handle_t handle_enc = 0;
@@ -123,6 +159,7 @@ int main(int argc, const char *argv[])
 	uint32_t frame_rotation;
 	uint32_t frame_mirroring;
 	encoding_metadata_t encoding_metadata;
+
 
 	unsigned int framesize;
 	unsigned ysize;
@@ -374,6 +411,8 @@ int main(int argc, const char *argv[])
 	inbuf_info.buf_stride = src_buf_stride;
 
 	memset(&qp_tbl, 0, sizeof(qp_param_t));
+	memset(&playStat, 0, sizeof(PlayStatInfo));
+
 	qp_tbl.qp_min = 0;
 	qp_tbl.qp_max = 51;
 	qp_tbl.qp_I_base = 30;
@@ -601,6 +640,27 @@ int main(int argc, const char *argv[])
 		goto exit;
 	}
 
+	// init playState
+	playStat.minQpI_base = 8;
+	playStat.minQpP_base = 8;
+	playStat.minQpB_base = 8;
+	playStat.maxQpI_base = 51;
+	playStat.maxQpP_base = 51;
+	playStat.maxQpB_base = 51;
+	playStat.maxDeltaQp_base = 10;
+	playStat.PrevFrameQP = 30;
+	if (encode_info.qp_mode) {
+		playStat.minQpP_base = qp_tbl.qp_P_min;
+		playStat.maxQpP_base = qp_tbl.qp_P_max;
+		playStat.minQpI_base = qp_tbl.qp_I_min;
+		playStat.maxQpI_base = qp_tbl.qp_I_max;
+		playStat.maxDeltaQp_base = qp_tbl.qp_I_max - qp_tbl.qp_I_min;
+		playStat.PrevFrameQP = qp_tbl.qp_I_base;
+	}
+	playStat.CurGOPSize = encode_info.gop;
+	playStat.qp_ltr = -1;
+	playStat.qp_idr = -1;
+
 retry:
 	handle_enc = vl_multi_encoder_init(codec_id, encode_info, &qp_tbl);
 	if (handle_enc == 0) {
@@ -776,6 +836,14 @@ retry:
 					    cfgChange.maxDeltaQp,
 					    cfgChange.minQpP,cfgChange.maxQpP,
 					    cfgChange.minQpB,cfgChange.maxQpB);
+					playStat.minQpI_base = cfgChange.minQpI;
+					playStat.maxQpI_base = cfgChange.maxQpI;
+					playStat.maxDeltaQp_base =
+					         cfgChange.maxDeltaQp;
+					playStat.minQpP_base = cfgChange.minQpP;
+					playStat.maxQpP_base = cfgChange.maxQpP;
+					playStat.minQpB_base = cfgChange.minQpB;
+					playStat.maxQpB_base = cfgChange.maxQpB;
 				}
 				if (cfgChange.enable_option
 				    & CHANGE_GOP_PERIOD)
@@ -787,6 +855,9 @@ retry:
 					printf("Change gop on %d QP %d %d\n",
 					    frame_num, cfgChange.intraQP,
 					    cfgChange.GOPPeriod);
+					playStat.CurGOPSize =  cfgChange.GOPPeriod;
+					if (playStat.CurGOPCounter >= playStat.CurGOPSize)
+					    playStat.CurGOPCounter = 0;
 				}
 				if ((cfgChange.enable_option
 				    & LONGTERM_REF_SET) && ltf_enabled)
@@ -797,11 +868,169 @@ retry:
 					printf("Longterm Ref on %d flag 0x%x\n",
 					    frame_num, cfgChange.LTRFlags);
 				}
+				if (cfgChange.enable_option
+				    & CUST_SIZE_SMOOTH)
+				{
+					if (cfgChange.smooth_level) {
+					    playStat.cust_size_smooth_enable = 1;
+					    if (cfgChange.smooth_level< 100)
+						playStat.smooth_qpdelta = 4;
+					    else
+						playStat.smooth_qpdelta = 6;
+					} else {
+					    playStat.cust_size_smooth_enable = 0;
+					    playStat.smooth_qpdelta = 0;
+					    playStat.qp_ltr = -1;
+					    playStat.qp_idr = -1;
+					}
+					printf("Set CustSizeSmooth on %d level %d \n",
+					       frame_num, cfgChange.smooth_level);
+				}
+				if ((cfgChange.enable_option
+				    & CUST_APP_H264_PLUS) && ltf_enabled)
+				{
+				    if (cfgChange.newIDRIntervel) { //enable
+					if (playStat.cust_ltr_enable == 0) {
+					    playStat.cust_ltr_enable = 1;
+					    playStat.GopLTRIntervel = playStat.CurGOPSize;
+					    playStat.GopLTRCounter = playStat.CurGOPCounter;
+					}
+					if (playStat.CurGOPSize != cfgChange.newIDRIntervel)
+					{
+					    vl_video_encoder_change_gop(
+						handle_enc,
+						playStat.PrevFrameQP,
+						cfgChange.newIDRIntervel
+						);
+					    printf("Gop change on %d  to %d qp %d\n",
+						frame_num, cfgChange.newIDRIntervel,
+						playStat.PrevFrameQP);
+					}
+					playStat.CurGOPSize = cfgChange.newIDRIntervel;
+					playStat.QPdelta_IDR = cfgChange.QPdelta_IDR;
+					playStat.QPdelta_LTR = cfgChange.QPdelta_LTR;
+					if ( playStat.CurGOPCounter >= playStat.CurGOPSize)
+					    playStat.CurGOPCounter = 0;
+					if (playStat.GopLTRCounter >= playStat.GopLTRIntervel)
+					    playStat.GopLTRCounter = 0;
+					} else {
+					    if (playStat.cust_ltr_enable == 1) {
+						playStat.cust_ltr_enable = 0;
+						playStat.CurGOPSize = playStat.GopLTRIntervel;
+						vl_video_encoder_change_gop(
+						    handle_enc,
+						    playStat.PrevFrameQP,
+						    playStat.CurGOPSize);
+						printf("Gop change on %d  to %d qp %d\n",
+						    frame_num,
+						    playStat.CurGOPSize,
+						    playStat.PrevFrameQP);
+						if (playStat.CurGOPCounter >= playStat.CurGOPSize)
+						    playStat.CurGOPCounter = 0;
+						playStat.GopLTRIntervel = 0;
+						playStat.GopLTRCounter = 0;
+						playStat.QPdelta_IDR = 0;
+						playStat.QPdelta_LTR = 0;
+						playStat.qp_ltr = -1;
+						playStat.qp_idr = -1;
+					    }
+					}
+					printf("Set Cust APP H264+ on %d interval %d qp delta idr %d, ltr %d \n",
+					    frame_num, cfgChange.newIDRIntervel,
+					    cfgChange.QPdelta_IDR,
+					    cfgChange.QPdelta_LTR);
+				}
 			}
 			if (cfgChange.FrameNum <= frame_num) {
 				has_cfg_update =
 				    ParseCfgUpdateFile(fp_cfg, &cfgChange);
 			}
+		}
+		if (playStat.CurGOPCounter >= playStat.CurGOPSize)
+			playStat.CurGOPCounter = 0;
+		if (playStat.cust_ltr_enable) {
+			if (playStat.GopLTRCounter >= playStat.GopLTRIntervel)
+				playStat.GopLTRCounter = 0;
+		}
+
+		if ( playStat.CurGOPCounter == 0)
+		{ // I frame
+		    if (playStat.cust_size_smooth_enable) {
+			my_qp = playStat.PrevFrameQP + playStat.smooth_qpdelta;
+			if (my_qp > playStat.maxQpI_base)
+			    my_qp = playStat.maxQpI_base;
+			if (playStat.qp_idr < 0) // first-time
+			     playStat.qp_idr = my_qp;
+			if ((playStat.qp_idr > my_qp + 5) ||
+			     (playStat.qp_idr < my_qp - 5))
+			     playStat.qp_idr = my_qp;
+
+			vl_video_encoder_change_qp(
+					    handle_enc,
+					    playStat.qp_idr, playStat.maxQpI_base,
+					    playStat.maxDeltaQp_base,
+					    playStat.qp_idr, playStat.maxQpI_base,
+					    playStat.qp_idr, playStat.maxQpI_base);
+			playStat.temp_QP_change = 1;
+			printf("apply QPminI at frame %d min qp %d, my_qp %d \n", frame_num, playStat.qp_idr, my_qp);
+		    } else if (playStat.cust_ltr_enable) {
+			my_qp = playStat.PrevFrameQP - playStat.QPdelta_IDR;
+			if (my_qp < playStat.minQpI_base)
+			    my_qp =playStat.minQpI_base;
+			if (playStat.qp_idr < 0) // first-time
+			     playStat.qp_idr = my_qp;
+			if ((playStat.qp_idr > my_qp + 5) ||
+			     (playStat.qp_idr < my_qp - 5))
+			     playStat.qp_idr = my_qp;
+			vl_video_encoder_change_qp(
+					    handle_enc,
+					    playStat.minQpI_base, playStat.qp_idr,
+					    playStat.maxDeltaQp_base,
+					    playStat.minQpI_base, playStat.qp_idr,
+					    playStat.minQpI_base, playStat.qp_idr);
+			printf("apply QPMaxI at frame %d qp %d , my_qp %d \n", frame_num, playStat.qp_idr, my_qp);
+			playStat.temp_QP_change = 1;
+		    }
+		    if (playStat.cust_ltr_enable) {
+			vl_video_encoder_longterm_ref(
+					    handle_enc,
+					    1); // set LTR
+			printf("set ltr at frame %d \n", frame_num);
+		    }
+		} else if (playStat.GopLTRCounter == 0 && playStat.cust_ltr_enable) { // LTR P
+		    my_qp = playStat.PrevFrameQP - playStat.QPdelta_LTR;
+		    if (my_qp < playStat.minQpP_base)
+			my_qp = playStat.minQpP_base;
+			if (playStat.qp_ltr < 0) // first-time
+			     playStat.qp_ltr = my_qp;
+			if ((playStat.qp_ltr > my_qp + 5) ||
+			     (playStat.qp_ltr < my_qp - 5))
+			    playStat.qp_ltr = my_qp;
+		    vl_video_encoder_change_qp(
+					    handle_enc,
+					    playStat.minQpI_base,playStat.maxQpI_base,
+					    playStat.maxDeltaQp_base,
+					    playStat.minQpP_base, playStat.qp_ltr,
+				            playStat.minQpB_base,  playStat.maxQpB_base);
+
+		    vl_video_encoder_longterm_ref(
+					    handle_enc,
+					    2); //  USE LTR
+		    printf("apply QPMaxP LTR at frame %d qp %d, my_qp %d \n", frame_num, playStat.qp_ltr, my_qp);
+		    playStat.temp_QP_change = 1;
+		} else if(playStat.temp_QP_change == 1) {
+		    vl_video_encoder_change_qp(
+					    handle_enc,
+					    playStat.minQpI_base,playStat.maxQpI_base,
+					    playStat.maxDeltaQp_base,
+					    playStat.minQpP_base,playStat.maxQpP_base,
+				            playStat.minQpB_base,  playStat.maxQpB_base);
+		    printf("recover QP frame %d to %d, %d, %d P %d, %d, B %d, %d\n", frame_num,
+					    playStat.minQpI_base,playStat.maxQpI_base,
+					    playStat.maxDeltaQp_base,
+					    playStat.minQpP_base,playStat.maxQpP_base,
+				            playStat.minQpB_base,  playStat.maxQpB_base);
+		    playStat.temp_QP_change = 0;
 		}
 
 		encoding_metadata =
@@ -819,6 +1048,12 @@ retry:
 		}
 		num--;
 		frame_num++;
+		playStat.PrevFrameQP = encoding_metadata.extra.average_qp_value;
+		playStat.CurFrameNum++;
+		playStat.CurGOPCounter++;
+		if (playStat.cust_ltr_enable) {
+			playStat.GopLTRCounter++;
+		}
 	}
 
 exit:
@@ -990,6 +1225,33 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				cfg_update->LTRFlags = atoi(token);
 				cfg_update->enable_option |=
 				    LONGTERM_REF_SET;
+			}
+		} else if (strcasecmp("SetCustSmooth",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				cfg_update->smooth_level = atoi(token);
+				cfg_update->enable_option |=
+				    CUST_SIZE_SMOOTH;
+			}
+		} else if (strcasecmp("SetCustH264P",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				parsed_num = sscanf(token,
+				    "%d %d %d",
+				    &cfg_update->newIDRIntervel,
+				    &cfg_update->QPdelta_IDR,
+				    &cfg_update->QPdelta_LTR);
+				if (parsed_num == 3)
+					cfg_update->enable_option |=
+					    CUST_APP_H264_PLUS;
 			}
 		}
 		lineStr[0] = 0x0;

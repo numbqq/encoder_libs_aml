@@ -147,6 +147,16 @@ typedef struct vl_encode_info {
   uint32_t frame_mirroring;
   int bitstream_buf_sz; /* the encoded bitstream buffer size in MB (range 1-32)*/
                         /* 0: use the default value 2MB */
+  int multi_slice_mode; /* init multi-slice control */
+                        /*  0: only one slice per frame (default)
+                            1. multiple slice by MB(H.264)/CTU (H.265)
+                            2: by encoded size(dependant Slice) and
+                              CTU (independant Slice) combination (H.265 only)*/
+  int multi_slice_arg;  /*  when multi_slice_mode ==1:
+                                numbers of MB(16x16 blocks)/ CTU (64x64 blocks)
+                           when: multi_slice_mode ==2
+                           bit 0-15: CTUs per independent Slices
+                           bit 16-31: size of dependeant slices in bytes */
 } vl_encode_info_t;
 
 /* dma buffer info*/
@@ -338,6 +348,28 @@ int vl_video_encoder_change_qp(vl_codec_handle_t handle,
  */
 int vl_video_encoder_change_gop(vl_codec_handle_t handle,
                                 int intraQP, int GOPPeriod);
+
+/*
+ * vl_video_encoder_change_multi_slice
+ * set up long term reference flags
+ *
+ *@param : handle
+ *@param : multi_slice_mode:
+ *                          0: one-slices per frame
+ *                          1: slice by MB(16x16 H.264)/CTU (64x64 H.265)
+ *                          2: by encoded size(dependant Slice) and
+ *                             CTU (independant Slice) combination (H.265 only)
+ *@param : multi_slice_para:
+ *                          when multi_slice_mode ==1:
+ *                               numbers of MB(16x16 blocks)/ CTU (64x64 blocks)
+ *                          when: multi_slice_mode ==2
+ *                          bit 0-15: CTUs per independent Slices
+ *                          bit 16-31: size of dependeant slices in bytes
+ *
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_change_multi_slice(vl_codec_handle_t handle,
+                                  int multi_slice_mode, int multi_slice_para);
 /*
  * vl_video_encoder_longterm_ref
  * set up long term reference flags

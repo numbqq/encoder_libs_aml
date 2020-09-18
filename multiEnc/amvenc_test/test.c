@@ -60,6 +60,7 @@
 #define LONGTERM_REF_SET	0x10
 #define CUST_SIZE_SMOOTH	0x20
 #define CUST_APP_H264_PLUS	0x40
+#define CHANGE_MULTI_SLICE	0x80
 
 // GOP mode strings
 static const char *Gop_string[] = {
@@ -99,6 +100,9 @@ typedef struct {
 	int newIDRIntervel; // shall be multiply of gop length
 	int QPdelta_IDR;     // QP delta apply to IDRs
 	int QPdelta_LTR;     // QP delta apply to LTR P frames
+	// Change multi-slice
+	int Slice_Mode;  //multi slice mode
+	int Slice_Para;  //para
 } CfgChangeParam;
 
 typedef struct {
@@ -146,6 +150,7 @@ int main(int argc, const char *argv[])
 	int cfg_option = 0, frame_num = 0, gop_pattern = 0, profile = 0;
 	int src_buf_stride = 0, conver_stride = 0, intra_refresh_comb = 0;
 	int bitstream_buf_size = 0;
+	int multi_slice = 0, multi_slice_para = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
@@ -211,11 +216,13 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 14 ~ bit 15: frame rotation(counter-clockwise, in degree): 0:none, 1:90, 2:180, 3:270\n");
 		printf("            \t\t  bit 16 ~ bit 17: frame mirroring: 0:none, 1:vertical, 2:horizontal, 3:both V and H\n");
 		printf("            \t\t  bit 18: enable customer bitstream buffer size\n");
+		printf("            \t\t  bit 19 ~ bit 20: enable multi slice mode: 0, one slice(no para), 1 by MB(16x16)/CTU(64x64), 2 by CTU + size(byte)\n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
 		printf("  intraRefresh \t: optional, lower 4 bits for intra-refresh mode; others for refresh parameter, controlled by intraRefresh bit\n");
 		printf("  bitStreamBuf \t: optional, encoded bitstream buffer size in MB\n");
+		printf("  MultiSlice parameter \t: optional, multi slice parameter in MB/CTU or CTU and size (HIGH_16bits size + LOW_16bit CTU) combined\n");
 		return -1;
 	} else
 	{
@@ -340,6 +347,12 @@ int main(int argc, const char *argv[])
 			printf("longterm reference is enabled\n");
 			ltf_enabled = 1;
 		}
+		multi_slice = (cfg_option >>19) & 0x3;
+		if (multi_slice) {
+			printf("multi slice is enabled mode: %d\n",
+				multi_slice);
+		}
+
 		if (argc > 14)
 		{
 			arg_count = 14;
@@ -376,6 +389,12 @@ int main(int argc, const char *argv[])
 				bitstream_buf_size = atoi(argv[arg_count]);
 				printf("bitstream_buf_size: %d \n",
 					bitstream_buf_size);
+				arg_count ++;
+			}
+			if ( multi_slice && argc > arg_count) {
+				multi_slice_para = atoi(argv[arg_count]);
+				printf("Multi-slices para %d \n",
+					multi_slice_para);
 				arg_count ++;
 			}
 			if (arg_count != argc) {
@@ -484,7 +503,10 @@ int main(int argc, const char *argv[])
 	if (bitstream_buf_size) {
 		encode_info.bitstream_buf_sz = bitstream_buf_size;
 	}
-
+	if (multi_slice) {
+		encode_info.multi_slice_mode = multi_slice;
+		encode_info.multi_slice_arg = multi_slice_para;
+	}
 	if (inbuf_info.buf_type == DMA_TYPE)
 	{
 		dma_info = &(inbuf_info.buf_info.dma_info);
@@ -954,6 +976,18 @@ retry:
 					    cfgChange.QPdelta_IDR,
 					    cfgChange.QPdelta_LTR);
 				}
+				if (cfgChange.enable_option
+				    & CHANGE_MULTI_SLICE)
+				{
+					vl_video_encoder_change_multi_slice(
+					    handle_enc,
+					    cfgChange.Slice_Mode,
+					    cfgChange.Slice_Para);
+					printf("Change slice on %d mode %d %d\n",
+					       frame_num,
+					       cfgChange.Slice_Mode,
+					       cfgChange.Slice_Para);
+				}
 			}
 			if (cfgChange.FrameNum <= frame_num) {
 				has_cfg_update =
@@ -1266,6 +1300,20 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				if (parsed_num == 3)
 					cfg_update->enable_option |=
 					    CUST_APP_H264_PLUS;
+			}
+		} else if (strcasecmp("ChangeMultiSlice",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				parsed_num = sscanf(token, "%d %d",
+					&cfg_update->Slice_Mode,
+					&cfg_update->Slice_Para);
+				if (parsed_num == 2)
+					cfg_update->enable_option |=
+					    CHANGE_MULTI_SLICE;
 			}
 		}
 		lineStr[0] = 0x0;

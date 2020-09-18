@@ -191,6 +191,25 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         VLOG(ERR, "No surpported codec_id %d\n", codec_id);
         return AMVENC_FAIL;
     }
+    /* multi-slice */
+    if (encode_info.multi_slice_mode && encode_info.multi_slice_arg)
+    {
+        if (encode_info.multi_slice_mode > 2 ||
+            encode_info.multi_slice_mode < 0) {
+            VLOG(ERR, "Invalid muti_slice mode setting %d\n",
+                 encode_info.multi_slice_mode);
+        } else if (encode_info.multi_slice_mode > 1 &&
+                   codec_id == CODEC_ID_H264) {
+            VLOG(ERR, "H264 Invalid muti_slice mode setting %d\n",
+                 encode_info.multi_slice_mode);
+        } else {
+            VLOG(DEBUG, "Multi slice set mode %d par %d\n",
+                 encode_info.multi_slice_mode,
+                 encode_info.multi_slice_arg);
+            handle->mEncParams.slice_mode = encode_info.multi_slice_mode;
+            handle->mEncParams.slice_arg = encode_info.multi_slice_arg;
+        }
+    }
     return AMVENC_SUCCESS;
 }
 
@@ -602,6 +621,35 @@ int vl_video_encoder_change_gop(vl_codec_handle_t codec_handle,
               IntraQP, IntraPeriod);
     if (ret != AMVENC_SUCCESS)
         return -5;
+    return 0;
+}
+
+int vl_video_encoder_change_multi_slice(vl_codec_handle_t codec_handle,
+                                  int multi_slice_mode, int multi_slice_para)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.param_change_enable == 0) //no change enabled
+        return -2;
+    if (multi_slice_mode < 0 || multi_slice_mode > 2 ) {
+           VLOG(ERR, "multi slice mode value out of range [0, 2]\n");
+        return -3;
+    }
+    if (multi_slice_mode == 2 && handle->mEncParams.stream_type == AMV_AVC) {
+           VLOG(ERR, "multi slice mode 2 no support for H.264\n");
+        return -4;
+    }
+    if (multi_slice_mode && multi_slice_para == 0) {
+           VLOG(ERR, "Invalid multi-slice para %d\n", multi_slice_para);
+        return -5;
+    }
+    ret = AML_MultiEncChangeMutiSlice(handle->am_enc_handle,
+              multi_slice_mode, multi_slice_para);
+    if (ret != AMVENC_SUCCESS)
+        return -6;
     return 0;
 }
 

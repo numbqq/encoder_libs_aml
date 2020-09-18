@@ -483,12 +483,31 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
        }
   }
   /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
-  param->independSliceMode = 0; //pCfg->vpCfg.independSliceMode;
-  param->independSliceModeArg = 0; //pCfg->vpCfg.independSliceModeArg;
+  if (InitParam->slice_mode &&
+      InitParam->slice_mode <= 2 &&
+      InitParam->slice_arg &&
+      pEncOP->bitstreamFormat == STD_HEVC) {
+      param->independSliceMode = 1;
+      param->independSliceModeArg = InitParam->slice_arg & 0xffff;
+      VLOG(INFO, "HEVC:independSliceMode %d , independSliceModeArg %d\n",
+           param->independSliceMode, param->independSliceModeArg);
+  } else {
+      param->independSliceMode = 0; //pCfg->vpCfg.independSliceMode;
+      param->independSliceModeArg = 0; //pCfg->vpCfg.independSliceModeArg;
+  }
 
   /* for CMD_ENC_SEQ_DEPENDENT_SLICE */
-  param->dependSliceMode = 0; //pCfg->vpCfg.dependSliceMode;
-  param->dependSliceModeArg = 0; //pCfg->vpCfg.dependSliceModeArg;
+  if (InitParam->slice_mode ==2 &&
+      InitParam->slice_arg &&
+      pEncOP->bitstreamFormat == STD_HEVC) {
+      param->dependSliceMode = 2; //pCfg->vpCfg.dependSliceMode;
+      param->dependSliceModeArg = (InitParam->slice_arg >>16) & 0xffff; //pCfg->vpCfg.dependSliceModeArg;
+      VLOG(INFO, "HEVC:dependSliceMode %d , dependSliceModeArg %d\n",
+           param->dependSliceMode, param->dependSliceModeArg);
+  } else {
+    param->dependSliceMode = 0; //pCfg->vpCfg.dependSliceMode;
+    param->dependSliceModeArg = 0; //pCfg->vpCfg.dependSliceModeArg;
+  }
 
   /* for CMD_ENC_SEQ_INTRA_REFRESH_PARAM */
   if (InitParam->IntraRefreshMode &&
@@ -661,8 +680,18 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->transform8x8Enable = 1; //pCfg->vpCfg.transform8x8;
   }
 
-  param->avcSliceMode = 0; //pCfg->vpCfg.avcSliceMode;
-  param->avcSliceArg = 0; //pCfg->vpCfg.avcSliceArg;
+  if (InitParam->slice_mode &&
+      InitParam->slice_mode <= 1 &&
+      InitParam->slice_arg &&
+      pEncOP->bitstreamFormat == STD_AVC) {
+    param->avcSliceMode = InitParam->slice_mode;
+    param->avcSliceArg = InitParam->slice_arg & 0xffff;
+    VLOG(INFO, "AVC:avcSliceMode %d , avcSliceArg %d\n",
+         param->avcSliceMode, param->avcSliceArg);
+  } else {
+    param->avcSliceMode = 0; //pCfg->vpCfg.avcSliceMode;
+    param->avcSliceArg = 0; //pCfg->vpCfg.avcSliceArg;
+  }
   if (InitParam->IntraRefreshMode &&
       InitParam->IntraRefreshMode <= 3 &&
       InitParam->IntraRefreshArg &&
@@ -1832,6 +1861,50 @@ AMVEnc_Status AML_MultiEncChangeIntraPeriod(amv_enc_handle_t ctx_handle,
 
   return AMVENC_SUCCESS;
 }
+
+AMVEnc_Status AML_MultiEncChangeMutiSlice(amv_enc_handle_t ctx_handle,
+                                int multi_slice_mode, int multi_slice_para)
+{
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  EncChangeParam *ChgParam;
+
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.param_change_enable == 0)
+    return AMVENC_FAIL;
+
+  VLOG(INFO, "Change Multislice to mode %d, para %d, count %d\n",
+                multi_slice_mode, multi_slice_para, ctx->changedCount);
+
+  ChgParam = &ctx->changeParam;
+
+  if (ctx->encOpenParam.bitstreamFormat == STD_AVC) {
+    if (multi_slice_mode < 0 || multi_slice_mode >1)
+       return AMVENC_FAIL;
+    ChgParam->avcSliceMode = multi_slice_mode;
+    ChgParam->avcSliceArg = multi_slice_para;
+  } else {    //HEVC
+    if (multi_slice_mode < 0 || multi_slice_mode >2)
+       return AMVENC_FAIL;
+    if (multi_slice_mode == 2) {
+        ChgParam->dependSliceMode = multi_slice_mode;
+        ChgParam->dependSliceModeArg = (multi_slice_para>>16) & 0xffff;
+        ChgParam->independSliceMode = 1;
+    } else {
+        ChgParam->dependSliceMode = 0;
+        ChgParam->dependSliceModeArg = 0;
+        ChgParam->independSliceMode = multi_slice_mode;
+    }
+    ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_DEPEND_SLICE;
+    ChgParam->independSliceModeArg = multi_slice_para & 0xffff;
+  }
+  ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_INDEPEND_SLICE;
+  ctx->param_change_flag ++;
+
+  return AMVENC_SUCCESS;
+}
+
 
 AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
                                 unsigned char* buffer,

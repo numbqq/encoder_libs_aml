@@ -156,6 +156,8 @@ typedef struct EncInitParams_s {
   int maxQP_B;          /* max QP B frame*/
   int minQP_B;          /* min QP B frame */
   int es_buf_sz;        /* ES buffer size */
+  uint32 slice_mode;   /* multi slice mode  0 default*/
+  uint32 slice_arg;    /* multi slce parameters */
 } AMVEncInitParams;
 
 extern amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam);
@@ -179,6 +181,8 @@ extern AMVEnc_Status AML_MultiEncChangeQPMinMax(amv_enc_handle_t ctx_handle,
                                 int minQpB, int maxQpB);
 extern AMVEnc_Status AML_MultiEncChangeIntraPeriod(amv_enc_handle_t ctx_handle,
                                 int IntraQP, int IntraPeriod);
+extern AMVEnc_Status AML_MultiEncChangeMutiSlice(amv_enc_handle_t ctx_handle,
+                                int multi_slice_mode, int multi_slice_para);
 extern AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t handle);
 
 #endif

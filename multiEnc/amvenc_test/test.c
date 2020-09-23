@@ -47,7 +47,7 @@
 #include "../amvenc_lib/include/vp_multi_codec_1_0.h"
 
 #define WIDTH 3840
-#define HEIGHT 2160
+#define HEIGHT 3840    // consider rotated frame
 #define FRAMERATE 60
 
 #define INIT_RETRY 100

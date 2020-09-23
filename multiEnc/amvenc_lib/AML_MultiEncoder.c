@@ -482,6 +482,14 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
                 param->confWinBot = 16 - (pEncOP->picHeight % 16);
        }
   }
+  if ((pEncOP->picWidth % 16) && param->confWinRight == 0
+        && pEncOP->bitstreamFormat == STD_AVC) {
+        /*  need set the drop flag for width*/
+       if (InitParam->rotate_angle != 90 && InitParam->rotate_angle != 270)
+       { // except rotation
+                param->confWinRight = 16 - (pEncOP->picWidth % 16);
+       }
+  }
   /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
   param->independSliceMode = 0; //pCfg->vpCfg.independSliceMode;
   param->independSliceModeArg = 0; //pCfg->vpCfg.independSliceModeArg;
@@ -1440,7 +1448,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     } else {
       src_stride = input->pitch;
       if (src_stride % 16) {
-        VLOG(ERR, "DMA buffer stride to 16 byte align\n");
+        VLOG(ERR, "DMA buffer stride %d  to 16 byte align\n", src_stride);
         return AMVENC_FAIL;
       }
     }

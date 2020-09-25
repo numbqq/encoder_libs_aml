@@ -307,15 +307,17 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   }
   handle->bufType = (AMVEncBufferType)(in_buffer_info->buf_type);
 
+
   if (handle->bufType == DMA_BUFF) {
-    if (handle->mEncParams.width % 16 ||
-        in_buffer_info-> buf_stride % 16) {
-       VLOG(ERR, "dma buffer width and stride must be multiple of 16!");
+    if ((handle->mEncParams.width % 16 && in_buffer_info->buf_stride == 0) ||
+        in_buffer_info->buf_stride % 16) {
+       VLOG(ERR, "dma buffer stride must be multiple of 16!");
        result.is_valid = false;
        result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
        return result;
     }
   }
+
   if (!handle->mSpsPpsHeaderReceived) {
     ret = AML_MultiEncHeader(handle->am_enc_handle, (unsigned char*)out,
                             (unsigned int *)&dataLength);

@@ -1925,7 +1925,7 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
   PhysicalAddress paRdPtr = 0;
   PhysicalAddress paWrPtr = 0;
   int header_size = 0;
-  int need_reset = 0;
+  int retry = 0;
   RetCode result= RETCODE_SUCCESS;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
   ENC_QUERY_WRPTR_SEL encWrPtrSel = GET_ENC_PIC_DONE_WRPTR;
@@ -1952,33 +1952,46 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
   gettimeofday(&start_test, NULL);
 #endif
 
-  while(1)
-  {
+retry_point:
         result = VPU_EncGiveCommand(ctx->enchandle, ENC_PUT_VIDEO_HEADER, &encHeaderParam);
-        if ( result == RETCODE_QUEUEING_FAILURE ) {
-           usleep(1000);
-           continue;
-        }
-#if defined(HAPS_SIM) || defined(CNM_SIM_DPI_INTERFACE)
-        usleep(1000); //osal_msleep(1);
-#endif
+        if (result != RETCODE_SUCCESS) {
+           retry ++;
+           if (result == RETCODE_QUEUEING_FAILURE ) {
+              VLOG(DEBUG, "Instance %d HEADER Queue fail\n",
+                   ctx->enchandle->instIndex);
 
-  //  wait interrupt */
+           } else {
+               VLOG(ERR, "HEADER fail instance %d reason %d\n",
+                    ctx->enchandle->instIndex, result);
+           }
+           if (retry > 100)
+           {
+               VLOG(ERR, "INSTANCE #%d HEADER retry failed\n", ctx->enchandle->instIndex);
+                    HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
+               return AMVENC_TIMEOUT;
+           }
+           usleep(1000);
+           goto retry_point;
+        }
+  while (1) {
+    //  wait interrupt */
     if ((status = HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_DONE) {
       break;
     }
-    else if (status == ENC_INT_STATUS_NONE) {
-        VLOG(INFO, "INSTANCE #%d INT timeout \n", ctx->enchandle->instIndex);
+    else if (status == ENC_INT_STATUS_NONE) { // no interrupt yet
+        VLOG(DEBUG, "INSTANCE #%d INT timeout \n", ctx->enchandle->instIndex);
         VPU_EncGiveCommand(ctx->enchandle, ENC_GET_QUEUE_STATUS, &queueStatus);
-        if (queueStatus.reportQueueCount >0) {
-            VLOG(ERR, "INSTANCE #%d need reset \n", ctx->enchandle->instIndex);
-            need_reset = 1;
-            break;
-        }
+        VLOG(DEBUG, "INSTANCE #%d queuedCmd %d allQueued %d \n",
+             ctx->enchandle->instIndex, queueStatus.instanceQueueCount,
+             queueStatus.reportQueueCount);
+        retry++;
+        if (retry > 20) break;
     }
     else if (status == ENC_INT_STATUS_TIMEOUT) {
+        if (retry++ < 20) break;
         VLOG(ERR, "INSTANCE #%d INTERRUPT TIMEOUT\n", ctx->enchandle->instIndex);
         HandleEncoderError(ctx->enchandle, ctx->frameIdx, NULL);
+        VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
         return AMVENC_TIMEOUT;
     } else {
         VLOG(ERR, "Unknown interrupt status: %d\n",status);
@@ -1987,13 +2000,28 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
     usleep(1000); //osal_msleep(1);
   }
 
+  if (retry) {
+     VLOG(DEBUG, "INSTANCE #%d Possible INT lost rety %d\n",
+          ctx->enchandle->instIndex, retry);
+  }
+
   DisplayEncodedInformation(ctx->enchandle, ctx->encOpenParam.bitstreamFormat, 0, NULL, 0, 0, 1);
 
   VPU_EncGiveCommand(ctx->enchandle, ENC_WRPTR_SEL, &encWrPtrSel);
   encOutputInfo.result = VPU_EncGetOutputInfo(ctx->enchandle, &encOutputInfo);
 
     if (encOutputInfo.result == RETCODE_REPORT_NOT_READY) {
-        return AMVENC_SPS_FAIL; /* Not encoded yet */
+        VPU_EncGiveCommand(ctx->enchandle, ENC_GET_QUEUE_STATUS, &queueStatus);
+        VLOG(DEBUG, "HEADER encode ready queue = %d %d\n",
+             queueStatus.instanceQueueCount, queueStatus.reportQueueCount);
+        if (retry++ < 100)
+        {
+            VLOG(DEBUG, "HEADER NO command in queue, retry\n");
+            goto retry_point;
+        } else {
+            VLOG(DEBUG, "HEADER retry FAILED\n");
+            return AMVENC_SPS_FAIL; /* Not encoded yet */
+        }
     }
     else if (encOutputInfo.result == RETCODE_VLC_BUF_FULL) {
         VLOG(ERR, "VLC BUFFER FULL!!! ALLOCATE MORE TASK BUFFER(%d)!!!\n", ONE_TASKBUF_SIZE_FOR_CQ);
@@ -2001,18 +2029,19 @@ AMVEnc_Status AML_MultiEncHeader(amv_enc_handle_t ctx_handle,
     else if (encOutputInfo.result != RETCODE_SUCCESS) {
         /* ERROR */
         VLOG(ERR, "Failed to encode error = %d\n", encOutputInfo.result);
-        HandleEncoderError(ctx->enchandle, encOutputInfo.encPicCnt, &encOutputInfo);
-        VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
-        return AMVENC_SPS_FAIL;
+        if ( retry++ >100) {
+           VLOG(ERR, "HEADER RETRY failed reset\n");
+           HandleEncoderError(ctx->enchandle, encOutputInfo.encPicCnt, &encOutputInfo);
+           VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
+           return AMVENC_SPS_FAIL;
+        }
+        goto retry_point;
     }
     else {
-        ;/* SUCCESS */
-    }
-    if (need_reset) {
-        VLOG(ERR, "reset encoder error = %d\n", encOutputInfo.result);
-        HandleEncoderError(ctx->enchandle, encOutputInfo.encPicCnt, &encOutputInfo);
-        VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
-        return AMVENC_SPS_FAIL;
+         if (retry) {
+          VLOG(DEBUG, "INSTANCE #%d INT lost recovered %d\n",
+               ctx->enchandle->instIndex, retry);
+         };/* SUCCESS */
     }
     paRdPtr = encOutputInfo.rdPtr;
     paWrPtr = encOutputInfo.wrPtr;

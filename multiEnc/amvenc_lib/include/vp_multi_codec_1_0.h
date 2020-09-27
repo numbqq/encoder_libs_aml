@@ -124,7 +124,7 @@ typedef struct vl_encode_info {
                        /* bit 1: param_change 0:disable (default) 1: enable */
                        /* bit 2 to 6: gop_opt:0 (default), 1:I only 2:IP, */
                        /*                     3: IBBBP, 4: IP_SVC1, 5:IP_SVC2 */
-                       /*                     6: IP_SVC3, 7: IP_SVC4 */
+                       /*                     6: IP_SVC3, 7: IP_SVC4,  8:CustP*/
                        /*                     see define of AMVGOPModeOPT */
                        /* bit 7:LTR control   0:disable (default) 1: enable*/
   int intra_refresh_mode; /* refresh mode select */
@@ -157,6 +157,8 @@ typedef struct vl_encode_info {
                            when: multi_slice_mode ==2
                            bit 0-15: CTUs per independent Slices
                            bit 16-31: size of dependeant slices in bytes */
+  int cust_gop_qp_delta;   /* an qp delta for P  frames
+                            apply to cust GOP mode (>=IP_SVC1)           */
 } vl_encode_info_t;
 
 /* dma buffer info*/

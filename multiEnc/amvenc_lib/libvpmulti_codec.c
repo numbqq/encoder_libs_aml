@@ -210,6 +210,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
             handle->mEncParams.slice_arg = encode_info.multi_slice_arg;
         }
     }
+    handle->mEncParams.cust_qp_delta = encode_info.cust_gop_qp_delta;
     return AMVENC_SUCCESS;
 }
 

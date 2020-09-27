@@ -176,6 +176,11 @@ static CustomGopPicParam AML_svc4[5] = {
 {PIC_TYPE_P, 5, 0, 1, 0,-1, 0},
 };
 
+static CustomGopPicParam AML_custp[2] = {
+{PIC_TYPE_P, 1, 0, 2, 0,-1, 0},
+{PIC_TYPE_P, 2, 0, 2, 1, 0, 0},
+};
+
 typedef struct AMVEncContext_s {
   uint32 magic_num;
   uint32 instance_id;
@@ -445,6 +450,11 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->gopParam.customGopSize = 5;
     GopParam = AML_svc4;
   }
+  else if (InitParam->GopPreset == GOP_IP_CUSTP) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 2;
+    GopParam = AML_custp;
+  }
   else {
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
     return FALSE;
@@ -551,6 +561,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   /* for CMD_ENC_RC_PARAM */
   //pEncOP->rcEnable             = InitParam -> rate_control;
   pEncOP->vbvBufferSize = 3000;//pCfg->VbvBufferSize;
+
   param->cuLevelRCEnable = 1; //pCfg->vpCfg.cuLevelRCEnable;
   param->hvsQPEnable = 1;//pCfg->vpCfg.hvsQPEnable;
   param->hvsQpScale = 2;//pCfg->vpCfg.hvsQpScale;
@@ -589,7 +600,8 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     for (i= 0; i<param->gopParam.customGopSize; i++) {
         param->gopParam.picParam[i].picType = GopParam->picType;
         param->gopParam.picParam[i].pocOffset = GopParam->pocOffset;
-        param->gopParam.picParam[i].picQp = GopParam->picQp + param->intraQP;
+        param->gopParam.picParam[i].picQp = GopParam->picQp + param->intraQP +
+                                            InitParam->cust_qp_delta;
         if (param->gopParam.picParam[i].picQp > 63)
             param->gopParam.picParam[i].picQp = 63;
         param->gopParam.picParam[i].refPocL0 = GopParam->refPocL0;

@@ -72,6 +72,7 @@ static const char *Gop_string[] = {
 	"IP only 2-frame SVC mode",
 	"IP only 3-frame SVC mode",
 	"IP only 4-frame SVC mode",
+	"IP only customer mode",
 };
 
 typedef struct {
@@ -151,6 +152,7 @@ int main(int argc, const char *argv[])
 	int src_buf_stride = 0, conver_stride = 0, intra_refresh_comb = 0;
 	int bitstream_buf_size = 0;
 	int multi_slice = 0, multi_slice_para = 0;
+	int cust_qp_delta = 0, cust_qp_delta_en = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
@@ -205,7 +207,7 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 1: update control. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 2 ~ bit 6 encode GOP patttern options:\n");
 		printf("            \t\t\t 0 default(IP) 1:I only    2:IP_only    3: IBBBP\n");
-		printf("            \t\t\t 4:IP_SVC1     5:IP_SVC2   6: IP_SVC3   7: IP_SVC4\n");
+		printf("            \t\t\t 4:IP_SVC1     5:IP_SVC2   6: IP_SVC3   7: IP_SVC4  8: CUSTP \n");
 		printf("            \t\t  bit 7:long term refereces. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 8:cust source buffer stride . 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 9: convert normal source file stride to cust source stride. 0: disabled (default) 1: enabled\n");
@@ -217,12 +219,14 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 16 ~ bit 17: frame mirroring: 0:none, 1:vertical, 2:horizontal, 3:both V and H\n");
 		printf("            \t\t  bit 18: enable customer bitstream buffer size\n");
 		printf("            \t\t  bit 19 ~ bit 20: enable multi slice mode: 0, one slice(no para), 1 by MB(16x16)/CTU(64x64), 2 by CTU + size(byte)\n");
+		printf("            \t\t  bit 21 cust_qp_delta_en \n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
 		printf("  intraRefresh \t: optional, lower 4 bits for intra-refresh mode; others for refresh parameter, controlled by intraRefresh bit\n");
 		printf("  bitStreamBuf \t: optional, encoded bitstream buffer size in MB\n");
 		printf("  MultiSlice parameter \t: optional, multi slice parameter in MB/CTU or CTU and size (HIGH_16bits size + LOW_16bit CTU) combined\n");
+		printf("  cust_qp_delta  \t: optional, cust_qp_delta apply to P frames value >0 lower; <0 increase the quality \n");
 		return -1;
 	} else
 	{
@@ -325,7 +329,7 @@ int main(int argc, const char *argv[])
 		printf("frame_rotation=%u, frame_mirroring=%u\n",
 				frame_rotation, frame_mirroring);
 		if (gop_pattern) {
-			if (gop_pattern > 7) {
+			if (gop_pattern > 8) {
 				printf("gop_pattern_is: %d invalid;\n",
 					gop_pattern);
 				return -1;
@@ -352,7 +356,11 @@ int main(int argc, const char *argv[])
 			printf("multi slice is enabled mode: %d\n",
 				multi_slice);
 		}
-
+		cust_qp_delta_en = (cfg_option >>21) & 0x1;
+		if (cust_qp_delta_en) {
+			printf("cust qp delta enabled: %d\n",
+				cust_qp_delta_en);
+		}
 		if (argc > 14)
 		{
 			arg_count = 14;
@@ -391,10 +399,16 @@ int main(int argc, const char *argv[])
 					bitstream_buf_size);
 				arg_count ++;
 			}
-			if ( multi_slice && argc > arg_count) {
+			if (multi_slice && argc > arg_count) {
 				multi_slice_para = atoi(argv[arg_count]);
 				printf("Multi-slices para %d \n",
 					multi_slice_para);
+				arg_count ++;
+			}
+			if (cust_qp_delta_en && argc > arg_count) {
+				cust_qp_delta = atoi(argv[arg_count]);
+				printf("cust_qp_delta %d \n",
+					cust_qp_delta);
 				arg_count ++;
 			}
 			if (arg_count != argc) {
@@ -506,6 +520,9 @@ int main(int argc, const char *argv[])
 	if (multi_slice) {
 		encode_info.multi_slice_mode = multi_slice;
 		encode_info.multi_slice_arg = multi_slice_para;
+	}
+	if (cust_qp_delta) {
+		encode_info.cust_gop_qp_delta = cust_qp_delta;
 	}
 	if (inbuf_info.buf_type == DMA_TYPE)
 	{

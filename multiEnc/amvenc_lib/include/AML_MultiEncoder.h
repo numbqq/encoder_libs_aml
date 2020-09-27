@@ -81,6 +81,7 @@ typedef enum AMVGOPModeOPT_S {
   GOP_IP_SVC2,
   GOP_IP_SVC3,
   GOP_IP_SVC4,
+  GOP_IP_CUSTP,
   GOP_MAX_OPT,
 } AMVGOPModeOPT;
 
@@ -158,6 +159,7 @@ typedef struct EncInitParams_s {
   int es_buf_sz;        /* ES buffer size */
   uint32 slice_mode;   /* multi slice mode  0 default*/
   uint32 slice_arg;    /* multi slce parameters */
+  int cust_qp_delta;
 } AMVEncInitParams;
 
 extern amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam);

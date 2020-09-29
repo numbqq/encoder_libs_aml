@@ -106,7 +106,14 @@ void VPU_ClearInterruptEx(VpuHandle handle, Int32 intrFlag)
     ProductVpuClearInterrupt(pCodecInst->coreIdx, intrFlag);
 }
 
-
+void VPU_CheckInterrupt(VpuHandle handle, Uint32 *result_clr)
+{
+    CodecInst *pCodecInst;
+    pCodecInst  = handle;
+    EnterLock(pCodecInst->coreIdx);
+    Vp5VpuCheckInterrupt(pCodecInst->coreIdx, pCodecInst->instIndex, result_clr);
+    LeaveLock(pCodecInst->coreIdx);
+}
 
 int VPU_GetFrameBufSize(VpuHandle handle, int coreIdx, int stride, int height, int mapType, int format, int interleave, DRAMConfig *pDramCfg)
 {

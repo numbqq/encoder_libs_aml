@@ -893,7 +893,16 @@ static BOOL SetSequenceInfo (AMVMultiCtx* ctx)
       break;
     }
     else if (status == ENC_INT_STATUS_NONE) {
-      usleep(1000);
+        Uint32  intr_usr = 0;
+        VPU_CheckInterrupt(ctx->enchandle, &intr_usr);
+        VLOG(DEBUG, "Check interrupt status  inst #%d retry %d result %d\n",
+             ctx->enchandle->instIndex, retry_cnt, intr_usr);
+        if (intr_usr) {
+            VLOG(DEBUG, "Check and cleared interrupt  inst #%d go ahead\n",
+                 ctx->enchandle->instIndex);
+            break;
+        }
+        usleep(1000);
     }
     else if (status == ENC_INT_STATUS_TIMEOUT) {
        VLOG(INFO, "INSTANCE #%d INTERRUPT TIMEOUT\n", handle->instIndex);
@@ -1678,6 +1687,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 //    encParam->sourceFrame                        = &in->fb;
   param->sourceFrame->sourceLBurstEn        = 0;
   param->skipPicture                        = 0;
+
   param->forceAllCtuCoefDropEnable	         = 0;
 
   param->forcePicQpEnable		             = 0;
@@ -1991,6 +2001,15 @@ retry_point:
       break;
     }
     else if (status == ENC_INT_STATUS_NONE) { // no interrupt yet
+       Uint32  intr_usr = 0;
+       VPU_CheckInterrupt(ctx->enchandle, &intr_usr);
+       VLOG(DEBUG, "Check interrupt status  inst #%d retry %d result %d\n",
+               ctx->enchandle->instIndex, retry, intr_usr);
+       if (intr_usr) {
+          VLOG(DEBUG, "Check and cleared interrupt  inst #%d go ahead\n",
+               ctx->enchandle->instIndex);
+          break;
+       }
         VLOG(DEBUG, "INSTANCE #%d INT timeout \n", ctx->enchandle->instIndex);
         VPU_EncGiveCommand(ctx->enchandle, ENC_GET_QUEUE_STATUS, &queueStatus);
         VLOG(DEBUG, "INSTANCE #%d queuedCmd %d allQueued %d \n",
@@ -2169,7 +2188,18 @@ retry_pointB:
         ctx->fullInterrupt = TRUE;
         return AMVENC_FAIL; //return TRUE;
     }
-    else if (intStatus == ENC_INT_STATUS_NONE) usleep(1000); //osal_msleep(1);
+    else if (intStatus == ENC_INT_STATUS_NONE) {
+       Uint32  intr_usr = 0;
+       VPU_CheckInterrupt(ctx->enchandle, &intr_usr);
+       VLOG(DEBUG, "Check interrupt status  inst #%d retry %d result %d\n",
+               ctx->enchandle->instIndex, retry_cnt, intr_usr);
+       if (intr_usr) {
+          VLOG(DEBUG, "Check and cleared interrupt  inst #%d go ahead\n",
+               ctx->enchandle->instIndex);
+          break;
+       }
+      usleep(1000); //osal_msleep(1);
+    }
     else if (intStatus == ENC_INT_STATUS_DONE) break; //success get  done intr
    }
     // get the interrupt

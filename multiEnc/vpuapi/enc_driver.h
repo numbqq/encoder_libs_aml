@@ -207,7 +207,8 @@ extern RetCode Vp5VpuGetSrcBufFlag(
     CodecInst* instance,
     Uint32* flag
     );
-
+extern RetCode Vp5VpuCheckInterrupt(Uint32 coreIdx, Uint32 index,
+                             Uint32 *int_result);
 
 #ifdef __cplusplus
 }

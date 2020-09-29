@@ -819,6 +819,72 @@ RetCode Vp5VpuClearInterrupt(Uint32 coreIdx, Uint32 flags)
     return RETCODE_SUCCESS;
 }
 
+RetCode Vp5VpuCheckInterrupt(Uint32 coreIdx, Uint32 instIndex,
+                             Uint32 *int_result)
+{
+    Uint32 R_clr, R_usr, R_int, R_int_sts, R_int_en, R_seq, R_done;
+    Uint32 inst_mask, seq_int_mask, done_int_mask;
+    Uint32 seq_intrs= 0, done_intrs = 0;
+    R_usr = VpuReadReg(coreIdx, VP5_VPU_VINT_REASON_USR);
+    R_clr = VpuReadReg(coreIdx, VP5_VPU_VINT_REASON_CLR);
+    R_int = VpuReadReg(coreIdx, VP5_VPU_VINT_REASON);
+    R_int_sts = VpuReadReg(coreIdx, VP5_VPU_VPU_INT_STS);
+    R_int_en = VpuReadReg(coreIdx, VP5_VPU_VINT_ENABLE);
+    R_seq =  VpuReadReg(coreIdx, VP5_RET_SEQ_DONE_INSTANCE_INFO);
+    R_done =  VpuReadReg(coreIdx,VP5_RET_QUEUE_CMD_DONE_INST);
+
+    VLOG(DEBUG, "--inst %d usr 0x%x, clr %x int %x sts %x en %x seq %x done %x\n",
+         instIndex, R_usr, R_clr, R_int, R_int_sts, R_int_en, R_seq, R_done);
+
+    inst_mask = (1 << instIndex);
+    seq_int_mask = (1 << INT_VP5_ENC_SET_PARAM) | (1<<INT_VP5_INIT_SEQ);
+    done_int_mask = 0xffff & ~(seq_int_mask);
+    if (R_int_sts) { // have interrupt
+       if (R_seq & inst_mask) {
+          seq_intrs = seq_int_mask & R_int;
+          if (seq_intrs == 0)  {
+             VLOG(DEBUG, "seq done but no interrut!\n");
+          }
+          R_seq &= ~(inst_mask);
+          if (R_seq) {
+             VLOG(ERR, "Multiple PAR interrut instances !\n");
+          }
+          VpuWriteReg(coreIdx, VP5_RET_SEQ_DONE_INSTANCE_INFO, R_seq);
+       }
+       if (R_done & inst_mask) {
+          VLOG(DEBUG,"CMD done in place inst %d\n", instIndex);
+          done_intrs = done_int_mask & R_int;
+          if (done_intrs == 0) {
+             VLOG(ERR, "CMD done but no interrut!\n");
+          }
+          R_done &= ~(inst_mask);
+          if (R_done) {
+             VLOG(ERR,"Multiple CMD interrut instances R_done %d!\n", R_done);
+          }
+          VpuWriteReg(coreIdx, VP5_RET_QUEUE_CMD_DONE_INST, R_done);
+       }
+       if ( seq_intrs || done_intrs)
+       {
+          Uint32 ints;
+          ints =  seq_intrs | done_intrs;
+          VpuWriteReg(coreIdx, VP5_VPU_VINT_REASON_CLR, ints);
+          VpuWriteReg(coreIdx, VP5_VPU_VINT_CLEAR, 0x1);
+          R_int &= ~(ints);
+          R_usr &= ~(ints);
+          VpuWriteReg(coreIdx, VP5_VPU_VINT_REASON_USR, R_usr);
+
+          VLOG(DEBUG, "polled interrup inst %d intr 0x%x remain intr %d usr %d\n",
+               instIndex, ints, R_int, R_usr);
+          *int_result = 1;
+       } else
+          *int_result = 0;
+    }
+     else
+      *int_result = 0;
+
+    return RETCODE_SUCCESS;
+}
+
 RetCode Vp5VpuGetBwReport(CodecInst* instance, VPUBWData* bwMon)
 {
     RetCode     ret = RETCODE_SUCCESS;
@@ -1146,7 +1212,6 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_CUSTOM_MAP_ENDIAN, VDI_LITTLE_ENDIAN);
 
-
     if (instance->codecMode == W_SVAC_ENC) {
         regVal = (pParam->profile<<0)                    |
                  (pParam->level<<3)                      |
@@ -1177,9 +1242,7 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                  (pParam->enStillPicture<<30);
     }
 
-
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SPS_PARAM,  regVal);
-
     if (instance->codecMode == W_SVAC_ENC) {
         regVal = (pParam->disableDeblk<<5)               |
                  ((pParam->chromaDcQpOffset&0x1F)<<14)   |
@@ -1341,9 +1404,7 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                                                             ((pParam->cu32InterDeltaRate&0xFF)<<8)   |
                                                             ((pParam->cu32MergeDeltaRate&0xFF)<<16));
 
-
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_DEPENDENT_SLICE, pParam->dependSliceModeArg<<16 | pParam->dependSliceMode);
-
 
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NR_PARAM,   (pParam->nrYEnable<<0)       |
                                                         (pParam->nrCbEnable<<1)      |
@@ -1791,7 +1852,6 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
                                                          (option->codeOption.encodeEOB<<7)              |
                                                          (option->codeOption.encodeFiller<<8));
     }
-
     VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_PIC_PARAM,  (option->skipPicture<<0)        |
                                                     (option->forcePicQpEnable<<1)    |
                                                     (option->forcePicQpI<<2)         |
@@ -1801,8 +1861,6 @@ RetCode Vp5VpuEncode(CodecInst* instance, EncParam* option)
                                                     (option->forcePicType<<21)       |
                                                     (option->forceAllCtuCoefDropEnable<<24) |
                                                     (option->svcLayerFlag<<25));
-
-
     if (option->srcEndFlag == 1)
         VpuWriteReg(coreIdx, VP5_CMD_ENC_PIC_SRC_PIC_IDX, 0xFFFFFFFF);               // no more source image.
     else
@@ -2214,8 +2272,6 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_DEPENDENT_SLICE, param->dependSliceModeArg<<16 | param->dependSliceMode);
     }
 
-
-
     if (instance->codecMode == W_HEVC_ENC && param->enable_option & ENC_SET_CHANGE_PARAM_NR) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_NR_PARAM,   (param->nrYEnable<<0)      |
                                                         (param->nrCbEnable<<1)      |
@@ -2232,7 +2288,6 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
                                                         (param->nrInterWeightCb<<20)|
                                                         (param->nrInterWeightCr<<25));
     }
-
 
     if (param->enable_option & ENC_SET_CHANGE_PARAM_BG) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_BG_PARAM, (param->bgThrDiff<<1)        |
@@ -2314,8 +2369,6 @@ RetCode Vp5VpuEncParaChange(EncHandle instance, EncChangeParam* param)
     return RETCODE_SUCCESS;
 }
 
-
-
 RetCode Vp5VpuGetSrcBufFlag(CodecInst* instance, Uint32* flag) {
 
     RetCode ret = RETCODE_SUCCESS;
@@ -2326,7 +2379,6 @@ RetCode Vp5VpuGetSrcBufFlag(CodecInst* instance, Uint32* flag) {
         return RETCODE_QUERY_FAILURE;
 
     *flag = VpuReadReg(instance->coreIdx, VP5_RET_ENC_SRC_BUF_FLAG);
-
 
     return RETCODE_SUCCESS;
 }

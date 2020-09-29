@@ -5379,6 +5379,8 @@ RetCode VPU_EncSetWrPtr(
     );
 
 
+void VPU_CheckInterrupt(EncHandle handle, Uint32 *result);
+
 #ifdef __cplusplus
 }
 #endif

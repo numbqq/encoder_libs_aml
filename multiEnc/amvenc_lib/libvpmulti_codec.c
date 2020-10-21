@@ -67,6 +67,7 @@ typedef struct vp_multi_s {
   bool mPrependSPSPPSToIDRFrames;
   bool mSpsPpsHeaderReceived;
   bool mKeyFrameRequested;
+  bool mSkipFrameRequested;
   int mLongTermRefRequestFlags;
   int mNumInputFrames;
   AMVEncFrameFmt fmt;
@@ -429,6 +430,12 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       VLOG(INFO, "Force encode a IDR frame at %d frame",
            handle->mNumInputFrames);
     }
+    if (handle->mSkipFrameRequested == true) {
+      videoInput.op_flag |= AMVEncFrameIO_FORCE_SKIP_FLAG;
+      handle->mSkipFrameRequested = false;
+      VLOG(INFO, "Force encode a skip frame at %d frame",
+           handle->mNumInputFrames);
+    }
     if (handle->mEncParams.longterm_ref_enable) {
       if (handle->mLongTermRefRequestFlags) {
         videoInput.op_flag |= ((handle->mLongTermRefRequestFlags & 0x3)<<2);
@@ -567,6 +574,17 @@ int vl_video_encoder_change_bitrate(vl_codec_handle_t codec_handle,
     ret = AML_MultiEncChangeBitRate(handle->am_enc_handle, bitRate);
     if (ret != AMVENC_SUCCESS)
         return -3;
+    return 0;
+}
+
+int vl_video_encoder_skip_frame(vl_codec_handle_t codec_handle)
+{
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    handle->mSkipFrameRequested = true;
+
     return 0;
 }
 

@@ -324,11 +324,12 @@ int vl_video_encoder_change_bitrate(vl_codec_handle_t handle,
  *
  * vl_video_encoder_change_qp
  * Change the QP setings in the encoding
+ * Please note that I frame QP range have to larger than P/B frame range.
  *
  *@param : handle
  *@param : minQpI  the new min QP for I frame
  *@param : maxQpI  the new max QP for I frame
- *@param : maxDeltaQp  the new max QP differneces in a frame
+ *@param : maxDeltaQp  the new max QP differneces for HVS (human visual system)
  *@param : minQpP  the new min QP for P frame
  *@param : maxQpP  the new max QP for P frame
  *@param : minQpB  the new min QP for B frame
@@ -385,7 +386,15 @@ int vl_video_encoder_change_multi_slice(vl_codec_handle_t handle,
  */
 int vl_video_encoder_longterm_ref(vl_codec_handle_t codec_handle,
                                   int LongtermRefFlags);
+/**
 
+ * vl_video_encoder_skip_frame(vl_codec_handle_t codec_handle)
+ *
+ * Change skip the encoding of current frame.
+ *@param : handle
+ *@return : if success return 0 ,else return <= 0
+ */
+int vl_video_encoder_skip_frame(vl_codec_handle_t handle);
 /**
  * destroy encoder
  *

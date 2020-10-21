@@ -1686,7 +1686,12 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   param->srcEndFlag                         = 0; //in->last;
 //    encParam->sourceFrame                        = &in->fb;
   param->sourceFrame->sourceLBurstEn        = 0;
-  param->skipPicture                        = 0;
+
+  if (ctx->op_flag & AMVEncFrameIO_FORCE_SKIP_FLAG) {
+    param->skipPicture                        = 1;
+  } else {
+    param->skipPicture                        = 0;
+  }
 
   param->forceAllCtuCoefDropEnable	         = 0;
 

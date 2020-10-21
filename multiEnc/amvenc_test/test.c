@@ -61,6 +61,7 @@
 #define CUST_SIZE_SMOOTH	0x20
 #define CUST_APP_H264_PLUS	0x40
 #define CHANGE_MULTI_SLICE	0x80
+#define FORCE_PICTURE_SKIP	0x100
 
 // GOP mode strings
 static const char *Gop_string[] = {
@@ -865,6 +866,13 @@ retry:
 					}
 				}
 				if (cfgChange.enable_option
+				    & FORCE_PICTURE_SKIP)
+				{
+					vl_video_encoder_skip_frame(handle_enc);
+					printf("force skip frame on %d \n",
+						    frame_num);
+				}
+				if (cfgChange.enable_option
 				    & CHANGE_TARGET_RATE)
 				{
 					vl_video_encoder_change_bitrate(
@@ -1237,6 +1245,12 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				cfg_update->picType = atoi(token);
 				cfg_update->enable_option |=
 				    FORCE_PICTURE_TYPE;
+			}
+		} else if (strcasecmp("ForceSkip",token) == 0) {
+			// force picture type
+			if (token) {
+				cfg_update->enable_option |=
+				    FORCE_PICTURE_SKIP;
 			}
 		} else if (strcasecmp("ChangeBitRate",token) == 0) {
 			token = strtok(NULL, ":\r\n");

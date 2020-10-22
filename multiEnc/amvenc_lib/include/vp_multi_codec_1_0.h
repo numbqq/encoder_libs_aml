@@ -159,6 +159,10 @@ typedef struct vl_encode_info {
                            bit 16-31: size of dependeant slices in bytes */
   int cust_gop_qp_delta;   /* an qp delta for P  frames
                             apply to cust GOP mode (>=IP_SVC1)           */
+  int strict_rc_window;     /* strict bitrate control window (frames count)
+                             0 disbled max 120, larger value will be clipped*/
+  int strict_rc_skip_thresh;/* threshold of actual bitrate in compare with target
+                              bitrate to trigger skip frame (in percentage)  */
 } vl_encode_info_t;
 
 /* dma buffer info*/
@@ -395,6 +399,32 @@ int vl_video_encoder_longterm_ref(vl_codec_handle_t codec_handle,
  *@return : if success return 0 ,else return <= 0
  */
 int vl_video_encoder_skip_frame(vl_codec_handle_t handle);
+
+/**
+
+ * vl_video_encoder_change_strict_rc(vl_codec_handle_t handle,
+                                  int bitrate_window, int skip_threshold)
+  Change the strict bit-rate control by encoding skip frames
+
+*
+ *@param : handle
+ *@param : bitrate_window:
+ *                          the length of windows (in frames) to calculate
+ *                                   current bitrate
+ *                          0: will disable the feature
+ *                          other value: last number of frames to calculate
+ *                                 current bitrate (max 120 frames)
+ *                                  value larger than that will be clipped
+ *
+ *@param : skip_threshold:  percentage of the current bitrate in compare with
+ *                           the origianl bitrates settings to trigger skip
+ *                           encoding of next frame
+ *
+ *@return : if success return 0 ,else return <= 0
+ **/
+int vl_video_encoder_change_strict_rc(vl_codec_handle_t handle,
+                                  int bitrate_window, int skip_threshold);
+
 /**
  * destroy encoder
  *

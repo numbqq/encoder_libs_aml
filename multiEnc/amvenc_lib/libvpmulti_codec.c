@@ -45,6 +45,9 @@
 #include "include/enc_define.h"
 #include "vdi_osal.h"
 
+#define MAX_FRAME_HIST         (128)
+#define MAX_FRAME_WINDOW       (120)
+
 const char version[] = "Amlogic libvp_multi_codec version 1.0";
 
 #define ENCODE_TIME_OUTER 0
@@ -76,6 +79,12 @@ typedef struct vp_multi_s {
   amv_enc_handle_t am_enc_handle;
   int shared_fd[3];
   uint32 mNumPlanes;
+  int frame_sz_hist[MAX_FRAME_HIST];
+  int hist_in_idx;
+  int hist_out_idx;
+  int total_win_size;
+  int hist_win_len;
+  int hist_skip_thresh;
 } VPMultiEncHandle;
 
 
@@ -215,6 +224,66 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     return AMVENC_SUCCESS;
 }
 
+static void hist_reset(VPMultiEncHandle *handle)
+{
+    if (handle)
+    {
+        handle->hist_in_idx = 0;
+        handle->hist_out_idx = 0;
+        handle->total_win_size = 0;
+    }
+}
+
+static void strict_rc_check(VPMultiEncHandle *handle) {
+    int fullness, bitate, bitrate_target;
+    fullness = handle->hist_in_idx - handle->hist_out_idx;
+    if (fullness < 0) fullness += MAX_FRAME_HIST;
+    while (fullness > handle->hist_win_len) { // have extra, moveout no need
+        handle->total_win_size -= handle->frame_sz_hist[handle->hist_out_idx];
+        if (handle->total_win_size <=0) {
+            VLOG(ERR, "Size zero already size %d, fullness %d\n",
+                 handle->total_win_size, fullness);
+            break;
+        }
+        handle->hist_out_idx++;
+        if (handle->hist_out_idx >= MAX_FRAME_HIST)
+           handle->hist_out_idx = 0;
+        fullness --;
+    }
+    if (fullness == handle->hist_win_len) {// get the enough check bitrate
+        bitate = (handle->total_win_size * 8 * handle->mEncParams.frame_rate)/
+                  handle->hist_win_len;
+        bitrate_target = handle->mEncParams.bitrate*handle->hist_skip_thresh/100;
+        VLOG(INFO, "real bitrate %d target %d\n", bitate, bitrate_target);
+        if (bitate > bitrate_target)
+        {
+            VLOG(DEBUG, " frame %d real bitrate %d over target %d skip\n",
+                     handle->mNumInputFrames, bitate, bitrate_target);
+            handle->mSkipFrameRequested = true;
+        }
+    }
+}
+
+static void strict_rc_filled(VPMultiEncHandle *handle, int dataLength)
+{
+    int fullness, space;
+    fullness = handle->hist_in_idx - handle->hist_out_idx;
+    if (fullness < 0) fullness += MAX_FRAME_HIST;
+    space = MAX_FRAME_HIST - fullness;
+    if (space) { // we shall have space
+       handle->frame_sz_hist[handle->hist_in_idx] = dataLength;
+       handle->hist_in_idx ++;
+       handle->total_win_size += dataLength;
+       if (handle->hist_in_idx >= MAX_FRAME_HIST)
+         handle->hist_in_idx = 0;
+    } else {
+            VLOG(ERR, "no space for frame %d, size %d out %d total %d\n",
+                 handle->hist_in_idx, dataLength,
+                 handle->hist_out_idx,
+                 handle->total_win_size);
+    }
+}
+
 bool check_qp_tbl(const qp_param_t* qp_tbl) {
   if (qp_tbl == NULL) {
     return false;
@@ -273,6 +342,10 @@ vl_codec_handle_t vl_multi_encoder_init(vl_codec_id_t codec_id,
                 encode_info.prepend_spspps_to_idr_frames;
   mHandle->mSpsPpsHeaderReceived = false;
   mHandle->mNumInputFrames = -1;  // 1st two buffers contain SPS and PPS
+  if (encode_info.strict_rc_window > MAX_FRAME_WINDOW)
+     encode_info.strict_rc_window = MAX_FRAME_WINDOW;
+  mHandle->hist_win_len = encode_info.strict_rc_window;
+  mHandle->hist_skip_thresh = encode_info.strict_rc_skip_thresh;
 
   return (vl_codec_handle_t)mHandle;
 
@@ -373,6 +446,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     handle->shared_fd[0] = -1;
     handle->shared_fd[1] = -1;
     handle->shared_fd[2] = -1;
+
+    if (handle->hist_win_len) { // have  strict bitrate control
+        strict_rc_check(handle);
+    }
 
     if (handle->bufType == DMA_BUFF) {
       vl_dma_info_t *dma_info;
@@ -510,6 +587,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           result.err_cod = ret;
       return result;
     }
+
+    if (handle->hist_win_len) { // one frame encoded fill hist
+        strict_rc_filled(handle, dataLength);
+    }
     /* check the returned frame if it has */
     if(videoRet.type == DMA_BUFF) { //have buffer return?
         if(videoRet.num_planes) {
@@ -574,6 +655,8 @@ int vl_video_encoder_change_bitrate(vl_codec_handle_t codec_handle,
     ret = AML_MultiEncChangeBitRate(handle->am_enc_handle, bitRate);
     if (ret != AMVENC_SUCCESS)
         return -3;
+    hist_reset(handle); //bitrate target change reset the hist
+    handle->mEncParams.bitrate = bitRate;
     return 0;
 }
 
@@ -690,6 +773,30 @@ int vl_video_encoder_longterm_ref(vl_codec_handle_t codec_handle,
     handle->mLongTermRefRequestFlags = LongtermRefFlags;
     return 0;
 }
+
+int vl_video_encoder_change_strict_rc(vl_codec_handle_t codec_handle,
+                                  int bitrate_window, int skip_threshold)
+{
+    int ret;
+    VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (bitrate_window > MAX_FRAME_WINDOW)
+        bitrate_window = MAX_FRAME_WINDOW;
+    else if (bitrate_window < 0)
+        bitrate_window = 0;
+
+    handle->hist_win_len = bitrate_window;
+    handle->hist_skip_thresh = skip_threshold;
+
+    if (bitrate_window == 0)
+    {// disable
+        hist_reset(handle);
+    }
+    return 0;
+}
+
 int vl_multi_encoder_destroy(vl_codec_handle_t codec_handle) {
     VPMultiEncHandle *handle = (VPMultiEncHandle *)codec_handle;
     AML_MultiEncRelease(handle->am_enc_handle);

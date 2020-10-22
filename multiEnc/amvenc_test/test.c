@@ -62,6 +62,7 @@
 #define CUST_APP_H264_PLUS	0x40
 #define CHANGE_MULTI_SLICE	0x80
 #define FORCE_PICTURE_SKIP	0x100
+#define CHANGE_STRICT_RC	0x200
 
 // GOP mode strings
 static const char *Gop_string[] = {
@@ -105,6 +106,9 @@ typedef struct {
 	// Change multi-slice
 	int Slice_Mode;  //multi slice mode
 	int Slice_Para;  //para
+	// Change strict bitrate control
+	int bitrate_window;  //bitrate cal window
+	int pskip_threshold;  //threshold for pskip
 } CfgChangeParam;
 
 typedef struct {
@@ -155,6 +159,7 @@ int main(int argc, const char *argv[])
 	int multi_slice = 0, multi_slice_para = 0;
 	int cust_qp_delta = 0, cust_qp_delta_en = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
+	int strict_rate_ctrl_en = 0, bitrate_window = 0, skip_threshold = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
 	vl_frame_type_t enc_frame_type;
@@ -221,6 +226,7 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 18: enable customer bitstream buffer size\n");
 		printf("            \t\t  bit 19 ~ bit 20: enable multi slice mode: 0, one slice(no para), 1 by MB(16x16)/CTU(64x64), 2 by CTU + size(byte)\n");
 		printf("            \t\t  bit 21 cust_qp_delta_en \n");
+		printf("            \t\t  bit 22 strict_rate_ctrl_en (skipP allowed to limit bitrate) default 0 \n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
@@ -228,6 +234,7 @@ int main(int argc, const char *argv[])
 		printf("  bitStreamBuf \t: optional, encoded bitstream buffer size in MB\n");
 		printf("  MultiSlice parameter \t: optional, multi slice parameter in MB/CTU or CTU and size (HIGH_16bits size + LOW_16bit CTU) combined\n");
 		printf("  cust_qp_delta  \t: optional, cust_qp_delta apply to P frames value >0 lower; <0 increase the quality \n");
+		printf("  strict rate control parmeter  \t: optional, High 16 bit bitrate window (frames max 120). low 16 bit bitrate threshold (percent)\n");
 		return -1;
 	} else
 	{
@@ -362,6 +369,11 @@ int main(int argc, const char *argv[])
 			printf("cust qp delta enabled: %d\n",
 				cust_qp_delta_en);
 		}
+		strict_rate_ctrl_en = (cfg_option >>22) & 0x1;
+		if (strict_rate_ctrl_en) {
+			printf("strict bitrate control enabled: %d\n",
+				strict_rate_ctrl_en);
+		}
 		if (argc > 14)
 		{
 			arg_count = 14;
@@ -410,6 +422,14 @@ int main(int argc, const char *argv[])
 				cust_qp_delta = atoi(argv[arg_count]);
 				printf("cust_qp_delta %d \n",
 					cust_qp_delta);
+				arg_count ++;
+			}
+			if (strict_rate_ctrl_en && argc > arg_count) {
+				bitrate_window = atoi(argv[arg_count]);
+				skip_threshold = bitrate_window  & 0xffff;
+				bitrate_window >>=16;
+				printf("bit-rate window %d frames, skip_threshold(%) %d\n",
+					   bitrate_window, skip_threshold);
 				arg_count ++;
 			}
 			if (arg_count != argc) {
@@ -524,6 +544,10 @@ int main(int argc, const char *argv[])
 	}
 	if (cust_qp_delta) {
 		encode_info.cust_gop_qp_delta = cust_qp_delta;
+	}
+	if (strict_rate_ctrl_en) {
+		encode_info.strict_rc_window = bitrate_window;
+		encode_info.strict_rc_skip_thresh = skip_threshold;
 	}
 	if (inbuf_info.buf_type == DMA_TYPE)
 	{
@@ -1013,6 +1037,18 @@ retry:
 					       cfgChange.Slice_Mode,
 					       cfgChange.Slice_Para);
 				}
+				if (cfgChange.enable_option
+				    & CHANGE_STRICT_RC)
+				{
+					vl_video_encoder_change_strict_rc(
+					    handle_enc,
+					    cfgChange.bitrate_window,
+					    cfgChange.pskip_threshold);
+					printf("Change strict rate control on %d window %d threshold %d\n",
+					       frame_num,
+					       cfgChange.bitrate_window,
+					       cfgChange.pskip_threshold);
+				}
 			}
 			if (cfgChange.FrameNum <= frame_num) {
 				has_cfg_update =
@@ -1345,6 +1381,21 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				if (parsed_num == 2)
 					cfg_update->enable_option |=
 					    CHANGE_MULTI_SLICE;
+			}
+		}
+		else if (strcasecmp("ChangeStrictRC",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+			    && strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				parsed_num = sscanf(token, "%d %d",
+					&cfg_update->bitrate_window,
+					&cfg_update->pskip_threshold);
+				if (parsed_num == 2)
+					cfg_update->enable_option |=
+					    CHANGE_STRICT_RC;
 			}
 		}
 		lineStr[0] = 0x0;

@@ -1,13 +1,13 @@
 CXX:=aarch64-linux-gnu-g++
 TARGET=h265EncoderDemo
 AMLENC_LIB=test.o
-LDFLAGS += -lm -lrt -lge2d -lion -Lhevc_enc -lvphevcodec
+LDFLAGS +=-Lhevc_enc -lvphevcodec -lge2d -lion -lrt -lm
 #LDFLAGS += -lm -lrt  -Lhevc_enc -lvphevcodec
 CFLAGS+=-O2 -g -I./../../../libion/include/ion
 LIBS += -L./../../../libion/ -L./../../../libge2d/libge2d
 
 $(TARGET):$(AMLENC_LIB)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(LIBS) $< -o $(TARGET) $(LinkIn)
+	$(CXX) $(CFLAGS) $(LIBS) $< $(LDFLAGS) -o $(TARGET) $(LinkIn)
 
 $(AMLENC_LIB):%.o:%.cpp
 	$(CXX) -c $(CFLAGS) $< -o $@

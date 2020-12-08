@@ -377,7 +377,6 @@ RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
 
     if (oldCodeBase != codeBase) {
         VpuAttr*    pAttr = &g_VpuCoreAttributes[coreIdx];
-
         VpuWriteMem(coreIdx, codeBase, (unsigned char*)firmware, size*2, VDI_128BIT_LITTLE_ENDIAN);
         vdi_set_bit_firmware_to_pm(coreIdx, (Uint16*)firmware);
 
@@ -1104,6 +1103,7 @@ RetCode Vp5VpuBuildUpEncParam(CodecInst* instance, EncOpenParam* param)
 RetCode Vp5VpuEncInitSeq(CodecInst* instance)
 {
     Int32           coreIdx, alignedWidth = 0, alignedHeight=0;
+    int i=0, j = 0;
     Uint32          regVal = 0, rotMirMode;
     EncInfo*        pEncInfo;
     EncOpenParam*   pOpenParam;
@@ -1122,7 +1122,14 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
     * only when gopPresetIdx == custom_gop, custom_gop related registers should be set
     */
     if (pParam->gopPresetIdx == PRESET_IDX_CUSTOM_GOP) {
-        int i=0, j = 0;
+        for (i = VP5_CMD_REG_BASE; i < VP5_CMD_REG_END; i += 4)
+        {
+#if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
+            if (i == VP5_SW_UART_STATUS)
+                continue;
+#endif
+            VpuWriteReg(coreIdx, i, 0x00);
+        }
         VpuWriteReg(coreIdx, VP5_CMD_ENC_CUSTOM_GOP_PARAM, pParam->gopParam.customGopSize);
         for (i=0 ; i<pParam->gopParam.customGopSize; i++) {
             VpuWriteReg(coreIdx, VP5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_0 + (i*4), (pParam->gopParam.picParam[i].picType<<0)            |
@@ -1133,12 +1140,9 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
                                                                             ((pParam->gopParam.picParam[i].refPocL1&0x1F)<<19)   |
                                                                             (pParam->gopParam.picParam[i].temporalId<<24));
         }
-
         for (j = i; j < MAX_GOP_NUM; j++) {
             VpuWriteReg(coreIdx, VP5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_0 + (j*4), 0);
         }
-    }
-    if (pParam->gopPresetIdx == PRESET_IDX_CUSTOM_GOP) {
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SET_PARAM_OPTION, OPT_CUSTOM_GOP);
         Vp5BitIssueCommand(instance, VP5_ENC_SET_PARAM);
 
@@ -1149,6 +1153,14 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
         }
     }
 
+    for (i = VP5_CMD_REG_BASE; i < VP5_CMD_REG_END; i += 4)
+    {
+#if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
+        if (i == VP5_SW_UART_STATUS)
+            continue;
+#endif
+        VpuWriteReg(coreIdx, i, 0x00);
+    }
     /*======================================================================*/
     /*  OPT_COMMON                                                          */
     /*      : the last SET_PARAM command should be called with OPT_COMMON   */

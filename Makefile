@@ -13,7 +13,9 @@ install: all
 	rm -rf .tmp
 	mkdir -p .tmp/usr/lib/aarch64-linux-gnu/ .tmp/usr/local/bin/ .tmp/usr/include/
 	cp aml_libion/*.so .tmp/usr/lib/aarch64-linux-gnu/
+	cp aml_libion/iontest .tmp/usr/local/bin/
 	cp aml_libge2d/libge2d/*.so .tmp/usr/lib/aarch64-linux-gnu/
+	cp aml_libge2d/ge2d_feature_test .tmp/usr/local/bin/
 	cp libencoder/h264/bjunion_enc/*.so .tmp/usr/lib/aarch64-linux-gnu/
 	cp libencoder/h264/h264EncoderDemo .tmp/usr/local/bin/
 	cp libencoder/h265/EncoderAPI-HEVC/hevc_enc/*.so .tmp/usr/lib/aarch64-linux-gnu/

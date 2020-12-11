@@ -20,6 +20,11 @@ install: all
 	cp libencoder/h265/EncoderAPI-HEVC/h265EncoderDemo .tmp/usr/local/bin/
 	cp libencoder/h264/bjunion_enc/vpcodec_1_0.h .tmp/usr/include/
 	cp libencoder/h265/EncoderAPI-HEVC/hevc_enc/vp_hevc_codec_1_0.h .tmp/usr/include/
+	cp aml_libge2d/libge2d/include/aml_ge2d.h .tmp/usr/include/
+	cp aml_libge2d/libge2d/include/aml_ge2d.h .tmp/usr/include/
+	cp aml_libge2d/libge2d/include/ge2d_*.h .tmp/usr/include/
+	cp aml_libge2d/libge2d/kernel-headers/linux/ge2d.h .tmp/usr/include/
+	cp -r aml_libion/include/* .tmp/usr/include/
 
 
 clean:

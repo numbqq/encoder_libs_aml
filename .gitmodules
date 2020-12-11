@@ -1,0 +1,6 @@
+[submodule "aml_libion"]
+	path = aml_libion
+	url = https://github.com/numbqq/aml_libion
+[submodule "aml_libge2d"]
+	path = aml_libge2d
+	url = https://github.com/numbqq/aml_libge2d

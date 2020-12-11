@@ -17,9 +17,9 @@ DEPFILES := $(patsubst %c,%d,$(C_SRCS))
 DEPFILES += $(patsubst %cpp,%d,$(CXX_SRCS))
 
 
-INC = -I./include -I. -I./../../../.././libge2d/libge2d/include
+INC = -I./include -I. -I./../../../.././aml_libge2d/libge2d/include
 TARGET = libvphevcodec.so
-LIBS += -L./../../../../libge2d/libge2d
+LIBS += -L./../../../../aml_libge2d/libge2d
 
 all: $(TARGET)
 

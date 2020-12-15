@@ -94,9 +94,55 @@ typedef struct vpu_dma_buf_info_t {
     ulong phys_addr[3]; /* phys address for DMA buffer */
 } vpu_dma_buf_info_t;
 
+struct vpudrv_inst_param_t {
+  u32 core_idx;
+  u32 inst_idx;
+  u32 stream_type;                /*Unkonw:0, H264: 264, H265: 265*/
+  int picWidth;
+  int picHeight;
+  int profile;                    /* encoding profile: 0 auto (H.264 high, H.265 main profile) */
+                                  /* H.264 1: baseline 2: Main, 3 High profile*/
+  int streamBufSize;              /* the encoded bitstream buffer size in MB (range 1-32)*/
+                                  /* 0: use the default value 2MB */
+  int frameRateInfo;
+  int intraPeriod;                /*A period of intra picture in GOP size */
+  int gopOption;                  /*:0 (default), 1:I only 2:IP, 3: IBBBP, 4: IP_SVC1, 5:IP_SVC2*/
+                                  /* 6: IP_SVC3, 7: IP_SVC4,  8:CustP*/
+  u32 rcMode;                     /*CBR:0, VBR: 1*/
+  int bitRate;                    /*target bit rate in kbps*/
+  int minQpI;                     /*A minimum QP of I picture for rate control */
+  int maxQpI;                     /*A maximum QP of I picture for rate control */
+  int minQpP;                     /*A minimum QP of P picture for rate control */
+  int maxQpP;                     /*A maximum QP of P picture for rate control */
+  int minQpB;                     /*A minimum QP of B picture for rate control */
+  int maxQpB;                     /*A maximum QP of B picture for rate control */
+  int maxDeltaQp;              /*A maximum delta QP for HVS */
+
+  int independSliceMode;          /*A slice mode for independent slice 0 : no multi-slice*/
+                                  /*1 : slice in MB(CTU) number*/
+  int independSliceModeArg;       /*The number of CTU for a slice when independSliceMode */
+								  /*is set with 1 */
+  int dependSliceMode;            /*A slice mode for independent slice (for HEVC only)*/
+                                  /*0 : no multi-slice 1 : slice in CTU number */
+								  /*2 : slice in number of byte*/
+  int dependSliceModeArg;         /*The number of CTU or bytes for a slice when*/
+                                  /*dependSliceMode is set with 1 or 2*/
+
+  int intraRefreshMode;           /*refresh mode select */
+                                  /*0: no refresh, 1:row 2:column, 3: step size in MB(CTU)*/
+                                  /*4 (for HEVC only): Adaptive intra refresh */
+  int IntraRefreshArg;            /*The number of consecutive MB(CTU) rows(row mode),The*/
+                                  /*number of consecutive MB(CTU) columns(column mode), */
+								  /*A step size in MB(CTU) (step size mode),The* number*/
+                                  /* The number of Intra CTUs to be encoded in a picture*/
+								  /*(Adaptive mode)*/
+  int custQpDelta;
+};
+
 #define VPUDRV_BUF_LEN  vpu_buffer_t
 #define VPUDRV_INST_LEN  vpudrv_inst_info_t
 #define VPUDRV_DMABUF_LEN vpu_dma_buf_info_t
+#define VPUDRV_INST_PARAM_LEN struct vpudrv_inst_param_t
 
 #define VDI_MAGIC  'V'
 #define VDI_IOCTL_ALLOCATE_PHYSICAL_MEMORY \
@@ -150,6 +196,8 @@ typedef struct vpu_dma_buf_info_t {
 #define VDI_IOCTL_UNMAP_DMA \
     _IOW(VDI_MAGIC, 17, VPUDRV_DMABUF_LEN)
 
+#define VDI_IOCTL_SYNC_INSTANCE_PARAM \
+	_IOW(VDI_MAGIC, 18, VPUDRV_INST_PARAM_LEN)
 
 typedef enum {
     VDI_LITTLE_ENDIAN = 0,      /* 64bit LE */
@@ -250,6 +298,7 @@ extern "C" {
     int vdi_set_bit_firmware_to_pm(u32 core_idx, const u16 *code);
     int vdi_get_system_endian(u32 core_idx);
     int vdi_convert_endian(u32 core_idx, unsigned int endian);
+	int vdi_sys_sync_inst_param(struct vpudrv_inst_param_t *pvip);
 
 #if defined(SUPPORT_SW_UART) || defined(SUPPORT_SW_UART_V2)
 	int vdi_get_task_num(u32 core_idx);

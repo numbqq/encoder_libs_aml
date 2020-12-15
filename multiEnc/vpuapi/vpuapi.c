@@ -46,6 +46,7 @@
 
 static const Uint16* s_pusBitCode[MAX_NUM_VPU_CORE] = {NULL,};
 static int s_bitCodeSize[MAX_NUM_VPU_CORE] = {0,};
+struct vpudrv_inst_param_t stInstParam[MAX_NUM_VPU_CORE * MAX_NUM_INSTANCE];
 
 Uint32 __VPU_BUSY_TIMEOUT = VPU_BUSY_CHECK_TIMEOUT;
 
@@ -1458,3 +1459,127 @@ RetCode VPU_EncCompleteSeqInit(EncHandle handle, EncInitialInfo * info)
 
     return ret;
 }
+
+RetCode VPU_EncInstParamSync(EncHandle handle,int gopOption, int cust_qp_delta, EncChangeParam* pcp)
+{
+    CodecInst*  pCodecInst;
+    EncInfo*    pEncInfo;
+    Uint32      paramIndex;
+    RetCode     ret = RETCODE_SUCCESS;
+
+    pCodecInst = (CodecInst*)handle;
+    pEncInfo = VPU_HANDLE_TO_ENCINFO(handle);
+    if (pCodecInst->coreIdx >= MAX_NUM_VPU_CORE    ||
+        pCodecInst->coreIdx < 0                    ||
+        pCodecInst->instIndex >= MAX_NUM_INSTANCE  ||
+        pCodecInst->instIndex < 0
+    ) {
+        VLOG(ERR,"Invalid parameter coreIdx[%d] or instIndex[%d]\n",pCodecInst->coreIdx,pCodecInst->instIndex);
+        return RETCODE_FAILURE;
+    }
+
+    EnterLock(pCodecInst->coreIdx);
+
+    paramIndex = pCodecInst->instIndex + pCodecInst->coreIdx * MAX_NUM_INSTANCE;
+    if (pcp == NULL) {
+        /*sync with open param*/
+        osal_memset(&stInstParam[paramIndex],0,sizeof(struct vpudrv_inst_param_t));
+        stInstParam[paramIndex].core_idx = pCodecInst->coreIdx;
+        stInstParam[paramIndex].inst_idx = pCodecInst->instIndex;
+        stInstParam[paramIndex].picWidth = pEncInfo->openParam.picWidth;
+        stInstParam[paramIndex].picHeight = pEncInfo->openParam.picHeight;
+        stInstParam[paramIndex].frameRateInfo = pEncInfo->openParam.frameRateInfo;
+        stInstParam[paramIndex].streamBufSize = pEncInfo->openParam.streamBufSize;
+        stInstParam[paramIndex].profile = pEncInfo->openParam.EncStdParam.vpParam.profile;
+
+        stInstParam[paramIndex].intraPeriod = pEncInfo->openParam.EncStdParam.vpParam.intraPeriod;
+        stInstParam[paramIndex].gopOption = gopOption;
+        stInstParam[paramIndex].bitRate = pEncInfo->openParam.bitRate;
+        stInstParam[paramIndex].minQpI = pEncInfo->openParam.EncStdParam.vpParam.minQpI;
+        stInstParam[paramIndex].maxQpI = pEncInfo->openParam.EncStdParam.vpParam.maxQpI;
+        stInstParam[paramIndex].minQpP = pEncInfo->openParam.EncStdParam.vpParam.minQpP;
+        stInstParam[paramIndex].maxQpP = pEncInfo->openParam.EncStdParam.vpParam.maxQpP;
+        stInstParam[paramIndex].minQpB = pEncInfo->openParam.EncStdParam.vpParam.minQpB;
+        stInstParam[paramIndex].maxQpB = pEncInfo->openParam.EncStdParam.vpParam.maxQpB;
+        stInstParam[paramIndex].maxDeltaQp = pEncInfo->openParam.EncStdParam.vpParam.hvsMaxDeltaQp;
+
+        if (pEncInfo->openParam.bitstreamFormat == STD_AVC) {
+            stInstParam[paramIndex].stream_type = 264;
+            stInstParam[paramIndex].independSliceMode = pEncInfo->openParam.EncStdParam.vpParam.avcSliceMode;
+            stInstParam[paramIndex].independSliceModeArg = pEncInfo->openParam.EncStdParam.vpParam.avcSliceArg;
+            stInstParam[paramIndex].intraRefreshMode = pEncInfo->openParam.EncStdParam.vpParam.intraMbRefreshMode;
+            stInstParam[paramIndex].IntraRefreshArg= pEncInfo->openParam.EncStdParam.vpParam.intraMbRefreshArg;
+        }
+        else if (pEncInfo->openParam.bitstreamFormat == STD_HEVC) {
+            stInstParam[paramIndex].stream_type = 265;
+            stInstParam[paramIndex].independSliceMode = pEncInfo->openParam.EncStdParam.vpParam.independSliceMode;
+            stInstParam[paramIndex].independSliceModeArg = pEncInfo->openParam.EncStdParam.vpParam.independSliceModeArg;
+            stInstParam[paramIndex].dependSliceMode = pEncInfo->openParam.EncStdParam.vpParam.dependSliceMode;
+            stInstParam[paramIndex].dependSliceModeArg = pEncInfo->openParam.EncStdParam.vpParam.dependSliceModeArg;
+            stInstParam[paramIndex].intraRefreshMode = pEncInfo->openParam.EncStdParam.vpParam.intraRefreshMode;
+            stInstParam[paramIndex].IntraRefreshArg= pEncInfo->openParam.EncStdParam.vpParam.intraRefreshArg;
+        }
+        else {
+            stInstParam[paramIndex].stream_type = 0;
+        }
+        stInstParam[paramIndex].custQpDelta = cust_qp_delta;
+
+    }else {
+        /*sync with change param*/
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_RC_TARGET_RATE) {
+            stInstParam[paramIndex].bitRate = pcp->bitRate;
+        }
+
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP) {
+            stInstParam[paramIndex].minQpI = pcp->minQpI;
+            stInstParam[paramIndex].maxQpI = pcp->maxQpI;
+            stInstParam[paramIndex].maxDeltaQp = pcp->hvsMaxDeltaQp;
+        }
+
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_RC_INTER_MIN_MAX_QP) {
+                stInstParam[paramIndex].minQpP = pcp->minQpP;
+                stInstParam[paramIndex].maxQpP = pcp->maxQpP;
+                stInstParam[paramIndex].minQpB = pcp->minQpB;
+                stInstParam[paramIndex].maxQpB = pcp->maxQpB;
+        }
+
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_INTRA_PARAM) {
+            stInstParam[paramIndex].intraPeriod = pcp->intraPeriod;
+        }
+
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_INDEPEND_SLICE) {
+            if (pEncInfo->openParam.bitstreamFormat == STD_AVC) {
+                stInstParam[paramIndex].independSliceMode = pcp->avcSliceMode;
+                stInstParam[paramIndex].independSliceModeArg = pcp->avcSliceArg;
+            }
+            else if (pEncInfo->openParam.bitstreamFormat == STD_HEVC) {
+                stInstParam[paramIndex].independSliceMode = pcp->independSliceMode;
+                stInstParam[paramIndex].independSliceModeArg = pcp->independSliceModeArg;
+            }
+        }
+        if (pcp->enable_option & ENC_SET_CHANGE_PARAM_DEPEND_SLICE) {
+            if (pEncInfo->openParam.bitstreamFormat == STD_HEVC) {
+                stInstParam[paramIndex].independSliceMode = pcp->independSliceMode;
+                stInstParam[paramIndex].independSliceModeArg = pcp->independSliceModeArg;
+            }
+        }
+    }
+
+    if (stInstParam[paramIndex].minQpI == 0 &&
+        stInstParam[paramIndex].maxQpI == 51 &&
+        stInstParam[paramIndex].minQpP == 0  &&
+        stInstParam[paramIndex].maxQpP == 51) {
+        stInstParam[paramIndex].rcMode =  0;
+    }else {
+        stInstParam[paramIndex].rcMode =  1;
+    }
+
+    if (vdi_sys_sync_inst_param(&stInstParam[paramIndex]) != RETCODE_SUCCESS) {
+        ret = RETCODE_FAILURE;
+    }
+
+    LeaveLock(pCodecInst->coreIdx);
+
+    return ret;
+}
+

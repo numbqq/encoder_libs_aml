@@ -1325,6 +1325,10 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
     ctx->enchandle = NULL;
     goto fail_exit;
   }
+  if (VPU_EncInstParamSync(ctx->enchandle,encParam->GopPreset,
+    encParam->cust_qp_delta,NULL) != RETCODE_SUCCESS) {
+    VLOG(ERR, "VPU instance param sync with open param failed\n");
+  }
 
   // customer buffers allocat and settins
   /* Allocate Buffer and Set Data as needed*/
@@ -2135,6 +2139,10 @@ retry_point:
         if (result == RETCODE_SUCCESS) {
             VLOG(INFO, "ENC_SET_PARA_CHANGE queue success option 0x%x\n",
                         ctx->changeParam.enable_option);
+
+            if (VPU_EncInstParamSync(ctx->enchandle,0,0,&ctx->changeParam) != RETCODE_SUCCESS) {
+                VLOG(ERR, "VPU instance param sync with change param failed!\n");
+            }
 
             osal_memset(&ctx->changeParam, 0x00, sizeof(EncChangeParam));
             ctx->param_change_flag = 0;

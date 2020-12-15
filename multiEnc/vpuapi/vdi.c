@@ -596,6 +596,28 @@ int vdi_close_instance(u32 core_idx, u32 inst_idx)
     return 0;
 }
 
+int vdi_sys_sync_inst_param(struct vpudrv_inst_param_t *pvip)
+{
+    vdi_info_t *vdi;
+
+    if (pvip->core_idx >= MAX_NUM_VPU_CORE)
+        return -1;
+
+    vdi = &s_vdi_info[pvip->core_idx];
+
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[pvip->core_idx] == INIT_VDI_STAT_NULL)
+        return -1;
+
+    if (ioctl(vdi->vpu_fd, VDI_IOCTL_SYNC_INSTANCE_PARAM, pvip) < 0)
+    {
+        VLOG(ERR, "[VDI] fail to deliver sync instance param inst_idx=%d\n", (int)pvip->inst_idx);
+        return -1;
+    }
+
+    return 0;
+}
+
 u32 vdi_get_instance_num(u32 core_idx)
 {
     vdi_info_t *vdi;

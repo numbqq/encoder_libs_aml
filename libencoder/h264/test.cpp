@@ -88,7 +88,7 @@ int main(int argc, const char *argv[]) {
     printf("frm_num is: %d ;\n", num);
 
     unsigned framesize  = width * height * 3 / 2;
-    if (fmt == 2 || fmt == 3) {
+    if (fmt == 4 || fmt == 3) {
         framesize = width * height * 3;
     }
     unsigned output_size  = 1024 * 1024 * sizeof(char);

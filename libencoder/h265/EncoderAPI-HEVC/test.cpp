@@ -32,7 +32,7 @@ int main(int argc, const char *argv[]){
         printf("  framerate: framerate \n ");
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
-        printf("  fmt      : encode input fmt 0:nv21, 1:nv12, 2:RGB888\n ");
+        printf("  fmt      : encode input fmt 0:nv21, 1:nv12, 2:RGB888, 3: I420(YU12)\n ");
         return -1;
     }
     else

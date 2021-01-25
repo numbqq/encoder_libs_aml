@@ -54,6 +54,7 @@ static int reset_error = 0;
 extern s32 vdi_init(u32 core_idx);
 extern s32 vdi_release(u32 core_idx);
 
+static bool INIT_GE2D = false;
 
 #if SUPPORT_SCALE
 #include "ge2d_port.h"
@@ -64,7 +65,6 @@ aml_ge2d_t amlge2d;
 static int SRC1_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
 static int SRC2_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
 static int DST_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
-static bool INIT_GE2D = false;
 
 static GE2DOP OP = AML_GE2D_STRETCHBLIT;
 static int do_strechblit(aml_ge2d_info_t *pge2dinfo, AMVHEVCEncFrameIO *input)
@@ -1560,9 +1560,20 @@ AMVEnc_Status Wave4VpuEncEncPic(AMVHEVCEncHandle *Handle, Uint32 idx, int end, u
         VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_PIC_IDX, idx);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_Y, Handle->src_vb[idx].phys_addr);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_U, Handle->src_vb[idx].phys_addr + size_src_luma);
-    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma);
-    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_STRIDE, (src_stride << 16) | src_stride);
-    VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((2 + Handle->mUvSwap) << 0) | (0 << 3) | (gol_endian << 6));
+
+	if (Handle->fmt == AMVENC_YUV420) {
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma + size_src_chroma / 2);
+	} else {//nv12,nv21
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_ADDR_V, Handle->src_vb[idx].phys_addr + size_src_luma);
+	}
+
+	if (Handle->fmt == AMVENC_YUV420) {
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, ((0 << 0) | (0 << 3) | (gol_endian << 6)));
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_STRIDE, (src_stride << 16) | (src_stride / 2));
+	} else {//nv12,nv21
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_FORMAT, (((2 + Handle->mUvSwap) << 0) | (0 << 3) | (gol_endian << 6)));
+		VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SRC_STRIDE, (src_stride << 16) | src_stride);
+	}
 
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_ADDR, 0);
     VpuWriteReg(Handle->instance_id, W4_CMD_ENC_SEI_USER_INFO, 0);
@@ -1672,6 +1683,7 @@ AMVEnc_Status Wave4VpuEncFiniSeq(AMVHEVCEncHandle *Handle) {
     return AMVENC_SUCCESS;
 }
 
+#if SUPPORT_SCALE
 AMVEnc_Status ge2d_colorFormat(AMVEncFrameFmt format) {
     switch (format) {
         case AMVENC_RGB888:
@@ -1687,6 +1699,7 @@ AMVEnc_Status ge2d_colorFormat(AMVEncFrameFmt format) {
             return AMVENC_FAIL;
     }
 }
+#endif
 
 AMVEnc_Status AML_HEVCInitialize(AMVHEVCEncHandle *Handle, AMVHEVCEncParams *encParam, bool* has_mix, int force_mode) {
     AMVEnc_Status ret;
@@ -1854,14 +1867,34 @@ AMVEnc_Status AML_HEVCSetInput(AMVHEVCEncHandle *Handle, AMVHEVCEncFrameIO *inpu
             memcpy(y, (void *) input->YCbCr[0], luma_stride * Handle->enc_height);
         }
 
-        y = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
-        if (Handle->enc_width % 32) {
-            for (unsigned int i = 0; i < Handle->enc_height / 2; i++) {
-                memcpy(y + i * chroma_stride, (void *) ((char *) input->YCbCr[1] + i * Handle->enc_width), Handle->enc_width);
+		if (Handle->fmt == AMVENC_NV12 || Handle->fmt == AMVENC_NV21) {
+			y = (char *) (Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
+			if (Handle->enc_width % 32) {
+				for (unsigned int i = 0; i < Handle->enc_height / 2; i++) {
+					memcpy(y + i * chroma_stride, (void *) ((char *) input->YCbCr[1] + i * Handle->enc_width), Handle->enc_width);
+				}
+			} else {
+				memcpy(y, (void *) input->YCbCr[1], chroma_stride * Handle->enc_height / 2);
+			}
+		} else if (Handle->fmt == AMVENC_YUV420) {
+            y = (char *)(Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma);
+            if (Handle->enc_width % 32) {
+                for (int i = 0; i < Handle->enc_height / 2; i++) {
+                    memcpy(y + i * chroma_stride / 2, (void *) ((char *) input->YCbCr[1] + i * Handle->enc_width / 2), Handle->enc_width/2);
+                }
+            } else {
+                memcpy(y, (void *) input->YCbCr[1], chroma_stride * Handle->enc_height / 4);
+             }
+
+            y = (char *)(Handle->src_vb[Handle->src_idx].virt_addr + size_src_luma + size_src_chroma / 2);
+            if (Handle->enc_width % 32) {
+                for (int i = 0; i < Handle->enc_height / 2; i++) {
+                    memcpy(y + i * chroma_stride / 2, (void *) ((char *) input->YCbCr[2] + i * Handle->enc_width / 2), Handle->enc_width/2);
+                }
+            } else {
+                memcpy(y, (void *) input->YCbCr[2], chroma_stride * Handle->enc_height / 4);
             }
-        } else {
-            memcpy(y, (void *) input->YCbCr[1], chroma_stride * Handle->enc_height / 2);
-        }
+		}
     }
     flush_memory(Handle->instance_id, &Handle->src_vb[Handle->src_idx]);
     return AMVENC_SUCCESS;

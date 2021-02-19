@@ -1529,6 +1529,10 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
        return AMVENC_FAIL;
      }
   }
+  if (idx >= ctx->src_num) {
+     VLOG(ERR, "Too many src buffer request\n");
+     return AMVENC_FAIL;
+  }
 
   if (is_DMA_buffer == 0) {
     // need allocate buffer and copy
@@ -1676,6 +1680,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
     if (vdi_allocate_dma_memory(ctx->encOpenParam.coreIdx, &ctx->bsBuffer[idx], ENC_BS, 0) < 0) {
         VLOG(ERR, "fail to allocate bitstream buffer\n");
         ctx->bsBuffer[idx].size = 0;
+        ctx->encodedSrcFrmIdxArr[idx] = 0;
         return AMVENC_FAIL;
     }
   }
@@ -2180,6 +2185,8 @@ retry_point:
         else { // Error
             VLOG(ERR, "VPU_EncStartOneFrame failed Error code is 0x%x \n", result);
             ChekcAndPrintDebugInfo(ctx->enchandle, TRUE, result);
+            idx = ctx->encMEMSrcFrmIdxArr[encParam->srcIdx];
+            ctx->encodedSrcFrmIdxArr[idx] = 0; //free slot as failed to start
             return AMVENC_FAIL;
         }
 

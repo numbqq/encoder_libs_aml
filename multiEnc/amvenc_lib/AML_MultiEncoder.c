@@ -33,7 +33,7 @@
 
 
 // #define LOG_NDEBUG 0
-#define LOG_TAG "AMLVENC"
+#define LOG_TAG "AMLVENC_MULTI"
 #ifdef MAKEANDROID
 #include <utils/Log.h>
 #endif

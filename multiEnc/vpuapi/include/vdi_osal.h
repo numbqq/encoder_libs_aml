@@ -39,10 +39,6 @@
 #include <ctype.h>
 #include "vputypes.h"
 
-#ifdef MAKEANDROID
-#define LOGCAT
-#endif
-
 typedef enum
 {
     NONE=0, INFO, DEBUG, WARN, ERR, TRACE, MAX_LOG_LEVEL
@@ -72,7 +68,8 @@ enum {
     TERM_COLOR_BRIGHT = 8    /**< Bright mask.   */
 };
 
-#ifdef LOGCAT
+#ifdef __ANDROID__
+#include <log/log.h>
 #define VLOG(level, x...) \
     do { \
         if (level == INFO) \

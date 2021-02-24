@@ -48,7 +48,8 @@
 
 #include "jpegenc_api.h"
 #include "jpegenc.h"
-
+static int64_t total_enc_time=0;
+static int total_enc_frame=0;
 struct jpegenc_request_s {
 	u32 src;
 	u32 encoder_width;
@@ -105,7 +106,7 @@ typedef unsigned int uint32_t;
 
 #define ENCODE_DONE_TIMEOUT 5000
 
-#define DEBUG_TIME
+//#define DEBUG_TIME
 #ifdef DEBUG_TIME
 static struct timeval start_test, end_test;
 #endif
@@ -422,35 +423,35 @@ static unsigned copy_to_local(hw_jpegenc_t* hw_info) {
 				src += hw_info->width / 2;
 				dst += chroma_stride;
 			}
-		} else {
-//			unsigned temp_active = ((hw_info->in_format == FMT_YUV444_PLANE) || (hw_info->in_format == FMT_RGB888_PLANE)) ? active : active / 2;
-//			unsigned temp_h =
-//					((hw_info->in_format == FMT_YUV444_PLANE) || (hw_info->in_format == FMT_RGB888_PLANE)) ? hw_info->height : hw_info->height / 2;
-//			unsigned temp_bytes = ((hw_info->in_format == FMT_YUV444_PLANE) || (hw_info->in_format == FMT_RGB888_PLANE)) ? luma_stride : luma_stride / 2;
-//			offset = hw_info->height * luma_stride;
-//			src = (unsigned char*) (hw_info->src + hw_info->height * active);
-//			dst = (unsigned char*) (hw_info->input_buf.addr + offset);
-//			if (luma_stride != active) {
-//				for (i = 0; i < temp_h; i++) {
-//					memcpy(dst, src, temp_active);
-//					dst += temp_bytes;
-//					src += temp_active;
-//				}
-//			} else {
-//				memcpy(dst, src, temp_bytes * temp_h);
-//			}
-//			offset = temp_h * temp_bytes + hw_info->height * luma_stride;
-//			src = (unsigned char*) (hw_info->src + hw_info->height * active + temp_h * temp_active);
-//			dst = (unsigned char*) (hw_info->input_buf.addr + offset);
-//			if (luma_stride != active) {
-//				for (i = 0; i < temp_h; i++) {
-//					memcpy(dst, src, temp_active);
-//					dst += temp_bytes;
-//					src += temp_active;
-//				}
-//			} else {
-//				memcpy(dst, src, temp_bytes * temp_h);
-//			}
+		} else if (hw_info->in_format == FMT_YUV444_PLANE) {
+			chroma_stride = luma_stride;
+			offset = hw_info->h_stride * luma_stride;
+
+			hw_info->u_stride = hw_info->y_stride;
+			hw_info->v_stride = hw_info->y_stride;
+
+			printf("uoff=%d\n", offset);
+			int i=0;
+			src = (unsigned char*) (hw_info->src + hw_info->width * hw_info->height);
+			dst = (unsigned char*) (hw_info->input_buf.addr + offset);
+
+			for (i = 0; i < hw_info->height; i++) {
+				memcpy(	dst, src, hw_info->width);
+				src += hw_info->width;
+				dst += chroma_stride;
+			}
+
+			offset = hw_info->h_stride * luma_stride * 2;
+			printf("voff=%d\n", offset);
+
+			src = (unsigned char*) (hw_info->src + hw_info->width * hw_info->height * 2);
+			dst = (unsigned char*) (hw_info->input_buf.addr + offset);
+
+			for (i = 0; i < hw_info->height; i++) {
+				memcpy(	dst, src, hw_info->width);
+				src += hw_info->width;
+				dst += chroma_stride;
+			}
 		}
 	}
 	printf("luma_stride=%d, h_stride=%d, hw_info->bpp=%d\n",
@@ -459,7 +460,12 @@ static unsigned copy_to_local(hw_jpegenc_t* hw_info) {
 	return total_size;
 }
 #endif
+static int64_t GetNowUs() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
 
+	return (int64_t)(tv.tv_sec) * 1000000 + (int64_t)(tv.tv_usec);
+}
 static size_t start_encoder(hw_jpegenc_t* hw_info) {
 	int i;
 	int bpp;
@@ -471,7 +477,7 @@ static size_t start_encoder(hw_jpegenc_t* hw_info) {
 	hw_info->src_size = copy_to_local(hw_info);
 	cmd[5] = hw_info->src_size;
 #else
-	printf("hw_info->type=%d\n", hw_info->type);
+	//printf("hw_info->type=%d\n", hw_info->type);
 	if (hw_info->type == JPEGENC_LOCAL_BUFF) {
 		if ((hw_info->in_format == FMT_RGB888) || (hw_info->in_format == FMT_YUV444_SINGLE)) {
 			hw_info->src_size = RGB24_To_RGB24Canvas(hw_info);
@@ -479,25 +485,25 @@ static size_t start_encoder(hw_jpegenc_t* hw_info) {
 			hw_info->src_size = RGBA32_To_RGB24Canvas(hw_info);
 			hw_info->in_format = FMT_RGB888;
 		} else if (hw_info->in_format == FMT_YUV422_SINGLE) {
-			printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+			//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 			hw_info->src_size = YUV422_To_Canvas(hw_info);
 		} else {
-			printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+			//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 			hw_info->src_size = copy_to_local(hw_info);
 		}
 		cmd[5] = hw_info->src_size;
-		printf("cmd[5]=%d\n", cmd[5]);
+		//printf("cmd[5]=%d\n", cmd[5]);
 
 	} else if (hw_info->type == JPEGENC_DMA_BUFF) {
 		cmd[5] = hw_info->width * hw_info->height * hw_info->bpp / 8;
 		int dma_io_status = ioctl(hw_info->dev_fd, JPEGENC_IOC_CONFIG_DMA_INPUT, &(hw_info->dma_fd));
 		if (dma_io_status < 0) {
-			printf("JPEGENC_IOC_CONFIG_DMA_INPUT failed\n");
+			//printf("JPEGENC_IOC_CONFIG_DMA_INPUT failed\n");
 			return -1;
 		}
 	}
 #endif
-	printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+	//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 	cmd[0] = hw_info->type;     //input buffer type
 	cmd[1] = hw_info->in_format;
 	cmd[2] = hw_info->out_format;
@@ -553,7 +559,7 @@ static size_t start_encoder(hw_jpegenc_t* hw_info) {
 		ioctl(hw_info->dev_fd, JPEGENC_IOC_GET_OUTPUT_SIZE, &cmd);
 
 		if ((cmd[0] > 0) && (cmd[1] > 0)) {
-		    printf("hw_encode: done head size:%d, size: %d\n", cmd[0], cmd[1]);
+		    //printf("hw_encode: done head size:%d, size: %d\n", cmd[0], cmd[1]);
 			memcpy(hw_info->dst, hw_info->assit_buf.addr, cmd[0]);
 			memcpy(hw_info->dst + cmd[0], hw_info->output_buf.addr, cmd[1]);
 
@@ -564,7 +570,7 @@ static size_t start_encoder(hw_jpegenc_t* hw_info) {
 			size = 0;
 		}
 	}
-	printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+	//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 	return size;
 }
 
@@ -591,7 +597,7 @@ int hw_encode(jpegenc_handle_t handle, uint8_t *src, uint8_t *dst, enum jpegenc_
 	hw_info->canvas = 0;
 	hw_info->src = src;
 	hw_info->dst = dst;
-	printf("hw_info->dst=%p\n", dst);
+	//printf("hw_info->dst=%p\n", dst);
 	hw_info->dst_size = *datalen;
 
 	switch (hw_info->in_format) {
@@ -606,6 +612,7 @@ int hw_encode(jpegenc_handle_t handle, uint8_t *src, uint8_t *dst, enum jpegenc_
 		break;
 	case FMT_YUV444_PLANE:
 	case FMT_RGB888_PLANE:
+	case FMT_YUV444_SINGLE:
 		hw_info->bpp = 24;
 		break;
 	default:
@@ -614,7 +621,7 @@ int hw_encode(jpegenc_handle_t handle, uint8_t *src, uint8_t *dst, enum jpegenc_
 
 	hw_info->type = mem_type;
 	hw_info->dma_fd = dma_fd;
-	printf("hw_info->dma_fd=%d\n", dma_fd);
+	//printf("hw_info->dma_fd=%d\n", dma_fd);
 	//hw_info->out_format = FMT_YUV420; //FMT_YUV422_SINGLE
 	hw_info->out_format = (enum jpegenc_frame_fmt_e) oformat;
 

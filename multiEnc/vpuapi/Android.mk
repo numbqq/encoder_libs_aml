@@ -36,6 +36,11 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 26 && echo OK),OK)
+LOCAL_MODULE_PATH_32 := $(TARGET_OUT_VENDOR)/lib
+LOCAL_MODULE_PATH_64 := $(TARGET_OUT_VENDOR)/lib64
+endif
+
 LOCAL_LDLIBS := -lm -llog
 
 LOCAL_SRC_FILES := \
@@ -60,7 +65,7 @@ LOCAL_SHARED_LIBRARIES += libcutils \
 LOCAL_C_INCLUDES := $(LOCAL_PATH) \
 		$(LOCAL_PATH)/include
 
-LOCAL_CFLAGS=-Wno-error
+LOCAL_CFLAGS=-Wno-error -D_FILE_OFFSET_BITS=64
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE:= libamvenc_api
 LOCAL_MODULE_TAGS := optional

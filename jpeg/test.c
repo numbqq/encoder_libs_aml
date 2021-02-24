@@ -38,15 +38,22 @@
 #include <unistd.h>
 #include "jpegenc_api.h"
 #include "test_dma_api.h"
+#include <sys/time.h>
 //#include <media/stagefright/foundation/ALooper.h>
 //using namespace android;
 //#include <malloc.h>
 #define LOG_LINE() printf("[%s:%d]\n", __FUNCTION__, __LINE__)
+static int64_t GetNowUs() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+
+	return (int64_t)(tv.tv_sec) * 1000000 + (int64_t)(tv.tv_usec);
+}
 
 static unsigned copy_to_dmabuf(unsigned char *vaddr, unsigned char *yuv_buf, int width, int height, int w_stride, int h_stride, int iformat) {
     unsigned offset = 0;
     int luma_stride = 0, chroma_stride = 0;
-    unsigned i = 0;
+    int i = 0;
     unsigned total_size = 0;
     unsigned char* src = NULL;
     unsigned char* dst = NULL;
@@ -134,7 +141,9 @@ int main(int argc, const char *argv[])
     enum jpegenc_frame_fmt_e oformat;
     struct usr_ctx_s ctx;
     int shared_fd = -1;
-
+	int64_t encoding_time = 0;
+	int enc_frame=0;
+	int count=0;
     if (argc < 6) {
         printf("Amlogic AVC Encode API \n");
         printf("usage: output [srcfile] [outfile] [width] [height] [quality] [iformat] [oformat] [w_stride] [h_stride] [memtype]\n");
@@ -204,26 +213,23 @@ int main(int argc, const char *argv[])
     }
 
     int frame_size = width*height*3/2;
+    if (iformat == 1 || iformat == 5) {
+    	frame_size = width*height*3;
+    } else if (iformat == 0) {
+    	frame_size = width*height*2;
+    }
+
+    printf("frame_size=%d\n", frame_size);
+
     uint8_t *yuv_buf = (uint8_t *)malloc(frame_size);
     if (!yuv_buf) {
         printf("alloc buffer for yuv failed\n");
         return -1;
     }
 
-    uint8_t *out_buf = (uint8_t *)malloc(1048576*2);
+    uint8_t *out_buf = (uint8_t *)malloc(1048576*10);
     if (!out_buf) {
         printf("alloc buffer for output jpeg failed\n");
-        return -1;
-    }
-
-    int rd_size = fread(yuv_buf, 1, frame_size, fin);
-    if (rd_size < frame_size) {
-        printf("short read on yuv file\n");
-        return -1;
-    }
-
-    if (mem_type != JPEGENC_LOCAL_BUFF && mem_type != JPEGENC_DMA_BUFF) {
-        printf("unsupported mem type\n");
         return -1;
     }
 
@@ -237,10 +243,35 @@ int main(int argc, const char *argv[])
 
         int frame_size = w_stride * h_stride * 3 / 2;
         shared_fd = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, frame_size);
+
         if (shared_fd < 0) {
             printf("alloc fail ret=%d, len=%u\n", ret, frame_size);
             return -1;
         }
+
+        uint8_t *vaddr = (uint8_t *) ctx.i_buff[0];
+        if (!vaddr) {
+            printf("mmap failed,Not enough memory\n");
+            return -1;
+        }
+    }
+
+    int rd_size;
+
+    rd_size = fread(yuv_buf, 1, frame_size, fin);
+
+    printf("rd_size=%d, frame_size=%d\n", rd_size, frame_size);
+    if (rd_size < frame_size) {
+        printf("short read on yuv file\n");
+        return -1;
+    }
+
+    if (mem_type != JPEGENC_LOCAL_BUFF && mem_type != JPEGENC_DMA_BUFF) {
+        printf("unsupported mem type\n");
+        return -1;
+    }
+
+    if (mem_type == JPEGENC_DMA_BUFF) {
         uint8_t *vaddr = (uint8_t *) ctx.i_buff[0];
         if (!vaddr) {
             printf("mmap failed,Not enough memory\n");
@@ -248,37 +279,44 @@ int main(int argc, const char *argv[])
         }
 
         copy_to_dmabuf(vaddr, yuv_buf, width, height, w_stride, h_stride, iformat);
-
         sync_cpu(&ctx);
-        free(yuv_buf);
-        yuv_buf = NULL;
     }
 
-    fclose(fin);
-
+    int64_t t_1=GetNowUs();
     int datalen = jpegenc_encode(handle, width, height, w_stride, h_stride, quality, iformat, oformat, mem_type, shared_fd, yuv_buf, out_buf);
+    int64_t t_2=GetNowUs();
+    //fprintf(stderr, "jpegenc_encode time: %lld\n", t_2-t_1);
 
     if (datalen == 0) {
         printf("jpegenc_encode failed\n");
         return -1;
     }
+    encoding_time+=t_2-t_1;
+    enc_frame++;
 
     FILE *fout = fopen(argv[2], "wb");
     if (!fout) {
         printf("open file for writting jpeg file failed\n");
         return -1;
     }
-
     fwrite(out_buf, 1, datalen, fout);
     fclose(fout);
 
-    jpegenc_destroy(handle);
+    //fprintf(stderr, "encode time:%lld, fps:%3.1f\n", encoding_time, enc_frame*1.0/(encoding_time/1000000.0));
 
+    jpegenc_destroy(handle);
     if (mem_type == JPEGENC_DMA_BUFF) {
         if (shared_fd >= 0)
             close(shared_fd);
         destroy_ctx(&ctx);
     }
+
+    free(yuv_buf);
+    yuv_buf = NULL;
+
+    fclose(fin);
+
+
 
 	return 0;
 }

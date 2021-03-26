@@ -180,6 +180,12 @@ static CustomGopPicParam AML_custp[2] = {
 {PIC_TYPE_P, 1, 0, 2, 0,-1, 0},
 {PIC_TYPE_P, 2, 0, 2, 1, 0, 0},
 };
+//hoan mdf ref
+static CustomGopPicParam AML_custp_ref_one[1] =
+{
+{PIC_TYPE_P, 1, 0, 1, 0,-1, 0},
+};
+//end
 
 typedef struct AMVEncContext_s {
   uint32 magic_num;
@@ -420,16 +426,28 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
      if (InitParam->idr_period == 1)
         param->gopPresetIdx = PRESET_IDX_ALL_I; //all I frame
      else
-        param->gopPresetIdx = PRESET_IDX_IPP;
-  } else if (InitParam->GopPreset == GOP_ALL_I) {
+        param->gopPresetIdx = PRESET_IDX_IPP     ;//PRESET_IDX_IPP PRESET_IDX_IPP_SINGLE
+  }
+	else if (InitParam->GopPreset == GOP_ALL_I)
+  {
     param->gopPresetIdx = PRESET_IDX_ALL_I;
   }
   else if (InitParam->GopPreset == GOP_IP) {
-    param->gopPresetIdx = PRESET_IDX_IPP;
+   param->gopPresetIdx = PRESET_IDX_IPP;//ori
+
   }
   else if (InitParam->GopPreset == GOP_IBBBP) {
     param->gopPresetIdx = PRESET_IDX_IBBBP;
   }
+
+
+   else if (InitParam->GopPreset == GOP_IP_CUSTP_REF_ONE)
+   {
+		param->gopPresetIdx = PRESET_IDX_IPP_SINGLE;//ori
+		VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP_REF_ONE\n");
+  }
+
+
   else if (InitParam->GopPreset == GOP_IP_SVC1) {
     param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
     param->gopParam.customGopSize = 2;
@@ -454,7 +472,11 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
     param->gopParam.customGopSize = 2;
     GopParam = AML_custp;
+
+	VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP,param->gopParam.customGopSize %d\n",
+        param->gopParam.customGopSize);
   }
+
   else {
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
     return FALSE;
@@ -928,7 +950,7 @@ static BOOL SetSequenceInfo (AMVMultiCtx* ctx)
   if (ctx->encOpenParam.sourceBufCount > ctx->src_num)
     ctx->src_num = ctx->encOpenParam.sourceBufCount;
 
-  VLOG(INFO, "Required buffer fb_num=%d, src_num=%d, actual src=%d %dx%d\n",
+  VLOG(TRACE, "Required buffer fb_num=%d, src_num=%d, actual src=%d %dx%d\n",
     ctx->fb_num, initialInfo->minSrcFrameCount,
     ctx->src_num, ctx->encOpenParam.picWidth, ctx->encOpenParam.picHeight);
 

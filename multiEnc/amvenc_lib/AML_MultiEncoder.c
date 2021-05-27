@@ -847,7 +847,7 @@ static void DisplayEncodedInformation(
         }
     } else {
         if (performance == TRUE) {
-            VLOG(DEBUG, "%02d %5d %5d %5d   %08x %08x %8x    %2d     %2d %08x    %2d  %8u %8u (%8u,%8u,%8u) (%8u,%8u,%8u) (%8u,%8u,%8u)   %d  %d\n",
+            VLOG(INFO, "%02d %5d %5d %5d   %08x %08x %8x    %2d     %2d %08x    %2d  %8u %8u (%8u,%8u,%8u) (%8u,%8u,%8u) (%8u,%8u,%8u)   %d  %d\n",
                 handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr,
                 encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx,
                 encodedInfo->releaseSrcFlag,
@@ -859,7 +859,7 @@ static void DisplayEncodedInformation(
                 queueStatus.reportQueueCount, queueStatus.instanceQueueCount);
         }
         else {
-            VLOG(DEBUG, "%02d %5d %5d %5d    %08x  %08x %8x     %2d     %2d %04x    %d  %8d %8d %8d %8d      %d %d\n",
+            VLOG(INFO, "%02d %5d %5d %5d    %08x  %08x %8x     %2d     %2d %04x    %d  %8d %8d %8d %8d      %d %d\n",
                 handle->instIndex, encodedInfo->encPicCnt, encodedInfo->picType, encodedInfo->reconFrameIndex, encodedInfo->rdPtr, encodedInfo->wrPtr,
                 encodedInfo->bitstreamSize, (srcEndFlag == 1 ? -1 : srcFrameIdx), encodedInfo->encSrcIdx,
                 encodedInfo->releaseSrcFlag,
@@ -2296,7 +2296,7 @@ retry_pointB:
         ctx->fullInterrupt  = FALSE;
         // copy frames
 
-        VLOG(DEBUG, "Enc bitstream size %d pic_type %d avgQP %d\n",
+        VLOG(INFO, "Enc bitstream size %d pic_type %d avgQP %d\n",
              encOutputInfo.bitstreamSize, encOutputInfo.picType,
              encOutputInfo.avgCtuQp);
         *buf_nal_size = encOutputInfo.bitstreamSize;

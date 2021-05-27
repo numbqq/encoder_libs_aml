@@ -73,7 +73,7 @@ enum {
 #define VLOG(level, x...) \
     do { \
         if (level == INFO) \
-            ALOGI(x); \
+            ALOGV(x); \
         else if (level == DEBUG) \
             ALOGD(x); \
         else if (level == WARN) \

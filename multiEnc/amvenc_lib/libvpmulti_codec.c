@@ -440,7 +440,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     videoInput.coding_timestamp =
         (unsigned long long)handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in us
 
-    VLOG(DEBUG, "videoInput.frame_rate %f videoInput.coding_timestamp %lld, mNumInputFrames %d",
+    VLOG(INFO, "videoInput.frame_rate %f videoInput.coding_timestamp %lld, mNumInputFrames %d",
         videoInput.frame_rate * 1000, videoInput.coding_timestamp, handle->mNumInputFrames);
     result.timestamp_us = videoInput.coding_timestamp;
     handle->shared_fd[0] = -1;

@@ -1025,7 +1025,6 @@ int vdi_read_memory(u32 core_idx, PhysicalAddress addr, unsigned char *data, int
         return -1;
 
     offset = addr - (ulong)vdb.phys_addr;
-        VLOG(DEBUG, "mid13 of vdi_read_memory");
     vdb.phys_addr = addr;
     vdb.size = len;
     vdi_invalidate_memory(core_idx, &vdb);

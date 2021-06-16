@@ -18,18 +18,23 @@ using namespace android;
 
 int main(int argc, const char *argv[]) {
     int width, height, gop, framerate, bitrate, num, in_size = 0;
+    int i_qp_min = -1;
+    int i_qp_max = -1;
+    int p_qp_min = -1;
+    int p_qp_max = -1;
+
     int outfd = -1;
     FILE *fp = NULL;
     int datalen = 0;
     int fmt = 0;
     int fix_qp = -1;
     vl_codec_handle_t handle_enc;
-	int64_t total_encode_time=0, t1,t2;
-	int num_actually_encoded=0;
+    int64_t total_encode_time=0, t1,t2;
+    int num_actually_encoded=0;
     if (argc < 9)
     {
         printf("Amlogic AVC Encode API \n");
-        printf(" usage: output [srcfile][outfile][width][height][gop][framerate][bitrate][num][fmt]\n");
+        printf(" usage: output [srcfile][outfile][width][height][gop][framerate][bitrate][num][fmt][const_qp][i_qp_in][i_qp_max][p_qp_min][p_qp_max]\n");
         printf("  options  :\n");
         printf("  srcfile  : yuv data url in your root fs\n");
         printf("  outfile  : stream url in your root fs\n");
@@ -41,6 +46,10 @@ int main(int argc, const char *argv[]) {
         printf("  num      : encode frame count \n ");
         printf("  fmt      : encode input fmt 0:nv12 1:nv21 2:yv12 3:rgb888 4:bgr888\n ");
         printf("  const_qp : optional, [0-51]\n ");
+        printf("  i_qp_min : i frame qp min\n ");
+        printf("  i_qp_max : i frame qp max\n ");
+        printf("  p_qp_min : p frame qp min\n ");
+        printf("  p_qp_max : p frame qp max\n ");
         return -1;
     }
     else
@@ -66,10 +75,23 @@ int main(int argc, const char *argv[]) {
     num = atoi(argv[8]);
     fmt = atoi(argv[9]);
 
-    if (argc > 10)
+    if (argc == 11)
     {
         fix_qp = atoi(argv[10]);
         printf("fix_qp is: %d ;\n", fix_qp);
+    }
+
+    if (argc == 14)
+    {
+        i_qp_min = atoi(argv[10]);
+        i_qp_max = atoi(argv[11]);
+        p_qp_min = atoi(argv[12]);
+        p_qp_max = atoi(argv[13]);
+
+        printf("i frame qp min:%d\n ",i_qp_min);
+        printf("i frame qp max:%d\n ",i_qp_max);
+        printf("p frame qp min:%d\n ",p_qp_min);
+        printf("p frame qp max:%d\n ",p_qp_max);
     }
 
     if ((framerate < 0) || (framerate > 30))
@@ -116,14 +138,16 @@ int main(int argc, const char *argv[]) {
         printf("open dist file error!\n");
         goto exit;
     }
+
     if (fix_qp >= 0)
     {
         handle_enc = vl_video_encoder_init_fix_qp(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12, fix_qp);
     }
     else
     {
-        handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12);
+        handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12, i_qp_min, i_qp_max, p_qp_min, p_qp_max);
     }
+
     while (num > 0) {
         if (fread(input_buffer, 1, framesize, fp) != framesize) {
             printf("read input file error!\n");

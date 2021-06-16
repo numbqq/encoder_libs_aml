@@ -10,6 +10,10 @@ typedef struct amvenc_initpara_s {
     uint32 MBsIntraRefresh;
     uint32 MBsIntraOverlap;
     int initQP;
+    int i_qp_min;
+    int i_qp_max;
+    int p_qp_min;
+    int p_qp_max;
     bool rcEnable;
     uint32 bitrate;
     uint32 frame_rate;
@@ -70,8 +74,14 @@ typedef struct EncParams_s {
     //AVCFlag submb_pred; /* enable sub MB partition mode */
 
     AVCFlag rate_control; /* rate control enable, on: RC on, off: constant QP */
-    int initQP; /* initial QP */
-    uint32 bitrate; /* target encoding bit rate in bits/second */
+
+	int initQP; /* initial QP */
+	int i_qp_min;
+	int i_qp_max;
+	int p_qp_min;
+	int p_qp_max;
+
+	uint32 bitrate; /* target encoding bit rate in bits/second */
     uint32 CPB_size; /* coded picture buffer in number of bits */
     uint32 init_CBP_removal_delay; /* initial CBP removal delay in msec */
 
@@ -98,7 +108,11 @@ typedef struct {
     int search_range;
     bool rcEnable; /* rate control enable, on: RC on, off: constant QP */
     int initQP; /* initial QP */
-    uint32 bitrate; /* target encoding bit rate in bits/second */
+	int i_qp_min;
+	int i_qp_max;
+	int p_qp_min;
+	int p_qp_max;
+	uint32 bitrate; /* target encoding bit rate in bits/second */
     uint32 cpbSize; /* coded picture buffer in number of bits */
     uint32 initDelayOffset; /* initial CBP removal delay in msec */
     AVCNalUnitType nal_unit_type;

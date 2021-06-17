@@ -118,6 +118,10 @@ typedef struct vl_encode_info {
   bool prepend_spspps_to_idr_frames;
   vl_img_format_t img_format;
   int qp_mode; /* 1: use customer QP range, 0:use default QP range */
+  int forcePicQpEnable;
+  int forcePicQpI;
+  int forcePicQpP;
+  int forcePicQpB;
   int enc_feature_opts; /* option features flag settings.*/
                         /* See above for fields definition in detail */
                        /* bit 0: qp hint(roi) 0:disable (default) 1: enable */

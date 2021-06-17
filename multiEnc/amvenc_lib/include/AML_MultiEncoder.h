@@ -149,6 +149,10 @@ typedef struct EncInitParams_s {
   uint32 longterm_ref_enable; /* enable longterm reference*/
 
   int qp_mode;
+  int forcePicQpEnable;
+  int forcePicQpI;
+  int forcePicQpP;
+  int forcePicQpB;
   int maxQP;
   int minQP;
   int initQP;           /* initial QP */

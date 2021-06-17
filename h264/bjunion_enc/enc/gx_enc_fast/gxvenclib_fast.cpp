@@ -746,6 +746,13 @@ void gen_qp_table(gx_fast_enc_drv_t* p, uint32_t * dst, qp_table_type type)
 {
     char prop[PROPERTY_VALUE_MAX];
     int media_custom = 1;
+
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else
@@ -792,6 +799,13 @@ static AMVEnc_Status start_ime_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr, 
     uint32_t info_off;
     char prop_custom[PROPERTY_VALUE_MAX];
     int media_custom = 1;
+
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop_custom, NULL) > 0) {
 //#else
@@ -921,6 +935,13 @@ static AMVEnc_Status start_intra_cbr_twice(gx_fast_enc_drv_t* p, unsigned char* 
 
     char prop[PROPERTY_VALUE_MAX];
     int media_custom = 1;
+
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else
@@ -930,7 +951,7 @@ static AMVEnc_Status start_intra_cbr_twice(gx_fast_enc_drv_t* p, unsigned char* 
 //    }
     if (p->logtime)
         gettimeofday(&p->start_test, NULL);
-    if (media_custom < 1) {
+    if (media_custom < 1 && p->fix_qp < 0) { /* modify for const qp*/
         q_backup = p->quant;
         if (p->quant <= 23) {
             p->quant = 23;
@@ -1011,7 +1032,7 @@ static AMVEnc_Status start_intra_cbr_twice(gx_fast_enc_drv_t* p, unsigned char* 
         ret = AMVENC_TIMEOUT;
     }
 
-    if (media_custom < 1) {
+    if (media_custom < 1 && p->fix_qp < 0) { /* modify for const qp*/
         p->quant = q_backup;
     }
     if (p->make_qptl == ADJUSTED_QP_FLAG && status == ENCODER_IDR_DONE) {
@@ -1083,6 +1104,13 @@ static AMVEnc_Status start_intra_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr
     uint32_t info_off;
     char prop[PROPERTY_VALUE_MAX];
     int media_custom = 1;
+
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else
@@ -1670,7 +1698,7 @@ void* GxInitFastEncode(int fd, amvenc_initpara_t* init_para) {
 //#endif
 //        sscanf(prop, "%d", &media_custom);
 //    }
-    if (media_custom > 0) {
+    if (media_custom > 0 || p->fix_qp >= 0) { /* modify for const qp*/
         p->qp_mode = 1;    
         ret = ioctl(p->fd, FASTGX_AVC_IOC_QP_MODE, &(p->qp_mode));
         if (ret)
@@ -1771,9 +1799,13 @@ void* GxInitFastEncode(int fd, amvenc_initpara_t* init_para) {
 //                ALOGD("Enable fix qp mode: %d. fd:%d", p->fix_qp, p->fd);
 //            }
 //        }
+
         if (init_para->rcEnable == false || p->fix_qp >= 0) {
             p->make_qptl = 0;
             p->encode_once = 1;
+            /* modify for const qp*/
+            p->fix_qp = p->quant;
+            printf("init_para->rcEnable, p->fix_qp %d %d\n", init_para->rcEnable, p->fix_qp);
         }
         value = -1;
 //        memset(prop, 0, sizeof(prop));
@@ -1876,6 +1908,13 @@ AMVEnc_Status GxFastEncodeSlice(void* dev, unsigned char* outptr, int* datalen) 
 
     char prop[PROPERTY_VALUE_MAX];
     int media_custom = 1;
+
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else

@@ -55,7 +55,20 @@ extern "C" {
      *@return : if success return encoder handle,else return <= 0
      */
     vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format);
-
+    /**
+     * init encoder with const qp mode
+     *
+     *@param : codec_id: codec type
+     *@param : width: video width
+     *@param : height: video height
+     *@param : frame_rate: framerate
+     *@param : bit_rate: bitrate
+     *@param : gop GOP: max I frame interval
+     *@param : img_format: image format
+     *@param : fix_qp: fix qp
+     *@return : if success return encoder handle,else return <= 0
+     */
+    vl_codec_handle_t vl_video_encoder_init_fix_qp(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format, int fix_qp);
     /**
      * encode video
      *

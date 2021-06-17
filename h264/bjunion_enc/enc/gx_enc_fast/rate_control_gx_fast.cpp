@@ -260,6 +260,12 @@ AMVEnc_Status GxFastRCInitFrameQP(void *dev, void *rc, bool IDR, int bitrate, fl
     char prop[PROPERTY_VALUE_MAX];
     int media_custom = 1;
 
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
+
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else

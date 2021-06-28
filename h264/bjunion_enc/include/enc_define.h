@@ -289,4 +289,6 @@ typedef enum {
 #define MAX_SKIP_COUNT_PER_SECOND 15
 #define SKIP_INTERVAL   1
 
+//#define ES_DUMP_ENABLE 1
+#define ES_FILE_NAME "es_dump_file"
 #endif

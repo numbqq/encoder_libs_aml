@@ -136,6 +136,10 @@ typedef struct AMVEncHandle_s {
 
     int fd_in;
     int fd_out;
+
+#if ES_DUMP_ENABLE
+    int esDumpFd;
+#endif
 } AMVEncHandle;
 
 extern AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, bool* has_mix, int force_mode);

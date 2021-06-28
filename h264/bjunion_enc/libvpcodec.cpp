@@ -111,6 +111,16 @@ vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int h
     mHandle->fd_in = -1;
     mHandle->fd_out = -1;
 
+#if ES_DUMP_ENABLE
+    mHandle->esDumpFd = -1;
+    mHandle->esDumpFd = open(ES_FILE_NAME, O_CREAT | O_RDWR | O_TRUNC, 0644);
+    if (mHandle->esDumpFd < 0)
+    {
+        printf("open es dump file error!\n");
+        goto exit;
+    }
+#endif
+
     /*env_h264enc_dump = getenv("h264enc_dump");
     LOGAPI("h264enc_dump=%s\n", env_h264enc_dump);
 	if (env_h264enc_dump)
@@ -369,6 +379,13 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
             return -1;
         }
     }
+
+#if ES_DUMP_ENABLE
+	if (dataLength >= 0) {
+        write(handle->esDumpFd, (unsigned char *)out, dataLength);
+    }
+#endif
+
     LOGAPI("vl_video_encoder_encode return %d\n",dataLength);
     return dataLength;
 }
@@ -391,6 +408,10 @@ int vl_video_encoder_destory(vl_codec_handle_t codec_handle)
         free(handle->mSPSPPSData);
     if (handle)
         delete handle;
+
+#if ES_DUMP_ENABLE
+    close(handle->esDumpFd);
+#endif
 
     return 1;
 }

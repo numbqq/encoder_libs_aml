@@ -150,6 +150,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     }
     handle->mEncParams.encode_once = 1;
 
+
     if (encode_info.enc_feature_opts & ENABLE_ROI_FEATURE)
       handle->mEncParams.roi_enable = 1;
     if (encode_info.enc_feature_opts & ENABLE_PARA_UPDATE)
@@ -160,6 +161,8 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.GopPreset = (AMVGOPModeOPT)
                 ((encode_info.enc_feature_opts >>2) & 0x1f);
     }
+
+   VLOG(TRACE, "enc_feature_opts is 0x%x , GopPresetis 0x%x \n",encode_info.enc_feature_opts,handle->mEncParams.GopPreset);
 
   if (encode_info.img_format == IMG_FMT_NV12) {
     VLOG(INFO, "img_format is IMG_FMT_NV12 \n");

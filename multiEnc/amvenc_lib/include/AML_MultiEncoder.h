@@ -82,6 +82,9 @@ typedef enum AMVGOPModeOPT_S {
   GOP_IP_SVC3,
   GOP_IP_SVC4,
   GOP_IP_CUSTP,
+  //hoan mdf ref
+  GOP_IP_CUSTP_REF_ONE,
+  //end
   GOP_MAX_OPT,
 } AMVGOPModeOPT;
 

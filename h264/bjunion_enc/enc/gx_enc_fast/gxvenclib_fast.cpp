@@ -471,6 +471,10 @@ static void Prepare_CBR_BitsTable(gx_fast_enc_drv_t* p, bool rc)
         return;
     size = p->target << 5;
     block_size = p->block_width * p->block_height;
+    if (block_size == 0) {
+        LOGAPI("block_width:%d, block_height:%d!!", p->block_width, p->block_height);
+        block_size = 1;
+    }
     target = (double) (size / block_size);
     for (i = 0; i < p->block_height_n; i++) {
         for (j = 0; j < p->block_width_n; j++) {
@@ -523,21 +527,6 @@ static void smooth_tbl_mode(gx_fast_enc_drv_t* p, uint32_t tbl[]) {
     qp_max = 35;
   }
 
-  if (isSVCandVBR()) {
-	int qpbase = 43;
-
-//#ifdef SUPPORT_STANDARD_PROP
-//	if (property_get("vendor.media.encoder.qpbase", prop, NULL) > 0) {
-//#else
-//	if (property_get("media.encoder.qpbase", prop, NULL) > 0) {
-//#endif
-//		sscanf(prop, "%d", &qpbase);
-//	}
-
-	if (qpbase > 0 && qpbase > qp_min) {
-		qp_max = qpbase;
-	}
-  }
   for (int i = 0; i < 8; i++) {
     max_value = (uint8_t*)(&tbl[i]);
     max_value += 3;
@@ -583,8 +572,6 @@ static void Fill_CBR_Table(gx_fast_enc_drv_t* p, bool rc)
 //        sscanf(prop, "%d", &media_value);
 //    }
 
-    if (p->bitrate_urgent_mode)
-        media_value = 1;
     if (rc) {
         uint32_t qp_base =qp | qp << 8 | qp << 16 | qp << 24;
         qp_step = 0x01010101;
@@ -858,8 +845,6 @@ static AMVEnc_Status start_ime_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr, 
 //#endif
 //        sscanf(prop, "%d", &media_value);
 //    }
-    if (p->bitrate_urgent_mode)
-        media_value = 1;
     if (value > 0 || media_value > 0) {
         control_info[info_off++] = -4000;
     control_info[info_off++] = 0;

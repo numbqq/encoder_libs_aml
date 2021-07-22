@@ -121,50 +121,21 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
                 qp_max = 48;
         }
 
-        if (!rateCtrl->BitrateScale && !p->cabac_mode) {
-            if (p->bitrate_urgent_mode) {
-                qp_max = 51;
-            } else if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID) {
-                int temp = p->bitrate_urgent_cnt - BITRATE_URGENT_MID;
-                if ((temp * 3) >= BITRATE_URGENT_MID)
-                    qp_max += 2;
-                else if ((temp * 2) >= BITRATE_URGENT_MID)
-                    qp_max += 3;
-                else if (((temp * 10) /7) >= BITRATE_URGENT_MID)
-                    qp_max += 4;
-                if (qp_max > 51)
-                    qp_max = 51;
-            }
-        }
-        if (isSVCandVBR()) {
-
-            int qpbase = 43;
-
-            if (qpbase > 0) {
-                qp_max = qpbase;
-            }
-        }
         if ((unsigned int) numFrameBits > p->target * 3) {
             LOGAPI("base qp + 10:%d", p->quant);
             p->quant += 10;
             if (p->quant > qp_max)
                 p->quant = qp_max;
-            if (!p->bitrate_urgent_mode)
-                p->bitrate_urgent_cnt += BITRATE_URGENT_INC_STEP3;
         } else if ((unsigned int) numFrameBits > p->target * 2) {
             LOGAPI("base qp + 6:%d", p->quant);
             p->quant += 6;
             if (p->quant > qp_max)
                 p->quant = qp_max;
-            if (!p->bitrate_urgent_mode)
-                p->bitrate_urgent_cnt += BITRATE_URGENT_INC_STEP2;
         } else if ((unsigned int) numFrameBits > p->target * 3 / 2) {
             LOGAPI("base qp + 3:%d", p->quant);
             p->quant += 3;
             if (p->quant > qp_max)
                 p->quant = qp_max;
-            if (!p->bitrate_urgent_mode)
-                p->bitrate_urgent_cnt += BITRATE_URGENT_INC_STEP1;
         } else if ((unsigned int) numFrameBits > p->target * 11 / 10) {
             LOGAPI("base qp++:%d", p->quant);
             p->quant++;
@@ -175,47 +146,18 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
             p->quant -= 4;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP3)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP3;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP3)
-                p->bitrate_urgent_cnt = 0;
         } else if ((unsigned int) numFrameBits < p->target * 2 / 3) {
             LOGAPI("base qp - 2:%d", p->quant);
             p->quant -= 2;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP2)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP2;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP2)
-                p->bitrate_urgent_cnt = 0;
         } else if ((unsigned int) numFrameBits < p->target * 9 / 10) {
             LOGAPI("base qp--:%d", p->quant);
             p->quant--;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP1;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt = 0;
-        } else if (!p->bitrate_urgent_mode) {
-            LOGAPI("base qp:%d, bu_cnt:%d", p->quant, p->bitrate_urgent_cnt);
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP1;
         }
 
-        if (p->bitrate_urgent_cnt >= BITRATE_URGENT_TH) {
-            p->bitrate_urgent_mode = true;
-            p->bitrate_urgent_cnt = BITRATE_URGENT_TH;
-        } else if (p->bitrate_urgent_mode &&
-            (p->bitrate_urgent_cnt < BITRATE_URGENT_MID)) {
-            p->bitrate_urgent_mode = false;
-        }
         if (p->quant >= qp_max - 5)
             p->max_qp_count++;
         else

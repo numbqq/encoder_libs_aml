@@ -127,7 +127,7 @@ void AMCleanupRateControlModule(amvenc_hw_t *hw_info)
 {
     if (!hw_info)
         return;
-    if ((!hw_info->rc_data) && (hw_info->dev_id > NO_DEFINE) && (hw_info->dev_id < MAX_DEV))
+    if ((hw_info->rc_data) && (hw_info->dev_id > NO_DEFINE) && (hw_info->dev_id < MAX_DEV))
         grc[hw_info->dev_id]->Release(hw_info->rc_data);
     hw_info->rc_data = NULL;
     return;

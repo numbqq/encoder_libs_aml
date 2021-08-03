@@ -239,11 +239,11 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
 		                free(pps_buf);
 		            }
 				}
-
-				free(handle->mSPSPPSData);
-				handle->mSPSPPSData = merge_buf;
-				handle->mSPSPPSDataSize = merge_pos;
-				free(aux_buf);
+	            free(handle->mSPSPPSData);
+	            handle->mSPSPPSData = merge_buf;
+	            handle->mSPSPPSDataSize = merge_pos;
+	            free(aux_buf);
+	            h264_free(h);
 #endif
             }
 

@@ -438,7 +438,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   if (handle->mNumInputFrames >= 0) {
     AMVMultiEncFrameIO videoInput, videoRet;
     memset(&videoInput, 0, sizeof(videoInput));
-    memset(&videoInput, 0, sizeof(videoRet));
+    memset(&videoRet, 0, sizeof(videoRet));
     videoInput.height = handle->mEncParams.height;
     if (!in_buffer_info-> buf_stride)
         videoInput.pitch = handle->mEncParams.width; //((handle->mEncParams.width + 15) >> 4) << 4;

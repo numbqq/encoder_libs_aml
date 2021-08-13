@@ -70,13 +70,34 @@ static void updateRateControl(GxFastEncRateControl *rateCtrl, bool IDR) {
     /**scene detact**/
     rateCtrl->skip_next_frame = 0;
 
+#ifdef ENABLE_SKIP
+    rateCtrl->frame_position++;
+    rateCtrl->skip_interval--;
+    if (rateCtrl->frame_position >= (rateCtrl->frame_rate+1))
+    {
+        rateCtrl->skip_cnt_per_second = 0;
+        rateCtrl->frame_position = 1;
+    }
+#endif
+
     if (IDR) {
         rateCtrl->last_IDR_bits = rateCtrl->Rc;
         rateCtrl->last_pframe_bits = 0x7fffffff;
     } else {
         rateCtrl->last_pframe_bits = rateCtrl->Rc;
+#ifdef ENABLE_SKIP
+        if (rateCtrl->Rc > 1.2 * rateCtrl->target || rateCtrl->Rc > 1.0 * rateCtrl->last_IDR_bits) {
+            if (rateCtrl->skip_interval < 0 && rateCtrl->skip_cnt_per_second <= MAX_SKIP_COUNT_PER_SECOND) {
+                rateCtrl->skip_next_frame = -1;
+                rateCtrl->skip_cnt ++;
+                rateCtrl->skip_cnt_per_second ++;
+                rateCtrl->skip_interval = SKIP_INTERVAL;
+                rateCtrl->buffer_fullness -= rateCtrl->Rc;
+                LOGAPI("skip current frame ratio:%f",(double)rateCtrl->skip_cnt / rateCtrl->encoded_frames);
+            }
+        }
+#endif
     }
-
     return;
 }
 
@@ -277,6 +298,7 @@ AMVEnc_Status GxFastRCInitFrameQP(void *dev, void *rc, bool IDR, int bitrate, fl
             } else {
                 unsigned int bitsPerFrame = 0;
                 frame_duration_ms = 1000 / fps;
+
                 if ((unsigned int)rateCtrl->timecode > (unsigned int) rateCtrl->last_timecode)
                     bitsPerFrame = (rateCtrl->bitsPerFrame *
                     		((unsigned int) rateCtrl->timecode - (unsigned int) rateCtrl->last_timecode)
@@ -428,6 +450,13 @@ void* GxFastInitRateControlModule(amvenc_initpara_t* init_para) {
 
         rateCtrl->refresh = false;
         rateCtrl->force_IDR = false;
+
+#ifdef ENABLE_SKIP
+        rateCtrl->frame_position = 0;
+        rateCtrl->skip_cnt = 0;
+        rateCtrl->skip_cnt_per_second = 0;
+        rateCtrl->skip_interval = 0;
+#endif
     }
     return (void*) rateCtrl;
 

@@ -35,6 +35,14 @@ typedef struct GxFastEncRateControl_s {
     bool refresh;
     bool force_IDR;
     bool BitrateScale;
+
+#ifdef ENABLE_SKIP
+    int skip_cnt;
+    int skip_cnt_per_second;
+    int frame_position;
+    int skip_interval;
+    int bits_per_second;
+#endif
 } GxFastEncRateControl;
 
 extern AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, int numFrameBits);

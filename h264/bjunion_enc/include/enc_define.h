@@ -285,4 +285,8 @@ typedef enum {
 #define AMVENC_FLUSH_FLAG_DUMP		0x40
 #define AMVENC_FLUSH_FLAG_CBR		0x80
 
+//#define ENABLE_SKIP
+#define MAX_SKIP_COUNT_PER_SECOND 15
+#define SKIP_INTERVAL   1
+
 #endif

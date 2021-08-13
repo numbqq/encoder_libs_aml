@@ -22,6 +22,7 @@ int main(int argc, const char *argv[]) {
     FILE *fp = NULL;
     int datalen = 0;
     int fmt = 0;
+    int fix_qp = -1;
     vl_codec_handle_t handle_enc;
 	int64_t total_encode_time=0, t1,t2;
 	int num_actually_encoded=0;
@@ -39,6 +40,7 @@ int main(int argc, const char *argv[]) {
         printf("  bitrate  : bit rate \n ");
         printf("  num      : encode frame count \n ");
         printf("  fmt      : encode input fmt 0:nv12 1:nv21 2:yv12 3:rgb888 4:bgr888\n ");
+        printf("  const_qp : optional, [0-51]\n ");
         return -1;
     }
     else
@@ -63,6 +65,13 @@ int main(int argc, const char *argv[]) {
     bitrate = atoi(argv[7]);
     num = atoi(argv[8]);
     fmt = atoi(argv[9]);
+
+    if (argc > 10)
+    {
+        fix_qp = atoi(argv[10]);
+        printf("fix_qp is: %d ;\n", fix_qp);
+    }
+
     if ((framerate < 0) || (framerate > 30))
     {
         printf("invalid framerate %d \n",framerate);
@@ -88,7 +97,7 @@ int main(int argc, const char *argv[]) {
     printf("frm_num is: %d ;\n", num);
 
     unsigned framesize  = width * height * 3 / 2;
-    if (fmt == 2 || fmt == 3) {
+    if (fmt == 3 || fmt == 4) { /* modify for yuv size calc */
         framesize = width * height * 3;
     }
     unsigned output_size  = 1024 * 1024 * sizeof(char);
@@ -107,7 +116,14 @@ int main(int argc, const char *argv[]) {
         printf("open dist file error!\n");
         goto exit;
     }
-    handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12);
+    if (fix_qp >= 0)
+    {
+        handle_enc = vl_video_encoder_init_fix_qp(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12, fix_qp);
+    }
+    else
+    {
+        handle_enc = vl_video_encoder_init(CODEC_ID_H264, width, height, framerate, bitrate, gop, IMG_FMT_YV12);
+    }
     while (num > 0) {
         if (fread(input_buffer, 1, framesize, fp) != framesize) {
             printf("read input file error!\n");

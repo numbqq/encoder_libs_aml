@@ -83,6 +83,140 @@ int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, i
     return 0;
 }
 
+/* modify for const qp*/
+int initEncParamsFixQp(AMVEncHandle *handle, int width, int height, int frame_rate, int bit_rate, int gop, int fix_qp)
+{
+    memset(&(handle->mEncParams), 0, sizeof(AMVEncParams));
+    LOGAPI("bit_rate:%d", bit_rate);
+    if ((width % 16 != 0 || height % 2 != 0))
+    {
+        LOGAPI("Video frame size %dx%d must be a multiple of 16", width, height);
+        return -1;
+    } else if (height % 16 != 0) {
+        LOGAPI("Video frame height is not standard:%d", height);
+    } else {
+        LOGAPI("Video frame size is %d x %d", width, height);
+    }
+    /* modify for const qp*/
+    if (fix_qp >= 0)
+    {
+        handle->mEncParams.rate_control = AVC_OFF;
+        handle->mEncParams.initQP = fix_qp;
+        printf("handle->mEncParams.rate_control, handle->mEncParams.initQP %d,%d\n",handle->mEncParams.rate_control, handle->mEncParams.initQP);
+    }
+    else
+    {
+        handle->mEncParams.rate_control = AVC_ON;
+        handle->mEncParams.initQP = 30;
+    }
+
+    handle->mEncParams.init_CBP_removal_delay = 1600;
+    handle->mEncParams.auto_scd = AVC_ON;
+    handle->mEncParams.out_of_band_param_set = AVC_ON;
+    handle->mEncParams.num_ref_frame = 1;
+    handle->mEncParams.num_slice_group = 1;
+    handle->mEncParams.nSliceHeaderSpacing = 0;
+    handle->mEncParams.fullsearch = AVC_OFF;
+    handle->mEncParams.search_range = 16;
+    //handle->mEncParams.sub_pel = AVC_OFF;
+    //handle->mEncParams.submb_pred = AVC_OFF;
+    handle->mEncParams.width = width;
+    handle->mEncParams.height = height;
+    handle->mEncParams.bitrate = bit_rate;
+    handle->mEncParams.frame_rate = 1000 * frame_rate;  // In frames/ms!
+    handle->mEncParams.CPB_size = (uint32)(bit_rate >> 1);
+    handle->mEncParams.FreeRun = AVC_OFF;
+    handle->mEncParams.MBsIntraRefresh = 0;
+    handle->mEncParams.MBsIntraOverlap = 0;
+    handle->mEncParams.encode_once = 1;
+    // Set IDR frame refresh interval
+    /*if ((unsigned) gop == 0xffffffff)
+    {
+        handle->mEncParams.idr_period = -1;//(mIDRFrameRefreshIntervalInSec * mVideoFrameRate);
+    }
+    else if (gop == 0)
+    {
+        handle->mEncParams.idr_period = 0;  // All I frames
+    }
+    else
+    {
+        handle->mEncParams.idr_period = gop + 1;
+    }*/
+    if (gop == 0 || gop < 0) {
+        handle->mEncParams.idr_period = 0;   //an infinite period, only one I frame
+    } else {
+        handle->mEncParams.idr_period = gop; //period of I frame, 1 means all frames are I type.
+    }
+    // Set profile and level
+    handle->mEncParams.profile = AVC_BASELINE;
+    handle->mEncParams.level = AVC_LEVEL4;
+    handle->mEncParams.BitrateScale = AVC_OFF;
+    return 0;
+}
+
+vl_codec_handle_t vl_video_encoder_init_fix_qp(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format, int fix_qp)
+{
+    int ret;
+    AMVEncHandle *mHandle = new AMVEncHandle;
+    bool has_mix = false;
+    int dump_opts = 0;
+    char *env_h264enc_dump;
+
+    if (mHandle == NULL)
+        goto exit;
+
+    memset(mHandle, 0, sizeof(AMVEncHandle));
+    ret = initEncParamsFixQp(mHandle, width, height, frame_rate, bit_rate, gop, fix_qp);
+    if (ret < 0)
+        goto exit;
+
+    ret = AML_HWEncInitialize(mHandle, &(mHandle->mEncParams), &has_mix, 2);
+
+    if (ret < 0)
+        goto exit;
+
+    mHandle->mSpsPpsHeaderReceived = false;
+    mHandle->mNumInputFrames = -1;  // 1st two buffers contain SPS and PPS
+
+    mHandle->fd_in = -1;
+    mHandle->fd_out = -1;
+
+    /*env_h264enc_dump = getenv("h264enc_dump");
+    LOGAPI("h264enc_dump=%s\n", env_h264enc_dump);
+	if (env_h264enc_dump)
+        dump_opts = atoi(env_h264enc_dump);
+    if (dump_opts == 1) {
+        mHandle->fd_in = open("/tmp/h264enc_dump_in.raw", O_CREAT | O_WRONLY);
+        if (mHandle->fd_in == -1)
+            LOGAPI("OPEN file for dump h264enc input failed: %s\n", strerror(errno));
+        mHandle->fd_out = -1;
+    } else if (dump_opts == 2) {
+        mHandle->fd_in  = -1;
+        mHandle->fd_out = open("/tmp/h264enc_dump_out.264", O_CREAT | O_WRONLY);
+        if (mHandle->fd_out == -1)
+            LOGAPI("OPEN file for dump h264enc output failed: %s\n", strerror(errno));
+    } else if (dump_opts == 3) {
+        mHandle->fd_in = open("/tmp/h264enc_dump_in.raw", O_CREAT | O_WRONLY);
+        if (mHandle->fd_in == -1)
+            LOGAPI("OPEN file for dump h264enc input failed: %s\n", strerror(errno));
+
+        mHandle->fd_out = open("/tmp/h264enc_dump_out.264", O_CREAT | O_WRONLY);
+        if (mHandle->fd_out == -1)
+            LOGAPI("OPEN file for dump h264enc output failed: %s\n", strerror(errno));
+    } else {
+        LOGAPI("h264enc_dump disabled\n");
+        mHandle->fd_in = -1;
+        mHandle->fd_out = -1;
+    }*/
+
+    return (vl_codec_handle_t) mHandle;
+
+exit:
+    if (mHandle != NULL)
+        delete mHandle;
+
+    return (vl_codec_handle_t) NULL;
+}
 
 vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format)
 {

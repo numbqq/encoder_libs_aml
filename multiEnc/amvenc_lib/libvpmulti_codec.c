@@ -116,6 +116,14 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.minQP_B = qp_tbl->qp_B_min;
     handle->mEncParams.qp_mode = encode_info.qp_mode;
 
+    handle->mEncParams.forcePicQpEnable = encode_info.forcePicQpEnable;
+    //printf("handle->mEncParams.forcePicQpEnable %d\n",handle->mEncParams.forcePicQpEnable);
+    handle->mEncParams.forcePicQpI = encode_info.forcePicQpI;
+    handle->mEncParams.forcePicQpP = encode_info.forcePicQpP;
+    handle->mEncParams.forcePicQpB = encode_info.forcePicQpB;
+    if (handle->mEncParams.forcePicQpEnable) {
+        handle->mEncParams.rate_control = ENC_SETTING_OFF;
+    }
     handle->mEncParams.rotate_angle = encode_info.frame_rotation;
     handle->mEncParams.mirror = encode_info.frame_mirroring;
     handle->mEncParams.init_CBP_removal_delay = 1600;
@@ -149,7 +157,6 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
       handle->mEncParams.IntraRefreshArg = 0;
     }
     handle->mEncParams.encode_once = 1;
-
 
     if (encode_info.enc_feature_opts & ENABLE_ROI_FEATURE)
       handle->mEncParams.roi_enable = 1;

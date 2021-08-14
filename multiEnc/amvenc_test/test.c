@@ -235,6 +235,8 @@ int main(int argc, const char *argv[])
 		printf("  MultiSlice parameter \t: optional, multi slice parameter in MB/CTU or CTU and size (HIGH_16bits size + LOW_16bit CTU) combined\n");
 		printf("  cust_qp_delta  \t: optional, cust_qp_delta apply to P frames value >0 lower; <0 increase the quality \n");
 		printf("  strict rate control parmeter  \t: optional, High 16 bit bitrate window (frames max 120). low 16 bit bitrate threshold (percent)\n");
+	    printf("  forcePicQpEnable: enable force QP mode\n");
+	    printf("  forcePicQpIPB: force qp value\n");
 		return -1;
 	} else
 	{
@@ -432,12 +434,8 @@ int main(int argc, const char *argv[])
 					   bitrate_window, skip_threshold);
 				arg_count ++;
 			}
-			if (arg_count != argc) {
-				printf("config no match conf %d argc %d\n",
-					cfg_option, argc);
-				return -1;
-			}
 		}
+
 	}
 
 	if (src_buf_stride && src_buf_stride < width) {
@@ -740,6 +738,16 @@ int main(int argc, const char *argv[])
 	playStat.qp_idr = -1;
 
 retry:
+    if (argc > 16) {
+	    encode_info.forcePicQpEnable = atoi(argv[15]);
+	    encode_info.forcePicQpI = atoi(argv[16]);
+	    encode_info.forcePicQpP = atoi(argv[16]);
+	    encode_info.forcePicQpB = atoi(argv[16]);
+	    printf("encode_info.forcePicQpEnable, encode_info.forcePicQpI %d,%d\n",
+	        encode_info.forcePicQpEnable, encode_info.forcePicQpI);
+	    arg_count ++;
+	    arg_count ++;
+	}
 	handle_enc = vl_multi_encoder_init(codec_id, encode_info, &qp_tbl);
 	if (handle_enc == 0) {
 		if ( retry_cnt >= INIT_RETRY) {

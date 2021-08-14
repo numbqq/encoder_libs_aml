@@ -481,7 +481,6 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
     return FALSE;
   }
-
   /* for CMD_ENC_SEQ_INTRA_PARAM */
   param->decodingRefreshType = 1; //pCfg->vpCfg.decodingRefreshType;
   param->intraPeriod = InitParam->idr_period;//pCfg->vpCfg.intraPeriod;
@@ -1726,10 +1725,11 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
   param->forceAllCtuCoefDropEnable	         = 0;
 
-  param->forcePicQpEnable		             = 0;
-  param->forcePicQpI			             = 0;
-  param->forcePicQpP			             = 0;
-  param->forcePicQpB			             = 0;
+  param->forcePicQpEnable                    = ctx->mInitParams.forcePicQpEnable;
+  param->forcePicQpI                         = ctx->mInitParams.forcePicQpI;
+  param->forcePicQpP                         = ctx->mInitParams.forcePicQpP;
+  param->forcePicQpB                         = ctx->mInitParams.forcePicQpB;
+
   if (ctx->op_flag & AMVEncFrameIO_FORCE_IDR_FLAG) {
     param->forcePicTypeEnable = 1;
     param->forcePicType = 3; //  0 for I frame. 3 for IDR

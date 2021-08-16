@@ -149,7 +149,14 @@ AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, 
     info->bitrate = encParam->bitrate;
     info->cpbSize = encParam->CPB_size;
     info->initDelayOffset = (info->bitrate * encParam->init_CBP_removal_delay / 1000);
+
     info->initQP = encParam->initQP;
+    //add for qp limit
+    info->i_qp_min = encParam->i_qp_min;
+    info->i_qp_max = encParam->i_qp_max;
+    info->p_qp_min = encParam->p_qp_min;
+    info->p_qp_max = encParam->p_qp_max;
+
     info->freerun = (encParam->FreeRun == AVC_ON) ? true : false;
     info->nSliceHeaderSpacing = encParam->nSliceHeaderSpacing;
     info->MBsIntraRefresh = encParam->MBsIntraRefresh;
@@ -189,6 +196,11 @@ AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, 
     info->hw_info.init_para.enc_width = info->enc_width;
     info->hw_info.init_para.enc_height = info->enc_height;
     info->hw_info.init_para.initQP = info->initQP;
+    //add for qp limit
+    info->hw_info.init_para.i_qp_min = info->i_qp_min;
+    info->hw_info.init_para.i_qp_max = info->i_qp_max;
+    info->hw_info.init_para.p_qp_min = info->p_qp_min;
+    info->hw_info.init_para.p_qp_max = info->p_qp_max;
     info->hw_info.init_para.nSliceHeaderSpacing = info->nSliceHeaderSpacing;
     info->hw_info.init_para.MBsIntraRefresh = info->MBsIntraRefresh;
     info->hw_info.init_para.MBsIntraOverlap = info->MBsIntraOverlap;

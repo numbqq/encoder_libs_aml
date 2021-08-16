@@ -136,6 +136,11 @@ typedef struct {
     int32_t quant;
 
     int fix_qp;
+	int i_qp_min;
+	int i_qp_max;
+	int p_qp_min;
+	int p_qp_max;
+
     int nr_mode;
     bool gotSPS;
     uint32_t sps_len;

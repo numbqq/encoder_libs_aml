@@ -514,17 +514,49 @@ void smooth_tbl(uint32_t tbl[])
             //LOGAPI("EB smooth qp %x", tbl[i]);
         }
 }
+
 static void smooth_tbl_mode(gx_fast_enc_drv_t* p, uint32_t tbl[]) {
   uint8_t* max_value;
   int qp_min, qp_max;
   if (p == NULL)
     return;
+
   if (p->IDRframe) {
-    qp_min = 15;
-    qp_max = 30;
+    if (p->i_qp_min != -1 && p->i_qp_max != -1)
+    {
+        qp_min = p->i_qp_min;
+        qp_max = p->i_qp_max;
+        LOGAPI("I frame qp_min, qp_max:%d,%d\n",qp_min,qp_max);
+    }
+    else
+    {
+        qp_min = 15;
+        qp_max = 30;
+        LOGAPI("I frame default frame qp_min, qp_max:%d,%d\n",qp_min,qp_max);
+    }
   } else {
-    qp_min = 20;
-    qp_max = 35;
+    if (p->p_qp_min != -1 && p->p_qp_max != -1)
+    {
+        qp_min = p->p_qp_min;
+        qp_max = p->p_qp_max;
+        LOGAPI("P frame qp_min, qp_max:%d,%d\n",qp_min,qp_max);
+    }
+    else
+    {
+        qp_min = 20;
+        qp_max = 35;
+        LOGAPI("P frame default frame qp_min, qp_max:%d,%d\n",qp_min,qp_max);
+    }
+  }
+
+  if (p->quant > qp_max)
+  {
+    p->quant = qp_max;
+  }
+
+  if (p->quant < qp_min)
+  {
+    p->quant = qp_min;
   }
 
   for (int i = 0; i < 8; i++) {
@@ -540,6 +572,9 @@ static void smooth_tbl_mode(gx_fast_enc_drv_t* p, uint32_t tbl[]) {
       max_value--;
     }
   }
+  LOGAPI("p->quant %d\n", p->quant);
+
+  return;
 }
 
 static void Fill_CBR_Table(gx_fast_enc_drv_t* p, bool rc)
@@ -760,7 +795,17 @@ void gen_qp_table(gx_fast_enc_drv_t* p, uint32_t * dst, qp_table_type type)
 //#endif
 //        sscanf(prop, "%d", &media_custom);
 //    }
-    if (type == curve) {
+    if (media_custom > 0) {
+        smooth_tbl_mode(p, dst);
+        smooth_tbl_mode(p, dst + sizeof(qp_table_t) / 4 / 3);
+        smooth_tbl_mode(p, dst + sizeof(qp_table_t) / 4 / 3 * 2);
+    } else {
+    smooth_tbl(dst);
+    smooth_tbl(dst + sizeof(qp_table_t) / 4 / 3);
+    smooth_tbl(dst + sizeof(qp_table_t) / 4 / 3 * 2);
+    }
+
+	if (type == curve) {
         int qp_base = p->quant | p->quant << 8 | p->quant << 16 | p->quant << 24;
         for (int i = 0; i < 8; i++) {
             *(dst + i) = qp_base + p->qp_tbl[i];
@@ -775,15 +820,6 @@ void gen_qp_table(gx_fast_enc_drv_t* p, uint32_t * dst, qp_table_type type)
             memset(dst + sizeof(qp_table_t) / 4 / 3 + i, p->quant + (i - 4), 4);
             memset(dst + sizeof(qp_table_t) / 4 / 3 * 2 + i, p->quant + (i - 4), 4);
         }
-    }
-    if (media_custom > 0) {
-        smooth_tbl_mode(p, dst);
-        smooth_tbl_mode(p, dst + sizeof(qp_table_t) / 4 / 3);
-        smooth_tbl_mode(p, dst + sizeof(qp_table_t) / 4 / 3 * 2);
-    } else {
-    smooth_tbl(dst);
-    smooth_tbl(dst + sizeof(qp_table_t) / 4 / 3);
-    smooth_tbl(dst + sizeof(qp_table_t) / 4 / 3 * 2);
     }
 }
 
@@ -1708,6 +1744,10 @@ void* GxInitFastEncode(int fd, amvenc_initpara_t* init_para) {
     }
 
     p->quant = init_para->initQP;
+    p->i_qp_min = init_para->i_qp_min;
+    p->i_qp_max = init_para->i_qp_max;
+    p->p_qp_min = init_para->p_qp_min;
+    p->p_qp_max = init_para->p_qp_max;
     p->enc_width = init_para->enc_width;
     p->enc_height = init_para->enc_height;
     p->mmap_buff.size = buff_info[0];

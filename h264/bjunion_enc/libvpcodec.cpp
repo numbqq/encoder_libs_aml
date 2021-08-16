@@ -22,7 +22,7 @@ const char *vl_get_version()
     return version;
 }
 
-int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, int bit_rate, int gop)
+int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, int bit_rate, int gop, int i_qp_min, int i_qp_max, int p_qp_min, int p_qp_max)
 {
     memset(&(handle->mEncParams), 0, sizeof(AMVEncParams));
     LOGAPI("bit_rate:%d", bit_rate);
@@ -80,6 +80,11 @@ int initEncParams(AMVEncHandle *handle, int width, int height, int frame_rate, i
     handle->mEncParams.level = AVC_LEVEL4;
     handle->mEncParams.initQP = 30;
     handle->mEncParams.BitrateScale = AVC_OFF;
+    //add for qp limit
+    handle->mEncParams.i_qp_min = i_qp_min;
+    handle->mEncParams.i_qp_max = i_qp_max;
+    handle->mEncParams.p_qp_min = p_qp_min;
+    handle->mEncParams.p_qp_max = p_qp_max;
     return 0;
 }
 
@@ -218,7 +223,7 @@ exit:
     return (vl_codec_handle_t) NULL;
 }
 
-vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format)
+vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int height, int frame_rate, int bit_rate, int gop, vl_img_format_t img_format, int i_qp_min, int i_qp_max, int p_qp_min, int p_qp_max)
 {
     int ret;
     AMVEncHandle *mHandle = new AMVEncHandle;
@@ -230,7 +235,7 @@ vl_codec_handle_t vl_video_encoder_init(vl_codec_id_t codec_id, int width, int h
         goto exit;
 
     memset(mHandle, 0, sizeof(AMVEncHandle));
-    ret = initEncParams(mHandle, width, height, frame_rate, bit_rate, gop);
+    ret = initEncParams(mHandle, width, height, frame_rate, bit_rate, gop, i_qp_min, i_qp_max, p_qp_min, p_qp_max);
     if (ret < 0)
         goto exit;
 

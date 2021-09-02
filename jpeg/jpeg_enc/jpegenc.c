@@ -583,6 +583,19 @@ int hw_encode(jpegenc_handle_t handle, uint8_t *src, uint8_t *dst, enum jpegenc_
 	gettimeofday(&start_test, NULL);
 #endif
 
+	if (handle == (long)NULL) {
+		printf("[%s:%d] handle is NULL!\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+
+	if ((src == NULL) || (dst == NULL)) {
+		if (src == NULL)
+			printf("[%s:%d]param err!, src is NULL!\n", __FUNCTION__, __LINE__);
+		if (dst == NULL)
+			printf("[%s:%d]param err!, dst is NULL!\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+
 	hw_jpegenc_t* hw_info = (hw_jpegenc_t*)handle;
 
 	hw_info->qtbl_id = 0;

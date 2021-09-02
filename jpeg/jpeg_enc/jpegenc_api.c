@@ -66,7 +66,7 @@ int jpegenc_encode(jpegenc_handle_t handle, int width, int height, int w_stride,
 		uint8_t *out_buf) {
 	int format;
 	int i;
-	uint32_t datalen;
+	uint32_t datalen = 0;
 	uint8_t* temp_ptr;
 	int k, g, bytes;
 

@@ -312,7 +312,9 @@ int main(int argc, const char *argv[])
     }
 
     free(yuv_buf);
+    free(out_buf);
     yuv_buf = NULL;
+    out_buf = NULL;
 
     fclose(fin);
 

@@ -383,7 +383,7 @@ AMVEnc_Status AML_HWEncNAL(AMVEncHandle *Handle, unsigned char *buffer, unsigned
                     info->nal_unit_type = (ret == AMVENC_NEW_IDR) ? AVC_NALTYPE_IDR : info->nal_unit_type;
                     *nal_type = info->nal_unit_type;
                     *buf_nal_size = datalen;
-                    if (ret == AMVENC_NEW_IDR) {
+                    if (ret == AMVENC_NEW_IDR || ret == AMVENC_PICTURE_READY) {
                         info->first_frame = false;
                         ret = AMPostRateControl(&info->hw_info, (info->nal_unit_type == AVC_NALTYPE_IDR)/*true*/, &info->skip_next_frame, (datalen << 3));
                         if ((ret == AMVENC_SKIPPED_PICTURE) && (info->freerun == false)) {

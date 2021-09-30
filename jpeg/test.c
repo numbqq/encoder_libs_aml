@@ -283,7 +283,17 @@ int main(int argc, const char *argv[])
     }
 
     int64_t t_1=GetNowUs();
+
+#if 0
+    int datalen = 0;
+    while (1)
+    {
+
+        datalen = jpegenc_encode(handle, width, height, w_stride, h_stride, quality, iformat, oformat, mem_type, shared_fd, yuv_buf, out_buf);
+    }
+#else
     int datalen = jpegenc_encode(handle, width, height, w_stride, h_stride, quality, iformat, oformat, mem_type, shared_fd, yuv_buf, out_buf);
+#endif
     int64_t t_2=GetNowUs();
     //fprintf(stderr, "jpegenc_encode time: %lld\n", t_2-t_1);
 

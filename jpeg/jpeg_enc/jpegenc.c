@@ -109,6 +109,9 @@ typedef unsigned int uint32_t;
 //#define DEBUG_TIME
 #ifdef DEBUG_TIME
 static struct timeval start_test, end_test;
+static unsigned long long g_total_time;
+#define PER_FRAME 100
+static unsigned int g_frame_cnt, g_avg_time;
 #endif
 
 #define JPEGENC_FLUSH_FLAG_INPUT			0x1
@@ -632,7 +635,16 @@ int hw_encode(jpegenc_handle_t handle, uint8_t *src, uint8_t *dst, enum jpegenc_
 #ifdef DEBUG_TIME
 	gettimeofday(&end_test, NULL);
 	total_time = (end_test.tv_sec - start_test.tv_sec) * 1000000 + end_test.tv_usec - start_test.tv_usec;
-	printf("hw_encode: need time: %d us, jpeg size:%zu\n", total_time, hw_info->jpeg_size);
+	g_total_time += total_time;
+	g_frame_cnt++;
+	if (g_frame_cnt >= PER_FRAME)
+	{
+		g_avg_time = g_total_time / PER_FRAME;
+		g_frame_cnt = 0;
+		g_total_time = 0;
+		printf("jpeg hw_encode: average per frame need %d us\n", g_avg_time);
+	}
+	//printf("hw_encode: need time: %d us, jpeg size:%zu\n", total_time, hw_info->jpeg_size);
 #endif
 
 	return 0;

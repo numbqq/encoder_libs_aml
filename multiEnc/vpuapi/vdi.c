@@ -400,6 +400,9 @@ int vdi_release(u32 core_idx)
 
     vdi->task_num--;
 
+    if (vdi->pvip)
+        munmap(vdi->pvip, (sizeof(vpu_instance_pool_t) + sizeof(MUTEX_HANDLE) * VDI_NUM_LOCK_HANDLES));
+
     if (vdi->vpu_fd != -1 && vdi_init_flag[core_idx] != INIT_VDI_STAT_NULL)
     {
         close(vdi->vpu_fd);

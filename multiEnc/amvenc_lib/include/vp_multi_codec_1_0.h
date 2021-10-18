@@ -167,6 +167,7 @@ typedef struct vl_encode_info {
                              0 disbled max 120, larger value will be clipped*/
   int strict_rc_skip_thresh;/* threshold of actual bitrate in compare with target
                               bitrate to trigger skip frame (in percentage)  */
+  int bitstream_buf_sz_kb; /* the encoded bitstream buffer size in KB */
 } vl_encode_info_t;
 
 /* dma buffer info*/

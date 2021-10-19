@@ -45,12 +45,27 @@
 #include <unistd.h>
 
 #include "./test_dma_api.h"
+#include <IONmem.h>
+
+
+//#define USE_ION_DMA_BUFF
 
 int create_ctx(struct usr_ctx_s *ctx)
 {
 	memset(ctx, 0, sizeof(struct usr_ctx_s));
 	ctx->fd[0] = ctx->fd[1] = ctx->fd[2] = -1;
+	ctx->ion_client = -1;
+	ctx->gdc_client = -1;
 
+	#ifdef USE_ION_DMA_BUFF
+	ctx->ion_client = ion_mem_init();
+	if (ctx->ion_client < 0)
+	{
+		printf("ion open failed error=%d, %s", errno, strerror(errno));
+		return -1;
+	}
+	return 0;
+	#endif
 	ctx->gdc_client = open("/dev/gdc", O_RDWR | O_SYNC);
 
 	if (ctx->gdc_client < 0)
@@ -64,6 +79,21 @@ int create_ctx(struct usr_ctx_s *ctx)
 
 int destroy_ctx(struct usr_ctx_s *ctx)
 {
+	if (ctx->cmemParm[0] != NULL)
+	{
+		free((IONMEM_AllocParams*)ctx->cmemParm[0]);
+		ctx->cmemParm[0] = NULL;
+	}
+	if (ctx->cmemParm[1] != NULL)
+	{
+		free((IONMEM_AllocParams*)ctx->cmemParm[1]);
+		ctx->cmemParm[1] = NULL;
+	}
+	if (ctx->cmemParm[2] != NULL)
+	{
+		free((IONMEM_AllocParams*)ctx->cmemParm[2]);
+		ctx->cmemParm[2] = NULL;
+	}
 	if (ctx->i_buff[0] != NULL)
 	{
 		munmap(ctx->i_buff[0], ctx->i_len[0]);
@@ -101,6 +131,10 @@ int destroy_ctx(struct usr_ctx_s *ctx)
 	{
 		close(ctx->gdc_client);
 		ctx->gdc_client = -1;
+	}
+	if (ctx->ion_client >= 0)
+	{
+		ion_mem_exit(ctx->ion_client);
 	}
 
 	return 0;
@@ -155,7 +189,7 @@ static int _free_dma_buffer(int fd, int index)
 	return 0;
 }
 
-int alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len)
+int gdc_alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len)
 {
 	int dir = 0, index = -1, dma_fd = -1;
 	int i = 0;
@@ -201,8 +235,59 @@ int alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len)
 	return dma_fd;
 }
 
+int ion_alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len)
+{
+	int ret = -1, i;
+	int dma_fd = -1;
+	unsigned int nbytes = 0;
+
+	switch (type)
+	{
+	case INPUT_BUFF_TYPE:
+		i = ctx->inbuf_num;
+		ctx->cmemParm[i] = malloc(sizeof(IONMEM_AllocParams));
+		if (ctx->cmemParm[i] == NULL)
+			return -1;
+		ret = ion_mem_alloc(ctx->ion_client, len, ctx->cmemParm[i], false);
+		if (ret < 0) {
+			printf("%s,%d,Not enough memory\n",__func__, __LINE__);
+			return -1;
+		}
+		dma_fd = ((IONMEM_AllocParams*)ctx->cmemParm[i])->mImageFd;
+		ctx->i_len[i] = len;
+		ctx->i_buff[i] =
+		    (char
+		     *) (mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
+			      dma_fd, 0));
+		if (!ctx->i_buff[i])
+		{
+			ctx->i_buff[i] = NULL;
+			printf("Failed to alloc i_buff:%s\n", strerror(errno));
+			return -1;
+		}
+		ctx->fd[i] = dma_fd;
+		ctx->inbuf_num++;
+		break;
+	default:
+		printf("Error no such buff type\n");
+		break;
+	}
+	return dma_fd;
+}
+int alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len)
+{
+#ifdef USE_ION_DMA_BUFF
+	return ion_alloc_dma_buffer(ctx, type, len);
+#else
+	return gdc_alloc_dma_buffer(ctx, type, len);
+#endif
+}
+
 int sync_cpu(struct usr_ctx_s *ctx)
 {
+#ifdef USE_ION_DMA_BUFF
+	return 0;
+#endif
 	int ret = 0;
 	int shared_fd = -1;
 

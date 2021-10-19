@@ -79,9 +79,11 @@ typedef unsigned long ulong;
 struct usr_ctx_s {
 	// currently do not support multi-context
 	int gdc_client;
+	int ion_client;
 	char *i_buff[3];
 	char *o_buff;
 	char *c_buff;
+	void *cmemParm[3];
 	ulong i_len[3];
 	ulong o_len;
 	ulong c_len;

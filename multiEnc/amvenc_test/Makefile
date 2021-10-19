@@ -29,7 +29,7 @@ TARGET = aml_enc_test
 LDLIBS += -L../vpuapi -L../amvenc_lib
 LDLIBS += -lm -lrt -lamvenc_api -lvpcodec
 # pthread
-LDLIBS += -lpthread
+LDLIBS += -lpthread -lion
 
 
 #LDFLAGS += -shared

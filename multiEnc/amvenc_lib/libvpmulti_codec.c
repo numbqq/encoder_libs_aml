@@ -144,10 +144,15 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.frame_rate = encode_info.frame_rate;
     handle->mEncParams.CPB_size = (uint32)(encode_info.bit_rate >> 1);
     handle->mEncParams.FreeRun = ENC_SETTING_OFF;
-    if (encode_info.bitstream_buf_sz > 0 && encode_info.bitstream_buf_sz <= 32)
-        handle->mEncParams.es_buf_sz =  encode_info.bitstream_buf_sz*1024*1024;
-    else  //default value
-        handle->mEncParams.es_buf_sz = 0; //out of range, use default
+
+    if (encode_info.bitstream_buf_sz_kb > 0 && encode_info.bitstream_buf_sz_kb <= (32 * 1024)) {
+        handle->mEncParams.es_buf_sz =  encode_info.bitstream_buf_sz_kb*1024;
+    } else {
+        if (encode_info.bitstream_buf_sz > 0 && encode_info.bitstream_buf_sz <= 32)
+            handle->mEncParams.es_buf_sz =  encode_info.bitstream_buf_sz*1024*1024;
+        else  //default value
+            handle->mEncParams.es_buf_sz = 0; //out of range, use default
+    }
 
     if (encode_info.intra_refresh_mode && encode_info.intra_refresh_mode <= 4) {
       handle->mEncParams.IntraRefreshMode = encode_info.intra_refresh_mode;

@@ -486,7 +486,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   param->intraPeriod = InitParam->idr_period;//pCfg->vpCfg.intraPeriod;
   if (InitParam->idr_period == 0) { // only one I then all P
     param->gopPresetIdx = PRESET_IDX_IPP;
-    param->intraPeriod = 0xffff;
+    param->intraPeriod = 0;
   } else if (InitParam ->idr_period == 1) {
     param->gopPresetIdx = PRESET_IDX_ALL_I;
     param->intraPeriod = InitParam ->idr_period;

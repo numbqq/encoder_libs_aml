@@ -28,3 +28,4 @@ $(TARGET):test.o test_dma.o
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
+	@make -C jpeg_enc/ clean

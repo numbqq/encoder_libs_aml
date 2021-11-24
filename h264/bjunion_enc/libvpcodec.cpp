@@ -299,7 +299,7 @@ exit:
 
 
 
-int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, unsigned char *in, int in_size, unsigned char *out, int format)
+int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t frame_type, unsigned char *in, int in_size, unsigned char *out, int format, int buf_type, vl_dma_info_t *dma_info)
 {
     int ret;
     uint8_t *outPtr = NULL;
@@ -307,6 +307,7 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
     int type;
     size_t rawdata_size = in_size;
     ssize_t io_ret;
+    uint32_t is_DMA_buffer = 0;
     AMVEncHandle *handle = (AMVEncHandle *)codec_handle;
     if (!handle->mSpsPpsHeaderReceived)
     {
@@ -416,31 +417,49 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
         videoInput.frame_rate = handle->mEncParams.frame_rate / 1000;
         videoInput.coding_timestamp = handle->mNumInputFrames * 1000 / videoInput.frame_rate;  // in ms
         //LOGAPI("mNumInputFrames %lld, videoInput.coding_timestamp %llu, videoInput.frame_rate %f\n", handle->mNumInputFrames, videoInput.coding_timestamp,videoInput.frame_rate);
+    if (format == 0) { //NV12
+        videoInput.fmt = AMVENC_NV12;
+    } else if(format == 1) { //NV21
+        videoInput.fmt = AMVENC_NV21;
+    } else if (format == 2) { //YV12
+        videoInput.fmt = AMVENC_YUV420;
+    } else if (format == 3) { //rgb888
+        videoInput.fmt = AMVENC_RGB888;
+    } else if (format == 4) { //bgr888
+        videoInput.fmt = AMVENC_BGR888;
+    }
+    if ((dma_info->num_planes > 0) && (buf_type == DMA_BUFF)) { /* DMA buffer, no need allocate */
+        is_DMA_buffer = 1;
+    }
+    if (is_DMA_buffer == 0) {
+            videoInput.YCbCr[0] = (unsigned long)&in[0];
+            videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
 
-        videoInput.YCbCr[0] = (unsigned long)&in[0];
-        videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] + videoInput.height * videoInput.pitch);
-
-        if (format == 0) { //NV12
-            videoInput.fmt = AMVENC_NV12;
-            videoInput.YCbCr[2] = 0;
-        } else if(format == 1) { //NV21
-            videoInput.fmt = AMVENC_NV21;
-            videoInput.YCbCr[2] = 0;
-        } else if (format == 2) { //YV12
-            videoInput.fmt = AMVENC_YUV420;
-            videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
-        } else if (format == 3) { //rgb888
-            videoInput.fmt = AMVENC_RGB888;
-            videoInput.YCbCr[1] = 0;
-            videoInput.YCbCr[2] = 0;
-        } else if (format == 4) { //bgr888
-            videoInput.fmt = AMVENC_BGR888;
-        }
+            if (videoInput.fmt == AMVENC_NV12) { //NV12
+                videoInput.YCbCr[2] = 0;
+            } else if(videoInput.fmt == AMVENC_NV21) { //NV21
+                videoInput.YCbCr[2] = 0;
+            } else if (videoInput.fmt == AMVENC_YUV420) { //YV12
+                videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
+            } else if (videoInput.fmt == AMVENC_RGB888) { //rgb888
+                videoInput.YCbCr[1] = 0;
+                videoInput.YCbCr[2] = 0;
+            } else if (videoInput.fmt = AMVENC_BGR888) { //bgr888
+                ;
+            }
 
         videoInput.canvas = 0xffffffff;
         videoInput.type = VMALLOC_BUFFER;
         videoInput.disp_order = handle->mNumInputFrames;
         videoInput.op_flag = 0;
+        } else {
+            videoInput.canvas = 0xffffffff;
+            videoInput.type = DMA_BUFF;
+            videoInput.num_planes = dma_info->num_planes;
+            videoInput.shared_fd[0] = dma_info->shared_fd[0];
+            videoInput.shared_fd[1] = dma_info->shared_fd[1];
+            videoInput.shared_fd[2] = dma_info->shared_fd[2];
+        }
         if (handle->mKeyFrameRequested == true)
         {
             videoInput.op_flag = AMVEncFrameIO_FORCE_IDR_FLAG;
@@ -460,13 +479,14 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
                 outPtr = (uint8_t *) out;
                 dataLength  = /*should be out size */in_size;
             }
-
-            if (handle->fd_in >= 0) {
-                io_ret = write(handle->fd_in, in, rawdata_size);
-                if (io_ret == -1) {
-                    printf("write raw frame failed: %s\n", errno);
-                } else if (io_ret < rawdata_size) {
-                    printf("write raw frame: short write %zu vs %zd\n", rawdata_size, io_ret);
+            if (is_DMA_buffer == 0) {
+                if (handle->fd_in >= 0) {
+                    io_ret = write(handle->fd_in, in, rawdata_size);
+                    if (io_ret == -1) {
+                        printf("write raw frame failed: %s\n", errno);
+                    } else if (io_ret < rawdata_size) {
+                        printf("write raw frame: short write %zu vs %zd\n", rawdata_size, io_ret);
+                    }
                 }
             }
         }

@@ -50,6 +50,8 @@ typedef struct FrameIO_s {
     uint32 crop_right;
     uint32 crop_top;
     uint32 crop_bottom;
+    uint32 num_planes;
+    int shared_fd[3];
 } AMVEncFrameIO;
 
 typedef struct EncParams_s {

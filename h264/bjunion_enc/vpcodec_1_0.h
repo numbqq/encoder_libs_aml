@@ -19,10 +19,11 @@ extern "C" {
 
     typedef enum vl_img_format_e
     {
-        IMG_FMT_NONE,
         IMG_FMT_NV12, /* must support  */
         IMG_FMT_NV21,
         IMG_FMT_YV12,
+        IMG_FMT_RGB888,
+        IMG_FMT_BGR888
     } vl_img_format_t;
 
     typedef enum vl_frame_type_e
@@ -34,6 +35,11 @@ extern "C" {
         FRAME_TYPE_P,
 
     } vl_frame_type_t;
+
+    typedef struct vl_dma_info {
+        int shared_fd[3];
+        unsigned int num_planes;//for nv12/nv21, num_planes can be 1 or 2
+    } vl_dma_info_t;
 
     /**
      * Getting version information
@@ -85,7 +91,7 @@ extern "C" {
      *@param : out: data output,H.264 need header(0x00，0x00，0x00，0x01),and format must be I420(apk set param out，through jni,so modify "out" in the function,don't change address point)
      *@return ：if success return encoded data length,else return <= 0
      */
-    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, int in_size, unsigned char *out, int format);
+    int vl_video_encoder_encode(vl_codec_handle_t handle, vl_frame_type_t type, unsigned char *in, int in_size, unsigned char *out, int format, int buf_type, vl_dma_info_t *dma_info);
 
     /**
      * destroy encoder

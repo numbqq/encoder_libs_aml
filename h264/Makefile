@@ -17,3 +17,4 @@ $(AMLENC_LIB):%.o:%.cpp
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
+	make -C bjunion_enc/ clean

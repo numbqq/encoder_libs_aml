@@ -84,7 +84,7 @@ OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
 
 
 all: CREATE_DIR $(OBJECTPATHS)
-	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
+	$(CC) -o $(TARGET) $(LDFLAGS) -Wl,-soname,$(TARGET) -Wl,-gc-section -Wl,--start-group $(OBJECTPATHS) $(LDLIBS) -Wl,--end-group
 
 -include $(OBJECTPATHS:.o=.dep)
 

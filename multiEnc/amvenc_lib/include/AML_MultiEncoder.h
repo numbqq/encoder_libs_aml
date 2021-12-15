@@ -85,6 +85,9 @@ typedef enum AMVGOPModeOPT_S {
   //hoan mdf ref
   GOP_IP_CUSTP_REF_ONE,
   //end
+  //hoan add for tencent
+  GOP_IP_SVC5,
+  //end
   GOP_MAX_OPT,
 } AMVGOPModeOPT;
 

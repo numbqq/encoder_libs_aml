@@ -187,6 +187,16 @@ static CustomGopPicParam AML_custp_ref_one[1] =
 };
 //end
 
+
+//hoan add svc for tencent
+static CustomGopPicParam AML_svc5[4] = {
+{PIC_TYPE_P, 1, 0, 1, 0,-1, 2},//type, POC, Qp, num_ref_L0, Ref_L0_POC, Ref_L1_POC, temporalLayer
+{PIC_TYPE_P, 2, 0, 1, 0,-1, 1},
+{PIC_TYPE_P, 3, 0, 1, 2,-1, 2},
+{PIC_TYPE_P, 4, 0, 1, 0,-1, 0},
+};
+//end
+
 typedef struct AMVEncContext_s {
   uint32 magic_num;
   uint32 instance_id;
@@ -476,7 +486,14 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
 	VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP,param->gopParam.customGopSize %d\n",
         param->gopParam.customGopSize);
   }
-
+//hoan add for tencent
+  else if (InitParam->GopPreset == GOP_IP_SVC5) {
+    param->gopPresetIdx = PRESET_IDX_CUSTOM_GOP;
+    param->gopParam.customGopSize = 4;
+    GopParam = AML_svc5;
+    VLOG(TRACE, "AML_svc5!!!!!!!!!!!\n");
+  }
+//end
   else {
     VLOG(ERR, "[ERROR] Not supported GOP format (%d)\n", InitParam->GopPreset);
     return FALSE;

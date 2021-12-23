@@ -1283,6 +1283,8 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (pParam->intraQP<<0) | ((pParam->intraPeriod&0x7ff)<<6) | ((pParam->avcIdrPeriod&0x7ff)<<17) | ((pParam->forcedIdrHeaderEnable&3)<<28));
     }
     else {
+        if (pParam->intraPeriod > MAX_ENC_HEVC_INTRA_PERIOD)
+            pParam->intraPeriod = MAX_ENC_HEVC_INTRA_PERIOD;
         VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_INTRA_PARAM, (pParam->decodingRefreshType<<0) | (pParam->intraQP<<3) | (pParam->forcedIdrHeaderEnable<<9) | (pParam->intraPeriod<<16));
     }
 

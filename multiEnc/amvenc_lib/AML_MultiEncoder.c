@@ -521,6 +521,16 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
                 param->confWinRight = 16 - (pEncOP->picWidth % 16);
        }
   }
+
+  if ((pEncOP->picHeight % 8) && param->confWinBot == 0
+        && pEncOP->bitstreamFormat == STD_HEVC) {
+        /*  need set the drop flag */
+       if (InitParam->rotate_angle != 90 && InitParam->rotate_angle != 270)
+       { // except rotation
+                param->confWinBot = 8 - (pEncOP->picHeight % 8);
+       }
+  }
+
   /* for CMD_ENC_SEQ_INDEPENDENT_SLICE */
   if (InitParam->slice_mode &&
       InitParam->slice_mode <= 2 &&

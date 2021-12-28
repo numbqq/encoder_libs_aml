@@ -1220,7 +1220,13 @@ RetCode Vp5VpuEncInitSeq(CodecInst* instance)
     /* SET_PARAM + COMMON */
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SET_PARAM_OPTION, OPT_COMMON);
 
-    VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SRC_SIZE,   pOpenParam->picHeight<<16 | pOpenParam->picWidth);
+    if (instance->codecMode == W_HEVC_ENC) {
+        alignedHeight= (pOpenParam->picHeight+ 7) & ~7;
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SRC_SIZE,   alignedHeight<<16 | pOpenParam->picWidth);
+    }
+    else {
+        VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_SRC_SIZE,   pOpenParam->picHeight<<16 | pOpenParam->picWidth);
+    }
 
     VpuWriteReg(coreIdx, VP5_CMD_ENC_SEQ_CUSTOM_MAP_ENDIAN, VDI_LITTLE_ENDIAN);
 

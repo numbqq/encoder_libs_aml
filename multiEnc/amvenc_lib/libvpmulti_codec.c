@@ -59,6 +59,8 @@ static struct timeval start_test;
 static struct timeval end_test;
 #endif
 
+#define GET_DROPPABLE_P 1
+
 const char* vl_get_version() {
   return version;
 }
@@ -574,8 +576,21 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         result.extra.frame_type = FRAME_TYPE_IDR;
       else if (videoRet.encoded_frame_type == 0)
         result.extra.frame_type = FRAME_TYPE_I;
-      else if (videoRet.encoded_frame_type == 1)
+      else if (videoRet.encoded_frame_type == 1) {
+#if GET_DROPPABLE_P
+        uint8 nal_ref_idc = 0;
+        if (handle->mEncParams.stream_type == AMV_AVC) {
+            nal_ref_idc = (out[4] >> 5) & 3;
+            VLOG(DEBUG, "nal_ref_idc  %d\n", nal_ref_idc);
+            if (nal_ref_idc < 2)
+                result.extra.frame_type = FRAME_TYPE_DROPPABLE_P;
+            else
+                result.extra.frame_type = FRAME_TYPE_P;
+        }
+        else
+#endif
         result.extra.frame_type = FRAME_TYPE_P;
+      }
       else if (videoRet.encoded_frame_type == 2)
         result.extra.frame_type = FRAME_TYPE_B;
       result.extra.average_qp_value = videoRet.enc_average_qp;

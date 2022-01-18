@@ -84,6 +84,7 @@ typedef enum vl_frame_type_e {
   FRAME_TYPE_I,
   FRAME_TYPE_P,
   FRAME_TYPE_B,
+  FRAME_TYPE_DROPPABLE_P,
 } vl_frame_type_t;
 
 typedef enum vl_fmt_type_e {

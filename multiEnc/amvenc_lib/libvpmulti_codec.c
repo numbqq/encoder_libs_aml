@@ -33,8 +33,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
-#ifdef MAKEANDROID
+#if defined(__ANDROID__)
 #include <utils/Log.h>
 #define LOGCAT
 #endif
@@ -60,6 +61,9 @@ static struct timeval end_test;
 #endif
 
 #define GET_DROPPABLE_P 1
+#if defined(__ANDROID__)
+#define LOG_LINE() ALOGD("[%s:%d]\n", __FUNCTION__, __LINE__)
+#endif
 
 const char* vl_get_version() {
   return version;
@@ -89,6 +93,11 @@ typedef struct vp_multi_s {
   int hist_skip_thresh;
 } VPMultiEncHandle;
 
+static int64_t GetNowUs() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (int64_t) tv.tv_sec * 1000000 + (int64_t) tv.tv_usec;
+}
 
 AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
                         vl_codec_id_t codec_id,
@@ -187,11 +196,20 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
   } else if (encode_info.img_format == IMG_FMT_YUV420P) {
     VLOG(INFO, "img_format is IMG_FMT_YUV420P \n");
     handle->fmt = AMVENC_YUV420P;
+  } else if (encode_info.img_format == IMG_FMT_RGB888) {
+    VLOG(INFO, "img_format is IMG_FMT_RGB888 \n");
+    handle->fmt = AMVENC_RGB888;
+  } else if (encode_info.img_format == IMG_FMT_RGBA8888) {
+    VLOG(INFO, "img_format is IMG_FMT_RGBA8888 \n");
+    handle->fmt = AMVENC_RGBA8888;
   } else {
     VLOG(ERR, "img_format %d not supprot\n",encode_info.img_format);
     return AMVENC_FAIL;
   }
      handle->mEncParams.fmt = handle->fmt;
+    if ((encode_info.img_format == IMG_FMT_RGB888) || (encode_info.img_format == IMG_FMT_RGBA8888)) {
+      handle->mEncParams.fmt = AMVENC_NV21; //ge2d dst format PIXEL_FORMAT_YCrCb_420_SP
+    }
     // Set IDR frame refresh interval
     if (encode_info.gop <= 0) {
         handle->mEncParams.idr_period = 0;   //an infinite period, only one I frame
@@ -467,28 +485,70 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     if (handle->hist_win_len) { // have  strict bitrate control
         strict_rc_check(handle);
     }
+    videoInput.fmt = handle->fmt;
 
-    if (handle->bufType == DMA_BUFF) {
+    VLOG(INFO, "in_buffer_info->buf_fmt=%d", in_buffer_info->buf_fmt);
+
+    if (in_buffer_info->buf_fmt == IMG_FMT_NV12) {
+      VLOG(INFO, "img_format is IMG_FMT_NV12 \n");
+      videoInput.fmt = AMVENC_NV12;
+    } else if (in_buffer_info->buf_fmt == IMG_FMT_NV21) {
+      VLOG(INFO, "img_format is IMG_FMT_NV21 \n");
+      videoInput.fmt = AMVENC_NV21;
+    } else if (in_buffer_info->buf_fmt == IMG_FMT_YUV420P) {
+      VLOG(INFO, "img_format is IMG_FMT_YUV420P \n");
+      videoInput.fmt = AMVENC_YUV420P;
+    } else if (in_buffer_info->buf_fmt == IMG_FMT_RGB888) {
+      VLOG(INFO, "img_format is IMG_FMT_RGB888 \n");
+      videoInput.fmt = AMVENC_RGB888;
+    } else if (in_buffer_info->buf_fmt == IMG_FMT_RGBA8888) {
+      VLOG(INFO, "img_format is IMG_FMT_RGBA8888 \n");
+      videoInput.fmt = AMVENC_RGBA8888;
+    }
+
+    if (handle->bufType == CANVAS_BUFFER) {
+      VLOG(ERR, "setting canvas to videoInput");
+      videoInput.canvas = in_buffer_info->buf_info.canvas;
+      videoInput.fmt = AMVENC_NV21;
+    }
+    else if (handle->bufType == DMA_BUFF) {
       vl_dma_info_t *dma_info;
       dma_info = &(in_buffer_info->buf_info.dma_info);
-      if (handle->fmt == AMVENC_NV21 || handle->fmt == AMVENC_NV12) {
-        if (dma_info->num_planes != 1
-            && dma_info->num_planes != 2) {
+
+    if (videoInput.fmt == AMVENC_NV21 || videoInput.fmt == AMVENC_NV12) {
+      if (dma_info->num_planes != 1 && dma_info->num_planes != 2) {
           VLOG(ERR, "invalid num_planes %d\n", dma_info->num_planes);
           result.is_valid = false;
           result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
+
           return result;
         }
-      } else if (handle->fmt == AMVENC_YUV420P) {
-        if (dma_info->num_planes != 1
-            && dma_info->num_planes != 3) {
+      } else if (videoInput.fmt == AMVENC_YUV420P) {
+        if (dma_info->num_planes != 1 && dma_info->num_planes != 3) {
           VLOG(ERR, "YUV420P invalid num_planes %d\n", dma_info->num_planes);
+          result.is_valid = false;
+          result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
+
+          return result;
+        }
+      } else if (videoInput.fmt == AMVENC_RGBA8888) {
+        VLOG(ERR, "process rgba dma input");
+
+        if (dma_info->num_planes != 1) {
+          VLOG(ERR, "RGBA invalid num_planes %d\n", dma_info->num_planes);
           result.is_valid = false;
           result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
           return result;
         }
+      } else {
+        VLOG(ERR, "unsupported color format");
+        result.is_valid = false;
+        result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
+        return result;
       }
+
       handle->mNumPlanes = dma_info->num_planes;
+
       for (i = 0; i < dma_info->num_planes; i++) {
         if (dma_info->shared_fd[i] < 0) {
           VLOG(ERR, "invalid dma_fd %d\n", dma_info->shared_fd[i]);
@@ -496,24 +556,31 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
           return result;
         }
+
         handle->shared_fd[i] = dma_info->shared_fd[i];
-        VLOG(NONE, "shared_fd %d\n", handle->shared_fd[i]);
+        VLOG(ERR, "**shared_fd %d\n", handle->shared_fd[i]);
         videoInput.shared_fd[i] = dma_info->shared_fd[i];
       }
-      videoInput.num_planes = handle->mNumPlanes;
+
+        videoInput.num_planes = handle->mNumPlanes;
+#if defined(__ANDROID__)
+        ALOGD("videoInput.num_planes=%d", videoInput.num_planes);
+#endif
     } else {
       unsigned long* in = in_buffer_info->buf_info.in_ptr;
       videoInput.YCbCr[0] = (unsigned long)in[0];
       videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] +
       videoInput.height * videoInput.pitch);
-      if (handle->fmt == AMVENC_NV21 || handle->fmt == AMVENC_NV12) {
+
+      if (videoInput.fmt == AMVENC_NV21 || videoInput.fmt == AMVENC_NV12) {
         videoInput.YCbCr[2] = 0;
-      } else if (handle->fmt == AMVENC_YUV420P) {
+      } else if (videoInput.fmt == AMVENC_YUV420P) {
         videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
       }
     }
-    videoInput.fmt = handle->fmt;
-    videoInput.canvas = 0xffffffff;
+
+    //videoInput.fmt = handle->fmt;
+    //videoInput.canvas = 0x00030201;
     videoInput.type = handle->bufType;
     videoInput.disp_order = handle->mNumInputFrames;
     videoInput.op_flag = 0;
@@ -556,8 +623,11 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       return result;
     }
 
-    ret = AML_MultiEncNAL(handle->am_enc_handle, out,
-                                (unsigned int*)&dataLength,&videoRet);
+    //t1 = GetNowUs();
+    ret = AML_MultiEncNAL(handle->am_enc_handle, out, (unsigned int*)&dataLength, &videoRet);
+    //t2 = GetNowUs();
+
+    //VLOG(ERR, "AML_MultiEncNAL cost: %3.1f ms", (t2-t1)/1000.0);
     VLOG(NONE, "AML_MultiEnc ret %d,  dataLength %d\n",
          ret,dataLength);
     if (ret == AMVENC_PICTURE_READY) {
@@ -646,10 +716,10 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       handle->am_enc_handle, encode_time_per_frame, total_encode_frames);
 #endif
 
-  VLOG(INFO, "frame extra info type %d, av_qp %d,intra %d,merged %d,skip %d\n",
-        result.extra.frame_type, result.extra.average_qp_value,
-        result.extra.intra_blocks, result.extra.merged_blocks,
-        result.extra.skipped_blocks);
+  //  VLOG(INFO, "frame extra info type %d, av_qp %d,intra %d,merged %d,skip %d\n",
+  //        result.extra.frame_type, result.extra.average_qp_value,
+  //        result.extra.intra_blocks, result.extra.merged_blocks,
+  //        result.extra.skipped_blocks);
 
   return result;
 }

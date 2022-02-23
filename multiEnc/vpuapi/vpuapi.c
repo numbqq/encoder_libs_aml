@@ -940,7 +940,26 @@ RetCode VPU_EncStartOneFrame(
                 dma_info.num_planes);
     }
 
+#if 1
+    //hoan add for canvas
+    if (param->canvas > 0 && pSrcFrame && (pSrcFrame->canvas_index != 0xffffffff) && (param->srcEndFlag == 0))
+    {
+        vpu_dma_buf_canvas_info_t dma_info_canvas;
+
+        dma_info_canvas.canvas_index = param->canvas;
+        if (vdi_config_dma_canvas(pCodecInst->coreIdx, &dma_info_canvas) !=0)
+                return RETCODE_INVALID_FRAME_BUFFER;
+        pSrcFrame->bufY  = dma_info_canvas.phys_addr[0];
+        pSrcFrame->bufCb = dma_info_canvas.phys_addr[1];
+        pSrcFrame->bufCr = dma_info_canvas.phys_addr[2];
+        VLOG(NONE,"[canvas_u] >> VPU_EncStartOneFrame DMA frame physical bufY 0x%x Cb 0x%x Cr 0x%x. \n",
+                pSrcFrame->bufY, pSrcFrame->bufCb, pSrcFrame->bufCr);
+    }
+    //end
+#endif
+
     ret = CheckEncParam(handle, param);
+
     if (ret != RETCODE_SUCCESS) {
         return ret;
     }

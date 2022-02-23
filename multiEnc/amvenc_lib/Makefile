@@ -20,9 +20,9 @@ CFLAGS  +=  $(INC) $(DEFINES) $(PLATFORM_FLAGS)
 ARFLAGS += rcs
 TARGET = libvpcodec.so
 
-LDLIBS += -lm -lrt 
-# pthread 
-LDLIBS += -lpthread 
+LDLIBS += -lm -lrt
+# pthread
+LDLIBS += -lpthread -lge2d
 LIB= -L../vpuapi -lamvenc_api
 
 

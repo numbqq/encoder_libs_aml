@@ -69,8 +69,11 @@ static unsigned long long total_encode_frames;
 static struct timeval start_test;
 static struct timeval end_test;
 #endif
-
+#if defined(__ANDROID__)
+#define SUPPORT_SCALE 1
+#else
 #define SUPPORT_SCALE 0
+#endif
 
 static bool INIT_GE2D = false;
 #define MULTI_ENC_MAGIC ('A' << 24| 'M' <<16 | 'L' << 8 |'G')
@@ -287,10 +290,10 @@ typedef struct AMVEncContext_s {
 
 
 #if SUPPORT_SCALE
-#include <aml_ge2d.h>
 #include <ge2d_port.h>
+#include <aml_ge2d.h>
 
-extern aml_ge2d_t amlge2d;
+static aml_ge2d_t amlge2d;
 aml_ge2d_info_t ge2dinfo;
 
 static int SRC1_PIXFORMAT = PIXEL_FORMAT_YCrCb_420_SP;
@@ -346,21 +349,29 @@ static void set_ge2dinfo(aml_ge2d_info_t* pge2dinfo,
   pge2dinfo->src_info[0].canvas_w = encParam->src_width;   // SX_SRC1;
   pge2dinfo->src_info[0].canvas_h = encParam->src_height;  // SY_SRC1;
   pge2dinfo->src_info[0].format = SRC1_PIXFORMAT;
+  //pge2dinfo->src_info[0].plane_number = 1;
   pge2dinfo->src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
   pge2dinfo->src_info[1].canvas_w = 0;
   pge2dinfo->src_info[1].canvas_h = 0;
   pge2dinfo->src_info[1].format = SRC2_PIXFORMAT;
-
+  //pge2dinfo->src_info[1].plane_number = 1;
   pge2dinfo->dst_info.memtype = GE2D_CANVAS_ALLOC;
   pge2dinfo->dst_info.canvas_w = encParam->width;   // SX_DST;
   pge2dinfo->dst_info.canvas_h = encParam->height;  // SY_DST;
   pge2dinfo->dst_info.format = DST_PIXFORMAT;
   pge2dinfo->dst_info.rotation = GE2D_ROTATION_0;
+  //pge2dinfo->dst_info.plane_number = 1;
   pge2dinfo->offset = 0;
   pge2dinfo->ge2d_op = OP;
   pge2dinfo->blend_mode = BLEND_MODE_PREMULTIPLIED;
 }
 #endif
+
+int64_t GetNowUs() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
+}
 
 void static yuv_plane_memcpy(int coreIdx, int dst, char *src, uint32 width,
                              uint32 height, uint32 stride, uint32 src_stride,
@@ -453,8 +464,8 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
 
    else if (InitParam->GopPreset == GOP_IP_CUSTP_REF_ONE)
    {
-		param->gopPresetIdx = PRESET_IDX_IPP_SINGLE;//ori
-		VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP_REF_ONE\n");
+        param->gopPresetIdx = PRESET_IDX_IPP_SINGLE;//ori
+        VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP_REF_ONE\n");
   }
 
 
@@ -483,7 +494,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->gopParam.customGopSize = 2;
     GopParam = AML_custp;
 
-	VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP,param->gopParam.customGopSize %d\n",
+    VLOG(TRACE, "InitParam->GopPreset == GOP_IP_CUSTP,param->gopParam.customGopSize %d\n",
         param->gopParam.customGopSize);
   }
 //hoan add for tencent
@@ -1437,6 +1448,16 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
 
 #if SUPPORT_SCALE
     if ((encParam->width != encParam->src_width) || (encParam->height != encParam->src_height) || true) {
+#if defined(__ANDROID__)
+        int ret = aml_ge2d_init();
+        memset(&amlge2d,0x0,sizeof(aml_ge2d_t));
+        amlge2d.pge2d_info = &ge2dinfo;
+        memset(&ge2dinfo, 0, sizeof(aml_ge2d_info_t));
+        memset(&(ge2dinfo.src_info[0]), 0, sizeof(buffer_info_t));
+        memset(&(ge2dinfo.src_info[1]), 0, sizeof(buffer_info_t));
+        memset(&(ge2dinfo.dst_info), 0, sizeof(buffer_info_t));
+        set_ge2dinfo(&ge2dinfo, encParam);
+#else
         memset(&amlge2d,0x0,sizeof(aml_ge2d_t));
         aml_ge2d_info_t *pge2dinfo = &amlge2d.ge2dinfo;
         memset(pge2dinfo, 0, sizeof(aml_ge2d_info_t));
@@ -1447,6 +1468,7 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
         set_ge2dinfo(pge2dinfo, encParam);
 
         int ret = aml_ge2d_init(&amlge2d);
+#endif
         if (ret < 0) {
             VLOG(ERR, "encode open ge2d failed, ret=0x%x", ret);
             return AMVENC_FAIL;
@@ -1493,8 +1515,11 @@ fail_exit:
   }
 #if SUPPORT_SCALE
   if (ctx->ge2d_initial_done) {
+#if defined(__ANDROID__)
     aml_ge2d_exit();
-    ge2dinfo.src_info[0].vaddr = NULL;
+#else
+    aml_ge2d_exit(&amlge2d);
+#endif
   }
 #endif
   free(ctx);
@@ -1513,8 +1538,19 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   bool width32alinged = true; //width is multiple of 32 or not
   Uint32 is_DMA_buffer = 0;
   EncParam * param;
+  int64_t total_cost = 0;
+  int64_t t1, t2, t3, t4, t5, t6, t7;
 
   AMVMultiCtx * ctx = (AMVMultiCtx* )ctx_handle;
+
+  if (input->type == CANVAS_BUFFER) {
+      VLOG(ERR, "set fmt to nv21 for canvas buffer mode as default");
+      input->fmt = AMVENC_NV21;
+  }
+
+  VLOG(NONE, "AML_MultiEncSetInput, canvas=%u, input fmt=%d, num_planes=%d, type=%d",
+          input->canvas, input->fmt, input->num_planes, input->type);
+
   if (ctx == NULL) return AMVENC_FAIL;
   if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
 
@@ -1582,7 +1618,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
      return AMVENC_FAIL;
   }
 
-  if (is_DMA_buffer == 0) {
+  if (is_DMA_buffer == 0 && input->type != CANVAS_BUFFER) {
     // need allocate buffer and copy
     ctx->pFbSrc[idx].dma_buf_planes = 0; //clean the DMA buffer
     if(ctx->pFbSrcMem[idx].size == 0) { // allocate buffer
@@ -1607,9 +1643,21 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420P)) {
         if (INIT_GE2D) {
             INIT_GE2D = false;
+
+#if defined(__ANDROID__)
+            ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
+            ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            ge2dinfo.src_info[0].memtype = GE2D_CANVAS_ALLOC;
+            ge2dinfo.src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
+            ge2dinfo.dst_info.memtype = GE2D_CANVAS_ALLOC;
+            int ret = aml_ge2d_mem_alloc(&ge2dinfo);
+#else
             amlge2d.ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
             amlge2d.ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            amlge2d.ge2dinfo.src_info[0].plane_number = 1;
+            amlge2d.ge2dinfo.dst_info.plane_number = 1;
             int ret = aml_ge2d_mem_alloc(&amlge2d);
+#endif
             if (ret < 0) {
                 VLOG(ERR, "encode ge2di mem alloc failed, ret=0x%x", ret);
                 return AMVENC_FAIL;
@@ -1622,33 +1670,50 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
             VLOG(ERR, "HEVC crop and scale must be 32bit aligned");
             return AMVENC_FAIL;
         }
-        if (ctx->fmt == AMVENC_RGBA8888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], 4 * input->pitch * input->height);
-        else if (ctx->fmt == AMVENC_NV12 || ctx->fmt == AMVENC_NV21) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
-        } else if (ctx->fmt == AMVENC_YUV420P) {
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
-            memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
-        } else if (ctx->fmt == AMVENC_RGB888)
-            memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height * 3);
 
+      if (ctx->fmt == AMVENC_RGBA8888) {
+#if defined(__ANDROID__)
+                memcpy((void *)ge2dinfo.src_info[0].vaddr, (void *)input->YCbCr[0], input->pitch * input->height * 4 );
+#else
+                memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], 4 * input->pitch * input->height);
+#endif
+      } else if (ctx->fmt == AMVENC_NV12 || ctx->fmt == AMVENC_NV21) {
+        //memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
+        //memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 2);
+      } else if (ctx->fmt == AMVENC_YUV420P) {
+        //memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height);
+        //memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + input->pitch * input->height), (void *)input->YCbCr[1], input->pitch * input->height / 4);
+        //memcpy((void *) ((char *)amlge2d.ge2dinfo.src_info[0].vaddr[0] + (input->pitch * input->height * 5) /4), (void *)input->YCbCr[2], input->pitch * input->height / 4);
+      } else if (ctx->fmt == AMVENC_RGB888) {
+        //memcpy((void *)amlge2d.ge2dinfo.src_info[0].vaddr[0], (void *)input->YCbCr[0], input->pitch * input->height * 3);
+      }
 
+#if defined(__ANDROID__)
+        do_strechblit(&ge2dinfo, input);
+#else
         do_strechblit(&amlge2d.ge2dinfo, input);
         aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
+#endif
         size_src_luma = luma_stride * vp_align32(ctx->enc_height);
 //        size_src_chroma = luma_stride * (vp_align16(ctx->enc_height) / 2);
-        y = (char *) ctx->pFbSrcMem[idx].virt_addr;
-        if (ctx->enc_width % 32) {
-            for (int i = 0; i < ctx->enc_height; i++) {
-                memcpy(y + i * luma_stride, (void *) ((char *) amlge2d.ge2dinfo.dst_info.vaddr + i * Handle->enc_width), ctx->enc_width);
-            }
-        } else {
-            memcpy((void *)ctx->pFbSrcMem[idx].virt_addr, amlge2d.ge2dinfo.dst_info.vaddr, ctx->enc_width * ctx->enc_height);
-        }
-        y = (char *) (ctx->pFbSrcMem[idx].virt_addr + size_src_luma);
-        memcpy(y, (void *) ((char *)amlge2d.ge2dinfo.dst_info.vaddr + ctx->enc_width * ctx->enc_height), chroma_stride * ctx->enc_height / 2);
+        endian = ctx->pFbSrc[idx].endian;
+        y_dst = (char *) ctx->pFbSrcMem[idx].virt_addr;
+#if defined(__ANDROID__)
+      src = (char *) ge2dinfo.dst_info.vaddr;
+#else
+        src = (char *) amlge2d.ge2dinfo.dst_info.vaddr[0];
+#endif
+      yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufY, src,
+      ctx->enc_width, ctx->enc_height, luma_stride,
+      input->pitch, width32alinged, endian);
+#if defined(__ANDROID__)
+      src = (char *) ge2dinfo.dst_info.vaddr + ctx->enc_width * ctx->enc_height;
+#else
+        src = (char *) amlge2d.ge2dinfo.dst_info.vaddr[0] + ctx->enc_width * ctx->enc_height;
+#endif
+        yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
+                         src, ctx->enc_width, ctx->enc_height / 2,
+                         chroma_stride, input->pitch, width32alinged,endian);
    } else
 #endif
     {
@@ -1709,13 +1774,57 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
                 idx, size_src_luma, ctx->pFbSrc[idx].bufY,
                 ctx->pFbSrc[idx].bufCb,ctx->pFbSrc[idx].bufCr);
   }
-  else { //DMA buffer
-    ctx->pFbSrc[idx].dma_buf_planes = input->num_planes;
-    ctx->pFbSrc[idx].dma_shared_fd[0] = input->shared_fd[0];
-    ctx->pFbSrc[idx].dma_shared_fd[1] = input->shared_fd[1];
-    ctx->pFbSrc[idx].dma_shared_fd[2] = input->shared_fd[2];
-    VLOG(INFO,"Set DMA buffer index %d planes %d fd[%d, %d, %d]\n", idx, input->num_planes,
-        input->shared_fd[0], input->shared_fd[1], input->shared_fd[2]);
+  else if (input->type == CANVAS_BUFFER) {
+
+  } else { //DMA buffer
+#if SUPPORT_SCALE
+    if (ctx->fmt != AMVENC_NV12 && ctx->fmt != AMVENC_NV21 && ctx->fmt != AMVENC_YUV420P) {
+        if (INIT_GE2D) {
+            INIT_GE2D = false;
+#if defined(__ANDROID__)
+            ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
+            ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            ge2dinfo.src_info[0].memtype = GE2D_CANVAS_TYPE_INVALID;
+            ge2dinfo.src_info[1].memtype = GE2D_CANVAS_TYPE_INVALID;
+            ge2dinfo.dst_info.memtype = GE2D_CANVAS_ALLOC;
+            int ret = aml_ge2d_mem_alloc(&ge2dinfo);
+#else
+            amlge2d.ge2dinfo.src_info[0].format = SRC1_PIXFORMAT;
+            amlge2d.ge2dinfo.src_info[1].format = SRC2_PIXFORMAT;
+            amlge2d.ge2dinfo.dst_info.plane_number = 1;
+            int ret = aml_ge2d_mem_alloc(&amlge2d);
+#endif
+            if (ret < 0) {
+                VLOG(ERR, "encode ge2di mem alloc failed, ret=0x%x", ret);
+                return AMVENC_FAIL;
+            }
+            VLOG(DEBUG, "ge2d init successful!");
+        }
+#if defined(__ANDROID__)
+      ge2dinfo.src_info[0].shared_fd = input->shared_fd[0];
+      do_strechblit(&ge2dinfo, input);
+      ctx->pFbSrc[idx].dma_shared_fd[0] = ge2dinfo.dst_info.shared_fd;
+#else
+        amlge2d.ge2dinfo.src_info[0].shared_fd[0] = input->shared_fd[0];
+
+        do_strechblit(&amlge2d.ge2dinfo, input);
+        aml_ge2d_invalid_cache(&amlge2d.ge2dinfo);
+
+        ctx->pFbSrc[idx].dma_shared_fd[0] = amlge2d.ge2dinfo.dst_info.shared_fd[0];
+#endif
+        ctx->pFbSrc[idx].dma_buf_planes = 1;
+        VLOG(INFO,"Set DMA buffer index %d planes %d fd[%d]\n", idx, ctx->pFbSrc[idx].dma_buf_planes,
+            ctx->pFbSrc[idx].dma_shared_fd[0]);
+       } else
+#endif
+    {
+        ctx->pFbSrc[idx].dma_buf_planes = input->num_planes;
+        ctx->pFbSrc[idx].dma_shared_fd[0] = input->shared_fd[0];
+        ctx->pFbSrc[idx].dma_shared_fd[1] = input->shared_fd[1];
+        ctx->pFbSrc[idx].dma_shared_fd[2] = input->shared_fd[2];
+        VLOG(INFO,"Set DMA buffer index %d planes %d fd[%d, %d, %d]\n", idx, input->num_planes,
+            input->shared_fd[0], input->shared_fd[1], input->shared_fd[2]);
+    }
   }
   ctx->FrameIO[idx] = *input;
   ctx->encodedSrcFrmIdxArr[idx] = 1; // occupic the frames.
@@ -1732,6 +1841,12 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
         return AMVENC_FAIL;
     }
   }
+
+  //hoan add for canvas
+  ctx->pFbSrc[idx].canvas_index = input->canvas;
+  VLOG(NONE, "[canvas_u] >> input->canvas = 0x%x.\n", input->canvas);
+  //end
+  param->canvas = input->canvas;
   param->sourceFrame = &ctx->pFbSrc[idx];
   param->picStreamBufferAddr = ctx->bsBuffer[idx].phys_addr;
   param->picStreamBufferSize = ctx->bsBuffer[idx].size;
@@ -2479,9 +2594,13 @@ flush_retry_point:
 
 #if SUPPORT_SCALE
   if (ctx-> ge2d_initial_done) {
+#if defined(__ANDROID__)
+    aml_ge2d_mem_free(&ge2dinfo);
+    aml_ge2d_exit();
+#else
     aml_ge2d_mem_free(&amlge2d);
     aml_ge2d_exit(&amlge2d);
-    amlge2d.ge2dinfo.src_info[0].vaddr = NULL;
+#endif
     VLOG(DEBUG, "ge2d exit!!!\n");
   }
 #endif

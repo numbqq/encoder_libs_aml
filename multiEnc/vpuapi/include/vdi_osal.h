@@ -70,16 +70,25 @@ enum {
 
 #ifdef __ANDROID__
 #include <log/log.h>
+#undef LOG_NDEBUG
+#define LOG_NDEBUG 0
+#undef LOG_TAG
+#define LOG_TAG "VPUAPI"
+
 #define VLOG(level, x...) \
     do { \
-        if (level == INFO) \
-            ALOGV(x); \
-        else if (level == DEBUG) \
-            ALOGD(x); \
-        else if (level == WARN) \
-            ALOGW(x); \
-        else if (level >= ERR) \
-            ALOGE(x); \
+        if (level >= g_vp5_log_level) { \
+            if (level == NONE) \
+                ALOGV(x); \
+            if (level == INFO) \
+                ALOGI(x); \
+            else if (level == DEBUG) \
+                ALOGD(x); \
+            else if (level == WARN) \
+                ALOGW(x); \
+            else if (level >= ERR) \
+                ALOGE(x); \
+        } \
     }while(0)
 #else
 #define VLOG(level, fmt , var...) \
@@ -96,14 +105,6 @@ enum {
 
 
 #define MAX_PRINT_LENGTH 512
-
-#ifdef ANDROID
-#include <utils/Log.h>
-#undef LOG_NDEBUG
-#define LOG_NDEBUG 0
-#undef LOG_TAG
-#define LOG_TAG "VPUAPI"
-#endif
 
 //#define VLOG LogMsg
 

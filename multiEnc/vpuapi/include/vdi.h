@@ -94,6 +94,21 @@ typedef struct vpu_dma_buf_info_t {
     ulong phys_addr[3]; /* phys address for DMA buffer */
 } vpu_dma_buf_info_t;
 
+
+
+
+//hoan add for canvas
+typedef struct vpu_dma_buf_canvas_info_t {
+    u32 num_planes;
+	u32 canvas_index;
+    int fd[3];
+    ulong phys_addr[3]; /* phys address for DMA buffer */
+} vpu_dma_buf_canvas_info_t;
+
+//end
+
+
+
 struct vpudrv_inst_param_t {
   u32 core_idx;
   u32 inst_idx;
@@ -142,6 +157,10 @@ struct vpudrv_inst_param_t {
 #define VPUDRV_BUF_LEN  vpu_buffer_t
 #define VPUDRV_INST_LEN  vpudrv_inst_info_t
 #define VPUDRV_DMABUF_LEN vpu_dma_buf_info_t
+//hoan add for canvas
+#define VPUDRV_DMABUF_CANVAS_LEN vpu_dma_buf_canvas_info_t
+//end
+
 #define VPUDRV_INST_PARAM_LEN struct vpudrv_inst_param_t
 
 #define VDI_MAGIC  'V'
@@ -193,11 +212,17 @@ struct vpudrv_inst_param_t {
 #define VDI_IOCTL_CONFIG_DMA \
     _IOW(VDI_MAGIC, 16, VPUDRV_DMABUF_LEN)
 
+
+
 #define VDI_IOCTL_UNMAP_DMA \
     _IOW(VDI_MAGIC, 17, VPUDRV_DMABUF_LEN)
 
 #define VDI_IOCTL_SYNC_INSTANCE_PARAM \
 	_IOW(VDI_MAGIC, 18, VPUDRV_INST_PARAM_LEN)
+//hoan add for canvas
+#define VDI_IOCTL_READ_CANVAS \
+	_IOW(VDI_MAGIC, 20, VPUDRV_DMABUF_CANVAS_LEN)
+//end
 
 typedef enum {
     VDI_LITTLE_ENDIAN = 0,      /* 64bit LE */

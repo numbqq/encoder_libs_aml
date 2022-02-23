@@ -399,10 +399,11 @@ int vdi_release(u32 core_idx)
     }
 
     vdi->task_num--;
-
+#if !defined(__ANDROID__)
     if (vdi->pvip)
         munmap(vdi->pvip, (sizeof(vpu_instance_pool_t) + sizeof(MUTEX_HANDLE) * VDI_NUM_LOCK_HANDLES));
-
+#else
+#endif
     if (vdi->vpu_fd != -1 && vdi_init_flag[core_idx] != INIT_VDI_STAT_NULL)
     {
         close(vdi->vpu_fd);
@@ -1367,6 +1368,28 @@ int vdi_config_dma(u32 core_idx, vpu_dma_buf_info_t *info)
     return ret;
 }
 
+//hoan add for canvas
+
+int vdi_config_dma_canvas(u32 core_idx, vpu_dma_buf_canvas_info_t *info)
+{
+    int ret;
+    vdi_info_t *vdi;
+    if (core_idx >= MAX_NUM_VPU_CORE)
+        return -1;
+
+    vdi = &s_vdi_info[core_idx];
+    if (!vdi || vdi->vpu_fd == -1 ||
+        vdi_init_flag[core_idx] == INIT_VDI_STAT_NULL)
+        return -1;
+
+    ret = ioctl(vdi->vpu_fd, VDI_IOCTL_READ_CANVAS, (void*)info);
+
+    VLOG(NONE, "[canvas_u] >> vdi_config_dma_canvas DMA physic %d phy(%lx, %lx, %lx)\n",
+     info->num_planes, info->phys_addr[0], info->phys_addr[1], info->phys_addr[2]);
+    return ret;
+}
+
+//end
 int vdi_unmap_dma(u32 core_idx, vpu_dma_buf_info_t *info)
 {
     int ret;

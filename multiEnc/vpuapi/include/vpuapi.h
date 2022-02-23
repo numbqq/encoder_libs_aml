@@ -1526,6 +1526,10 @@ It enables source frame data with long burst length to be loaded for reducing DM
     BOOL updateFbInfo;  /**< If this is TRUE, VPU updates API-internal framebuffer information when any of the information is changed. */
     int dma_buf_planes; /* buffer use dma_buf instead of no zero 1-2 */
     int dma_shared_fd[3]; /* file handle for dma buf planes */
+
+	//hoan add for canvas
+	Uint32 canvas_index;
+	//end
 } FrameBuffer;
 
 /**
@@ -4321,6 +4325,7 @@ It specifies an spatial SVC layer.
     Uint32  qosConfig;  /**< It enables register based QoS control. If register based QoS control feature is enabled, QoS for AXI is set by given qosValVcore0 and qosValVcore1 respectively. */
     Uint32  qosValVcore0; /**< Qos value for VCORE0 */
     Uint32  qosValVcore1; /**< Qos value for VCORE1 */
+    Uint32  canvas;
 } EncParam;
 
 /**

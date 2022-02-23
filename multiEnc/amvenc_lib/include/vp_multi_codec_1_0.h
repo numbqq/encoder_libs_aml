@@ -74,7 +74,9 @@ typedef enum vl_img_format_e {
   IMG_FMT_NV12, /* must support  */
   IMG_FMT_NV21,
   IMG_FMT_YUV420P,
-  IMG_FMT_YV12
+  IMG_FMT_YV12,
+  IMG_FMT_RGB888,
+  IMG_FMT_RGBA8888,
 } vl_img_format_t;
 
 typedef enum vl_frame_type_e {
@@ -189,6 +191,7 @@ typedef struct vl_dma_info {
 typedef union {
   vl_dma_info_t dma_info;
   unsigned long in_ptr[3];
+  uint32_t canvas;
 } vl_buf_info_u;
 
 /* input buffer info
@@ -199,6 +202,7 @@ typedef struct vl_buffer_info {
   vl_buffer_type_t buf_type;
   vl_buf_info_u buf_info;
   int buf_stride; //buf stride for Y, if 0,use width as stride (default)
+  vl_img_format_t buf_fmt;
 } vl_buffer_info_t;
 
 /* noise reduction type*/

@@ -16,13 +16,15 @@ LOCAL_C_INCLUDES:= \
 	$(LOCAL_PATH)/ \
 	$(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/../vpuapi/include \
+	$(TOP)/vendor/amlogic/common/system/libge2d/v1/include \
 	$(LOCAL_PATH)/../vpuapi
 
 LOCAL_SRC_FILES := \
-	libvpmulti_codec.c AML_MultiEncoder.c #aml_v4l2 
+	libvpmulti_codec.c AML_MultiEncoder.c
 
 LOCAL_ARM_MODE := arm
-LOCAL_SHARED_LIBRARIES += libutils libcutils libamvenc_api
+LOCAL_SHARED_LIBRARIES += libutils libcutils libamvenc_api libge2d
+#LOCAL_STATIC_LIBRARIES += libge2d-2.0-static
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
 

@@ -65,6 +65,7 @@
 #define CHANGE_MULTI_SLICE	0x80
 #define FORCE_PICTURE_SKIP	0x100
 #define CHANGE_STRICT_RC	0x200
+#define ENCODER_STRING_LEN_MAX	256
 
 // GOP mode strings
 static const char *Gop_string[] = {
@@ -116,8 +117,8 @@ typedef struct {
 typedef struct {
 	int   seqNum;
 	int   encodeEnd;
-	char  srcfile[128];    // yuv data url in your root fs
-	char  outfile[128];    // stream url in your root fs
+	char  srcfile[ENCODER_STRING_LEN_MAX];    // yuv data url in your root fs
+	char  outfile[ENCODER_STRING_LEN_MAX];    // stream url in your root fs
 	int   width;           // width
 	int   height;          // height
 	int   gop;             // I frame refresh interval
@@ -149,8 +150,8 @@ typedef struct {
 							bit 22 strict_rate_ctrl_en (skipP allowed to limit bitrate) default 0
 							bit 23 forcePicQpEnable default 0
 							*/
-	char  roifile[128];      // optional, roi info url in root fs, no present if roi is disabled
-	char  cfg_file[128];     // optional, cfg update info url. no present if update is disabled
+	char  roifile[ENCODER_STRING_LEN_MAX];      // optional, roi info url in root fs, no present if roi is disabled
+	char  cfg_file[ENCODER_STRING_LEN_MAX];     // optional, cfg update info url. no present if update is disabled
 	int   src_buf_stride;	 // optional, source buffer stride
 	int   intraRefresh ; 	 // optional, lower 4 bits for intra-refresh mode; others for refresh parameter, controlled by intraRefresh bit
 	int   bitStreamBuf ; 	 // optional, encoded bitstream buffer size in MB
@@ -216,7 +217,7 @@ int main(int argc, const char *argv[])
 		printf("  framerate\t: framerate \n");
 		printf("  bitrate  \t: bit rate \n");
 		printf("  num      \t: encode frame count \n");
-		printf("  fmt      \t: encode input fmt 1 : nv12, 2 : nv21, 3 : yuv420p(yv12/yu12)\n");
+		printf("  fmt      \t: encode input fmt 1 : nv12, 2 : nv21, 3 : yuv420p(yv12/yu12), 5 : RGB888, 6 : RGBA8888\n");
 		printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
 		printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 		printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
@@ -270,10 +271,10 @@ int main(int argc, const char *argv[])
 	} else {
 		memset(&cfg_encode[0], 0, sizeof(encodecCfgParam));
 
-		len = strlen(argv[1]) > 128 ? 128 : strlen(argv[1]);
+		len = strlen(argv[1]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[1]);
 		strncpy(cfg_encode[0].srcfile, argv[1], len);
 
-		len = strlen(argv[2]) > 128 ? 128 : strlen(argv[2]);
+		len = strlen(argv[2]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[2]);
 		strncpy(cfg_encode[0].outfile, argv[2], len);
 
 		cfg_encode[0].width = atoi(argv[3]);
@@ -294,13 +295,13 @@ int main(int argc, const char *argv[])
 		if (argc > 14) {
 			arg_count = 14;
 			if ((cfg_encode[0].cfg_opt & 0x1) == 0x1 && argc > arg_count) {
-				len = strlen(argv[arg_count]) > 128 ? 128 : strlen(argv[arg_count]);
+				len = strlen(argv[arg_count]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[arg_count]);
 				strncpy(cfg_encode[0].roifile, argv[arg_count], len);
 				printf("roi_url is\t: %s ;\n", cfg_encode[0].roifile);
 				arg_count ++;
 			}
 			if ((cfg_encode[0].cfg_opt & 0x2) == 0x2 && argc > arg_count) {
-				len = strlen(argv[arg_count]) > 128 ? 128 : strlen(argv[arg_count]);
+				len = strlen(argv[arg_count]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[arg_count]);
 				strncpy(cfg_encode[0].cfg_file, argv[arg_count], len);
 				printf("cfg_upd_url is\t: %s ;\n", cfg_encode[0].cfg_file);
 				arg_count ++;
@@ -428,10 +429,10 @@ static void *encode_thread(void *param)
 	struct usr_ctx_s ctx;
 
 	int len = 0;
-	unsigned char srcfile[128] = {0};
-	unsigned char outfile[128] = {0};
-	unsigned char roifile[128] = {0};
-	unsigned char cfg_file[128] = {0};
+	unsigned char srcfile[ENCODER_STRING_LEN_MAX] = {0};
+	unsigned char outfile[ENCODER_STRING_LEN_MAX] = {0};
+	unsigned char roifile[ENCODER_STRING_LEN_MAX] = {0};
+	unsigned char cfg_file[ENCODER_STRING_LEN_MAX] = {0};
 	encodecCfgParam *cfg_encode = NULL;
 
 	pthread_detach(pthread_self());
@@ -581,13 +582,15 @@ static void *encode_thread(void *param)
 		if ((cfg_option & 0x1) == 0x1 && (strlen(cfg_encode->roifile) > 1)) {
 			printf("roi_url is\t: %s ;\n", cfg_encode->roifile);
 			roi_enabled = 1;
-			len = strlen(cfg_encode->roifile) > 128 ? 128 : strlen(cfg_encode->roifile);
+
+			len = strlen(cfg_encode->roifile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->roifile);
 			strncpy(roifile, cfg_encode->roifile, len);
 		}
 		if ((cfg_option & 0x2) == 0x2 && (strlen(cfg_encode->cfg_file) > 1)) {
 			printf("cfg_upd_url is\t: %s ;\n", cfg_encode->cfg_file);
 			cfg_upd_enabled = 1;
-			len = strlen(cfg_encode->cfg_file) > 128 ? 128 : strlen(cfg_encode->cfg_file);
+
+			len = strlen(cfg_encode->cfg_file) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->cfg_file);
 			strncpy(cfg_file, cfg_encode->cfg_file, len);
 		}
 		if ((cfg_option & 0x100) == 0x100 && cfg_encode->src_buf_stride > 0) {
@@ -635,12 +638,11 @@ static void *encode_thread(void *param)
 		goto end;
 	}
 
-	len = strlen(cfg_encode->srcfile) > 128 ? 128 : strlen(cfg_encode->srcfile);
+	len = strlen(cfg_encode->srcfile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->srcfile);
 	strncpy(srcfile, cfg_encode->srcfile, len);
 
-	len = strlen(cfg_encode->outfile) > 128 ? 128 : strlen(cfg_encode->outfile);
+	len = strlen(cfg_encode->outfile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->outfile);
 	strncpy(outfile, cfg_encode->outfile, len);
-
 
 	unsigned int outbuffer_len = 8*1024 * 1024 * sizeof(char);
 	if (bitstream_buf_size > 8)
@@ -658,13 +660,35 @@ static void *encode_thread(void *param)
 	unsigned int roi_size;
 
 	if (src_buf_stride) {
-		framesize = src_buf_stride * height * 3 / 2;
+		if (fmt == IMG_FMT_RGB888)
+		{
+			framesize = src_buf_stride * height * 3;
+		}
+		else if (fmt == IMG_FMT_RGBA8888)
+		{
+			framesize = src_buf_stride * height * 4;
+		}
+		else
+		{
+			framesize = src_buf_stride * height * 3 / 2;
+		}
 		ysize = src_buf_stride * height;
 		usize = src_buf_stride * height / 4;
 		vsize = src_buf_stride * height / 4;
 		uvsize = src_buf_stride * height / 2;
 	} else {
-		framesize = width * height * 3 / 2;
+		if (fmt == IMG_FMT_RGB888)
+		{
+			framesize = width * height * 3;
+		}
+		else if (fmt == IMG_FMT_RGBA8888)
+		{
+			framesize = width * height * 4;
+		}
+		else
+		{
+			framesize = width * height * 3 / 2;
+		}
 		ysize = width * height;
 		usize = width * height / 4;
 		vsize = width * height / 4;
@@ -674,6 +698,7 @@ static void *encode_thread(void *param)
 	memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
 	inbuf_info.buf_type = (vl_buffer_type_t) buf_type;
 	inbuf_info.buf_stride = src_buf_stride;
+	inbuf_info.buf_fmt = fmt;
 
 	memset(&qp_tbl, 0, sizeof(qp_param_t));
 	memset(&playStat, 0, sizeof(PlayStatInfo));
@@ -788,6 +813,8 @@ static void *encode_thread(void *param)
 				printf("mmap failed,Not enough memory\n");
 				goto exit;
 			}
+
+			printf("hoan debug canvas >> alloc_dma_buffer y,ret=%d, vaddr=0x%x\n", ret,vaddr);
 			dma_info->shared_fd[0] = ret;
 			input[0] = vaddr;
 
@@ -806,6 +833,7 @@ static void *encode_thread(void *param)
 			}
 			dma_info->shared_fd[1] = ret;
 			input[1] = vaddr;
+			printf("hoan debug canvas >> alloc_dma_buffer u,ret=%d, vaddr=0x%x\n", ret,vaddr);
 
 			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, vsize);
 			if (ret < 0)
@@ -820,8 +848,10 @@ static void *encode_thread(void *param)
 				printf("mmap failed,Not enough memory\n");
 				goto exit;
 			}
+
 			dma_info->shared_fd[2] = ret;
 			input[2] = vaddr;
+			printf("hoan debug canvas >> alloc_dma_buffer v,ret=%d, vaddr=0x%x\n", ret,vaddr);
 		} else if (dma_info->num_planes == 2)
 		{
 			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, ysize);
@@ -896,7 +926,7 @@ static void *encode_thread(void *param)
 		    (ulong) (inputBuffer + ysize + usize);
 	}
 
-	fp = fopen(srcfile, "rb");
+	fp = fopen((const char*)srcfile, "rb");
 	if (fp == NULL)
 	{
 		printf("open src file error!\n");
@@ -904,7 +934,7 @@ static void *encode_thread(void *param)
 	}
 
 	if (roi_enabled) {
-		fp_roi = fopen(roifile, "rb");
+		fp_roi = fopen((const char*)roifile, "rb");
 		if (fp_roi == NULL)
 		{
 			printf("open roi file error!\n");
@@ -912,7 +942,7 @@ static void *encode_thread(void *param)
 		}
 	}
 	if (cfg_upd_enabled) {
-		fp_cfg = fopen(cfg_file, "r");
+		fp_cfg = fopen((const char*)cfg_file, "r");
 		if (fp_cfg == NULL)
 		{
 			printf("open cfg file error!\n");
@@ -920,7 +950,7 @@ static void *encode_thread(void *param)
 		}
 		has_cfg_update = ParseCfgUpdateFile(fp_cfg, &cfgChange);
 	}
-	outfd = open(outfile, O_CREAT | O_RDWR | O_TRUNC, 0644);
+	outfd = open((const char*)outfile, O_CREAT | O_RDWR | O_TRUNC, 0644);
 	if (outfd < 0)
 	{
 		printf("open dest file error!\n");
@@ -1438,15 +1468,15 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 {
 	char* token = NULL;
 	char *delim = " ";
-	static char lineStr[256] = {0};
-	char valueStr[256] = {0};
+	static char lineStr[ENCODER_STRING_LEN_MAX*4] = {0};
+	char valueStr[ENCODER_STRING_LEN_MAX] = {0};
 	int i = 0;
 	int len = 0;
 	while (1) {
 		if (i >= CFG_ENCODE_NUM_MAX)
 			return 0;
 		if (lineStr[0] == 0x0) { //need a new line;
-			if (fgets(lineStr, 256, fp) == NULL) {
+			if (fgets(lineStr, ENCODER_STRING_LEN_MAX*4, fp) == NULL) {
 				if (feof(fp))
 					return 0;
 				continue;
@@ -1477,7 +1507,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 			lineStr[0] = 0x0;
 			continue;
 		}
-		len = strlen(token) > 128 ? 128 : strlen(token);
+		len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
 		mystrncpy(cfg_encode[i].srcfile, token, len);
 
 		token = strtok(NULL, delim);
@@ -1485,7 +1515,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 			lineStr[0] = 0x0;
 			continue;
 		}
-		len = strlen(token) > 128 ? 128 : strlen(token);
+		len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
 		mystrncpy(cfg_encode[i].outfile, token, len);
 
 		token = strtok(NULL, delim);
@@ -1576,7 +1606,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 		}
 
 		if ((cfg_encode[i].cfg_opt & 0x1) == 0x1) {
-			len = strlen(token) > 128 ? 128 : strlen(token);
+			len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
 			mystrncpy(cfg_encode[i].roifile, token, len);
 			printf("roi_url is\t: %s ;\n", cfg_encode[i].roifile);
 
@@ -1589,7 +1619,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 			}
 		}
 		if ((cfg_encode[i].cfg_opt & 0x2) == 0x2) {
-			len = strlen(token) > 128 ? 128 : strlen(token);
+			len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
 			mystrncpy(cfg_encode[i].cfg_file, token, len);
 			printf("cfg_upd_url[%d] is\t: %s ;\n", i, cfg_encode[i].cfg_file);
 			token = strtok(NULL, delim);

@@ -78,6 +78,8 @@ typedef struct {
     gx_crop_info crop;
     ulong plane[3];
     ulong mmapsize;
+    int dma_buf_planes; /* buffer use dma_buf instead of no zero 1-2 */
+    int dma_shared_fd[3]; /* file handle for dma buf planes */
 } gx_fast_input_t;
 
 typedef struct {

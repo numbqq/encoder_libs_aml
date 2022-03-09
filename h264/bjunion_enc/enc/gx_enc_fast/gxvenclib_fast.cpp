@@ -347,7 +347,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
     ulong scale_height = yuv[12];
     gx_fast_input_t *src = &p->src;
 
-    if (!y)
+    if (!y && (type != DMA_BUFF))
         return -1;
 
     src->pix_width = enc_width;
@@ -380,8 +380,13 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
             src->plane[1] = u;
         if (fmt == AMVENC_YUV420)
             src->plane[2] = v;
-    } else {
+    } else if (type == CANVAS_BUFFER) {
         src->canvas = (uint32_t) yuv[3];
+    } else if (type == DMA_BUFF) {
+        src->dma_buf_planes   = (uint32_t) yuv[13];
+        src->dma_shared_fd[0] = (uint32_t) yuv[14];
+        src->dma_shared_fd[1] = (uint32_t) yuv[15];
+        src->dma_shared_fd[2] = (uint32_t) yuv[16];
     }
     src->type = type;
     if ((type == PHYSICAL_BUFF) && (pitch % 32 != 0)) {
@@ -436,7 +441,7 @@ static int set_input(gx_fast_enc_drv_t* p, ulong *yuv, uint32_t enc_width, uint3
                 src->fmt = AMVENC_RGB888;
             }
         }
-    } else {
+    } else if(src->type == CANVAS_BUFFER) {
         if (p->src.fmt == AMVENC_RGBA8888)
             src->framesize = src->mb_height * src->pix_width * 16 * 4; //RGBA
         else
@@ -828,7 +833,7 @@ static AMVEnc_Status start_ime_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr, 
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -918,6 +923,14 @@ static AMVEnc_Status start_ime_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr, 
     control_info[14] = p->src.crop.src_h;
     control_info[15] = p->scale_enable ? 1 : 0;
     control_info[16] = p->nr_mode; // nr mode 0: disable 1: snr 2: tnr  2: 3dnr
+
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -962,7 +975,7 @@ static AMVEnc_Status start_intra_cbr_twice(gx_fast_enc_drv_t* p, unsigned char* 
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1041,6 +1054,14 @@ static AMVEnc_Status start_intra_cbr_twice(gx_fast_enc_drv_t* p, unsigned char* 
     else
         control_info[16] = (p->nr_mode > 0) ? 1 : 0;
     control_info[16] = 0;
+
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -1133,7 +1154,7 @@ static AMVEnc_Status start_intra_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1206,6 +1227,14 @@ static AMVEnc_Status start_intra_cbr(gx_fast_enc_drv_t* p, unsigned char* outptr
     else
         control_info[16] = (p->nr_mode > 0) ? 1 : 0;
     control_info[16] = 0;
+
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -1249,7 +1278,7 @@ static AMVEnc_Status start_ime_one_pass(gx_fast_enc_drv_t* p, unsigned char* out
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1285,6 +1314,13 @@ static AMVEnc_Status start_ime_one_pass(gx_fast_enc_drv_t* p, unsigned char* out
     control_info[14] = p->src.crop.src_h;
     control_info[15] = p->scale_enable ? 1 : 0;
     control_info[16] = p->nr_mode; // nr mode 0: disable 1: snr 2: tnr  2: 3dnr
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -1329,7 +1365,7 @@ static AMVEnc_Status start_intra_one_pass(gx_fast_enc_drv_t* p, unsigned char* o
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1375,6 +1411,13 @@ static AMVEnc_Status start_intra_one_pass(gx_fast_enc_drv_t* p, unsigned char* o
     else
         control_info[16] = (p->nr_mode > 0) ? 1 : 0;
     control_info[16] = 0;
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -1418,7 +1461,7 @@ static AMVEnc_Status start_ime_two_pass(gx_fast_enc_drv_t* p, unsigned char* out
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1446,6 +1489,13 @@ static AMVEnc_Status start_ime_two_pass(gx_fast_enc_drv_t* p, unsigned char* out
     control_info[14] = p->src.crop.src_h;
     control_info[15] = p->scale_enable ? 1 : 0;
     control_info[16] = p->nr_mode; // nr mode 0: disable 1: snr 2: tnr  2: 3dnr
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {
@@ -1542,7 +1592,7 @@ static AMVEnc_Status start_intra_two_pass(gx_fast_enc_drv_t* p, unsigned char* o
     uint32_t status;
     uint32_t i;
     uint32_t result[4];
-    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7];
+    uint32_t control_info[17 + sizeof(qp_table_t) / 4 + 7 + 4];
     uint32_t total_time = 0;
     uint32_t qp_base;
     uint32_t tbl_offset = sizeof(qp_table_t) / 4 /3;
@@ -1577,6 +1627,13 @@ static AMVEnc_Status start_intra_two_pass(gx_fast_enc_drv_t* p, unsigned char* o
     else
         control_info[16] = (p->nr_mode > 0) ? 1 : 0;
     control_info[16] = 0;
+    if (p->src.type == DMA_BUFF) {
+        info_off = 17 + sizeof(qp_table_t) / 4 + 7;
+        control_info[info_off++] = p->src.dma_buf_planes;
+        control_info[info_off++] = p->src.dma_shared_fd[0];
+        control_info[info_off++] = p->src.dma_shared_fd[1];
+        control_info[info_off++] = p->src.dma_shared_fd[2];
+    }
     ioctl(p->fd, FASTGX_AVC_IOC_NEW_CMD, &control_info[0]);
 
     if (encode_poll(p->fd, -1) <= 0) {

@@ -105,7 +105,8 @@ typedef enum
     VMALLOC_BUFFER = 0,
     CANVAS_BUFFER = 1,
     PHYSICAL_BUFF = 2,
-    MAX_TYPE = 3,
+    DMA_BUFF = 3,
+    MAX_TYPE = 4,
 } AMVEncBufferType;
 
 typedef enum

@@ -246,7 +246,7 @@ exit:
 AMVEnc_Status AML_HWSetInput(AMVEncHandle *Handle, AMVEncFrameIO *input) {
     amvenc_info_t* info = (amvenc_info_t*) Handle->object;
     AMVEnc_Status status = AMVENC_FAIL;
-    ulong yuv[13];
+    ulong yuv[17];
 
     if (info == NULL) {
         LOGAPI("AML_HWSetInput Fail: UNINITIALIZED. handle: %p", Handle);
@@ -282,6 +282,10 @@ AMVEnc_Status AML_HWSetInput(AMVEncHandle *Handle, AMVEncFrameIO *input) {
     yuv[10] = input->height;
     yuv[11] = input->scale_width;
     yuv[12] = input->scale_height;
+    yuv[13] = input->num_planes;
+    yuv[14] = input->shared_fd[0];
+    yuv[15] = input->shared_fd[1];
+    yuv[16] = input->shared_fd[2];
 
     RECALL_INITFRAME:
     /* initialize and analyze the frame */

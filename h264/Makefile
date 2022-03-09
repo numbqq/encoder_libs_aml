@@ -4,16 +4,21 @@
 #export AR=$(CROSS_CC_PREFIX)ar
 
 TARGET=testApi
-AMLENC_LIB=test.o
+SOURCES=test.cpp test_dma.c
+AMLENC_LIB=$(patsubst %.c, %.o, $(patsubst %.cpp, %.o, $(SOURCES)))
 #LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -Lbjunion_enc/h264bitstream -lh264bitstream
-LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -lh264bitstream
+LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -lh264bitstream -lion
 CFLAGS +=-O2 -g
+INC = -I./ -I./bjunion_enc/include/
+CFLAGS += $(INC)
 
 $(TARGET):$(AMLENC_LIB)
-	$(CXX) $(CFLAGS) $< -o $(TARGET) $(LDFLAGS)
+	$(CXX) $(CFLAGS) $^ -o $(TARGET) $(LDFLAGS)
 
-$(AMLENC_LIB):%.o:%.cpp
+%.o:%.cpp
 	$(CXX) -c $(CFLAGS) $< -o $@
+%.o:%.c
+	$(CC) -c $(CFLAGS) $< -o $@
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)

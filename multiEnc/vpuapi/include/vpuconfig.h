@@ -61,6 +61,7 @@
 #define MIN_ENC_PIC_WIDTH               96
 #define MIN_ENC_PIC_HEIGHT              16
 
+#define MAX_ENC_AVC_INTRA_PERIOD        0x7ff
 #define MAX_ENC_HEVC_INTRA_PERIOD       1024
 // for VPU420
 #define VP_MIN_ENC_PIC_WIDTH            256

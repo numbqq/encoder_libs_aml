@@ -507,7 +507,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     }
 
     if (handle->bufType == CANVAS_BUFFER) {
-      VLOG(ERR, "setting canvas to videoInput");
+      VLOG(INFO, "setting canvas to videoInput");
       videoInput.canvas = in_buffer_info->buf_info.canvas;
       videoInput.fmt = AMVENC_NV21;
     }
@@ -532,7 +532,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           return result;
         }
       } else if (videoInput.fmt == AMVENC_RGBA8888) {
-        VLOG(ERR, "process rgba dma input");
+        VLOG(INFO, "process rgba dma input");
 
         if (dma_info->num_planes != 1) {
           VLOG(ERR, "RGBA invalid num_planes %d\n", dma_info->num_planes);
@@ -558,7 +558,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         }
 
         handle->shared_fd[i] = dma_info->shared_fd[i];
-        VLOG(ERR, "**shared_fd %d\n", handle->shared_fd[i]);
+        VLOG(INFO, "**shared_fd %d\n", handle->shared_fd[i]);
         videoInput.shared_fd[i] = dma_info->shared_fd[i];
       }
 

@@ -521,7 +521,7 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   } else
     param->intraPeriod = InitParam ->idr_period;
 
-  VLOG(ERR, "GopPreset GOP format (%d) period %d LongTermRef %d\n",
+  VLOG(INFO, "GopPreset GOP format (%d) period %d LongTermRef %d\n",
         param->gopPresetIdx, param->intraPeriod, param->useLongTerm);
 
   param->intraQP = InitParam ->initQP; //pCfg->vpCfg.intraQP;
@@ -1544,7 +1544,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   AMVMultiCtx * ctx = (AMVMultiCtx* )ctx_handle;
 
   if (input->type == CANVAS_BUFFER) {
-      VLOG(ERR, "set fmt to nv21 for canvas buffer mode as default");
+      VLOG(INFO, "set fmt to nv21 for canvas buffer mode as default");
       input->fmt = AMVENC_NV21;
   }
 

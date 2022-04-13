@@ -45,6 +45,8 @@
 #include "include/AML_MultiEncoder.h"
 #include "include/enc_define.h"
 #include "vdi_osal.h"
+#include "include/h264bitstream.h"
+
 
 #define MAX_FRAME_HIST         (128)
 #define MAX_FRAME_WINDOW       (120)
@@ -226,7 +228,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.initQP = 30;
         handle->mEncParams.BitrateScale = ENC_SETTING_OFF;
         handle->mEncParams.refresh_type = HEVC_CRA;
-    } else if(codec_id == CODEC_ID_H264) {
+    } else if (codec_id == CODEC_ID_H264) {
         handle->mEncParams.stream_type = AMV_AVC;
         handle->mEncParams.profile = encode_info.profile;
         handle->mEncParams.level = AVC_LEVEL4;
@@ -390,6 +392,70 @@ exit:
   return (vl_codec_handle_t)NULL;
 }
 
+void vl_multi_encoder_adjust_header(AMVEncStreamType streamType,char *header,int *dataLength)
+{
+    //adjust pps baseline profile
+    bs_t bs;
+    pps_t pps;
+    uint32_t i = 0;
+    int sps_nalu_size;
+    int pps_nalu_size;
+    int new_pps_size;
+    int pps_start = -1;
+
+    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",streamType);
+    if (streamType != AMV_AVC)
+        return;
+    uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+
+    if (sps_nalu == NULL || pps_nalu == NULL) {
+        VLOG(ERR,"malloc for sps or pps failed");
+        return;
+    }
+
+    for (i=0;i<*dataLength-5;i++) {
+        if ((uint8_t)header[i+0] == 0 && (uint8_t)header[i+1] == 0 && (uint8_t)header[i+2] == 0 && (uint8_t)header[i+3] == 1 &&
+            (((uint8_t)header[i+4]) & 0x1f) == 8) {
+            pps_start = i;
+            VLOG(INFO,"pps_start=%d\n", pps_start);
+            break;
+        }
+    }
+
+    memcpy(sps_nalu, header, pps_start);
+    memcpy(pps_nalu, header + pps_start, *dataLength - pps_start);
+
+    sps_nalu_size = pps_start;
+    VLOG(INFO,"old sps_nalu_size=%d", sps_nalu_size);
+    pps_nalu_size = *dataLength - pps_start;
+
+    bs_init(&bs, pps_nalu + 5, pps_nalu_size - 5);
+    read_pic_parameter_set_rbsp(&pps, &bs);
+    read_rbsp_trailing_bits(&bs);
+
+    memset(pps_nalu + 5, 0, *dataLength - 5);
+
+    bs_init(&bs, pps_nalu + 5, *dataLength - 5);
+
+    write_pic_parameter_set_rbsp(&pps, &bs);
+    write_rbsp_trailing_bits(&bs);
+
+    new_pps_size = bs.p - bs.start + 5;
+    VLOG(INFO,"new_pps_size=%d", new_pps_size);
+    memset(header, 0, new_pps_size + sps_nalu_size);
+
+    memcpy(header, sps_nalu, sps_nalu_size);
+    memcpy(header + sps_nalu_size, pps_nalu, new_pps_size);
+
+    *dataLength = sps_nalu_size + pps_nalu_size;
+
+    if (sps_nalu)
+        free(sps_nalu);
+    if (pps_nalu)
+        free(pps_nalu);
+}
+
 encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
                                            vl_frame_type_t type,
                                            unsigned char* out,
@@ -433,6 +499,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
                             (unsigned int *)&dataLength);
     VLOG(DEBUG, "ret = %d", ret);
     if (ret == AMVENC_SUCCESS) {
+      vl_multi_encoder_adjust_header(handle->mEncParams.stream_type, out,&dataLength);
       handle->mSPSPPSDataSize = 0;
       handle->mSPSPPSData = (char *)malloc(dataLength);
       if (handle->mSPSPPSData) {
@@ -692,8 +759,8 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         strict_rc_filled(handle, dataLength);
     }
     /* check the returned frame if it has */
-    if(videoRet.type == DMA_BUFF) { //have buffer return?
-        if(videoRet.num_planes) {
+    if (videoRet.type == DMA_BUFF) { //have buffer return?
+        if (videoRet.num_planes) {
             ret_buf ->buf_type = (vl_buffer_type_t)(videoRet.type);
             ret_buf ->buf_info.dma_info.num_planes = videoRet.num_planes;
             for (i = 0; i < videoRet.num_planes; i++)

@@ -46,6 +46,8 @@
 #include "include/enc_define.h"
 #include "vdi_osal.h"
 #include "include/h264bitstream.h"
+#include "include/h265bitstream.h"
+
 
 
 #define MAX_FRAME_HIST         (128)
@@ -62,6 +64,8 @@ static struct timeval start_test;
 static struct timeval end_test;
 #endif
 
+#define H264_HEADER_LEN 5
+#define H265_HEADER_LEN 6
 #define GET_DROPPABLE_P 1
 #if defined(__ANDROID__)
 #define LOG_LINE() ALOGD("[%s:%d]\n", __FUNCTION__, __LINE__)
@@ -70,6 +74,16 @@ static struct timeval end_test;
 const char* vl_get_version() {
   return version;
 }
+
+typedef struct vp_multi_vui_info_s {
+  uint8_t vui_parameters_present_flag;
+  uint8_t video_full_range_flag;
+  uint8_t video_signal_type_present_flag;
+  uint8_t colour_description_present_flag;
+  uint8_t colour_primaries;
+  uint8_t transfer_characteristics;
+  uint8_t matrix_coefficients;
+}VPMultiVuiInfo;
 
 typedef struct vp_multi_s {
   AMVEncInitParams mEncParams;
@@ -93,6 +107,7 @@ typedef struct vp_multi_s {
   int total_win_size;
   int hist_win_len;
   int hist_skip_thresh;
+  VPMultiVuiInfo vui_info;
 } VPMultiEncHandle;
 
 static int64_t GetNowUs() {
@@ -258,6 +273,13 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         }
     }
     handle->mEncParams.cust_qp_delta = encode_info.cust_gop_qp_delta;
+    handle->vui_info.vui_parameters_present_flag = encode_info.vui_parameters_present_flag;
+    handle->vui_info.video_full_range_flag = encode_info.video_full_range_flag;
+    handle->vui_info.video_signal_type_present_flag = encode_info.video_signal_type_present_flag;
+    handle->vui_info.colour_description_present_flag = encode_info.colour_description_present_flag;
+    handle->vui_info.colour_primaries = encode_info.colour_primaries;
+    handle->vui_info.transfer_characteristics = encode_info.transfer_characteristics;
+    handle->vui_info.matrix_coefficients = encode_info.matrix_coefficients;
     return AMVENC_SUCCESS;
 }
 
@@ -392,19 +414,81 @@ exit:
   return (vl_codec_handle_t)NULL;
 }
 
-void vl_multi_encoder_adjust_header(AMVEncStreamType streamType,char *header,int *dataLength)
+int vl_multi_encoder_adjust_h264_sps(VPMultiEncHandle* handle,char *sps_nalu,int sps_nalu_size,int buffer_len,VPMultiVuiInfo vui_info)
+{
+    sps_t sps = {0};
+    bs_t bs = {0};
+    int new_sps_size = 0;
+    if (!handle->vui_info.vui_parameters_present_flag) {
+        VLOG(INFO,"vui_parameters_present_flag is false,do not add vui info");
+        return sps_nalu_size;
+    }
+    sps_nalu_size = EBSPtoRBSP(sps_nalu,H264_HEADER_LEN,sps_nalu_size);
+    bs_init(&bs, sps_nalu + H264_HEADER_LEN, sps_nalu_size - H264_HEADER_LEN);
+    read_seq_parameter_set_rbsp(&sps, &bs);
+    read_rbsp_trailing_bits(&bs);
+
+    sps.vui_parameters_present_flag = handle->vui_info.vui_parameters_present_flag;
+    sps.vui.video_full_range_flag = handle->vui_info.video_full_range_flag;
+    if (sps.vui_parameters_present_flag) {
+        sps.vui.video_signal_type_present_flag = 1;//handle->video_signal_type_present_flag;
+    }
+    if (handle->vui_info.colour_primaries && handle->vui_info.transfer_characteristics && handle->vui_info.matrix_coefficients) {
+        sps.vui.colour_description_present_flag = 1;//handle->colour_description_present_flag;
+        sps.vui.colour_primaries = handle->vui_info.colour_primaries;
+        sps.vui.transfer_characteristics = handle->vui_info.transfer_characteristics;
+        sps.vui.matrix_coefficients = handle->vui_info.matrix_coefficients;
+    }
+
+    VLOG(INFO,"old header range =%d,primaries = %d,transfer:%d,matrix:%d", sps.vui.video_full_range_flag,sps.vui.colour_primaries,sps.vui.transfer_characteristics,sps.vui.matrix_coefficients);
+    memset(sps_nalu + H264_HEADER_LEN, 0, buffer_len - H264_HEADER_LEN);
+
+    bs_init(&bs, sps_nalu + H264_HEADER_LEN, buffer_len - H264_HEADER_LEN);
+
+    write_seq_parameter_set_rbsp(&sps, &bs);
+    write_rbsp_trailing_bits(&bs);
+
+    new_sps_size = bs.p - bs.start + H264_HEADER_LEN;
+    new_sps_size = RBSPtoEBSP(sps_nalu,H264_HEADER_LEN,new_sps_size,0);
+    return new_sps_size;
+}
+
+int vl_multi_encoder_adjust_h264_pps(VPMultiEncHandle* handle,char *pps_nalu,int pps_nalu_size)
+{
+    sps_t pps = {0};
+    bs_t bs = {0};
+    int new_pps_size = 0;
+    bs_init(&bs, pps_nalu + H264_HEADER_LEN, pps_nalu_size - H264_HEADER_LEN);
+    read_pic_parameter_set_rbsp(&pps, &bs);
+    read_rbsp_trailing_bits(&bs);
+
+    memset(pps_nalu + H264_HEADER_LEN, 0, pps_nalu_size - H264_HEADER_LEN);
+    bs_init(&bs, pps_nalu + H264_HEADER_LEN, pps_nalu_size - H264_HEADER_LEN);
+    write_pic_parameter_set_rbsp(&pps, &bs);
+    write_rbsp_trailing_bits(&bs);
+
+    new_pps_size = bs.p - bs.start + H264_HEADER_LEN;
+    return new_pps_size;
+}
+
+
+
+void vl_multi_encoder_adjust_h264_header(VPMultiEncHandle* handle,char *header,int *dataLength)
 {
     //adjust pps baseline profile
-    bs_t bs;
+    sps_t sps;
     pps_t pps;
+    bs_t bs = {0};
     uint32_t i = 0;
     int sps_nalu_size;
     int pps_nalu_size;
     int new_pps_size;
+    int new_sps_size;
     int pps_start = -1;
+    //VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
 
-    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",streamType);
-    if (streamType != AMV_AVC)
+    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
+    if (handle->mEncParams.stream_type != AMV_AVC)
         return;
     uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
     uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
@@ -414,7 +498,7 @@ void vl_multi_encoder_adjust_header(AMVEncStreamType streamType,char *header,int
         return;
     }
 
-    for (i=0;i<*dataLength-5;i++) {
+    for (i = 0 ; i < *dataLength - H264_HEADER_LEN; i++) {
         if ((uint8_t)header[i+0] == 0 && (uint8_t)header[i+1] == 0 && (uint8_t)header[i+2] == 0 && (uint8_t)header[i+3] == 1 &&
             (((uint8_t)header[i+4]) & 0x1f) == 8) {
             pps_start = i;
@@ -422,38 +506,178 @@ void vl_multi_encoder_adjust_header(AMVEncStreamType streamType,char *header,int
             break;
         }
     }
+#if 0
+    char tmp[1024] = {0};
+    char tmp1[128] = {0};
+    for (int i = 0;i < *dataLength;i++) {
+        sprintf(tmp1," %x",header[i]);
+        strcat(tmp,tmp1);
+    }
+    VLOG(INFO,"old header data:%s",tmp);
+#endif
 
     memcpy(sps_nalu, header, pps_start);
     memcpy(pps_nalu, header + pps_start, *dataLength - pps_start);
 
     sps_nalu_size = pps_start;
-    VLOG(INFO,"old sps_nalu_size=%d", sps_nalu_size);
     pps_nalu_size = *dataLength - pps_start;
+    VLOG(INFO,"old sps_nalu_size=%d,pps_nalu_size:%d", sps_nalu_size,pps_nalu_size);
 
-    bs_init(&bs, pps_nalu + 5, pps_nalu_size - 5);
-    read_pic_parameter_set_rbsp(&pps, &bs);
-    read_rbsp_trailing_bits(&bs);
+    new_sps_size = vl_multi_encoder_adjust_h264_sps(handle,sps_nalu,sps_nalu_size,*dataLength,handle->vui_info);
+    memset(header, 0, *dataLength);
+    memcpy(header, sps_nalu, new_sps_size);
+    new_pps_size = vl_multi_encoder_adjust_h264_pps(handle,pps_nalu,pps_nalu_size);
+    VLOG(INFO,"new sps_size:%d,new_pps_size=%d", new_sps_size,new_pps_size);
 
-    memset(pps_nalu + 5, 0, *dataLength - 5);
+    memcpy(header + new_sps_size, pps_nalu, new_pps_size);
 
-    bs_init(&bs, pps_nalu + 5, *dataLength - 5);
-
-    write_pic_parameter_set_rbsp(&pps, &bs);
-    write_rbsp_trailing_bits(&bs);
-
-    new_pps_size = bs.p - bs.start + 5;
-    VLOG(INFO,"new_pps_size=%d", new_pps_size);
-    memset(header, 0, new_pps_size + sps_nalu_size);
-
-    memcpy(header, sps_nalu, sps_nalu_size);
-    memcpy(header + sps_nalu_size, pps_nalu, new_pps_size);
-
-    *dataLength = sps_nalu_size + pps_nalu_size;
-
+    *dataLength = new_sps_size + new_pps_size;
+#if 0
+    memset(tmp,0,sizeof(tmp));
+    memset(tmp1,0,sizeof(tmp1));
+    for (int i = 0;i < *dataLength;i++) {
+        sprintf(tmp1," %x",header[i]);
+        strcat(tmp,tmp1);
+    }
+    VLOG(INFO,"new header data:%s",tmp);
+#endif
     if (sps_nalu)
         free(sps_nalu);
     if (pps_nalu)
         free(pps_nalu);
+}
+
+
+void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,int *dataLength)
+{
+    bs_t bs;
+    //sps_h265_t sps = {0};
+    uint32_t i = 0;
+    int vps_nalu_size = 0;
+    int sps_nalu_size = 0;
+    int pps_nalu_size = 0;
+    int new_sps_size = 0;
+    int vps_start = -1;
+    int sps_start = -1;
+    int pps_start = -1;
+    int ret = 0;
+    h265_stream_t *pstream_handle = NULL;
+    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
+    if (handle->mEncParams.stream_type != AMV_HEVC || !handle->vui_info.vui_parameters_present_flag)
+        return;
+
+    uint8_t *vps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    if (sps_nalu == NULL || pps_nalu == NULL || vps_nalu == NULL) {
+        VLOG(ERR,"hack_sps malloc for sps or pps failed");
+        return;
+    }
+
+    for (i=0;i<*dataLength-H265_HEADER_LEN;i++) {
+        if ((uint8_t)header[i+0] == 0 && (uint8_t)header[i+1] == 0 && (uint8_t)header[i+2] == 0 && (uint8_t)header[i+3] == 1 &&
+            (((uint8_t)header[i+4]) & 0x7e) == 0x40) {
+            vps_start = i;
+            VLOG(INFO,"hack_sps vps_start=%d\n", vps_start);
+            //break;
+        }
+        if ((uint8_t)header[i+0] == 0 && (uint8_t)header[i+1] == 0 && (uint8_t)header[i+2] == 0 && (uint8_t)header[i+3] == 1 &&
+            (((uint8_t)header[i+4]) & 0x7e) == 0x42) {
+            sps_start = i;
+            VLOG(INFO,"hack_sps pps_start=%d\n", sps_start);
+        }
+        if ((uint8_t)header[i+0] == 0 && (uint8_t)header[i+1] == 0 && (uint8_t)header[i+2] == 0 && (uint8_t)header[i+3] == 1 &&
+        (((uint8_t)header[i+4]) & 0x7e) == 0x44) {
+            pps_start = i;
+            VLOG(INFO,"hack_sps pps_start=%d\n", pps_start);
+            break;
+        }
+    }
+
+    vps_nalu_size = sps_start;
+    sps_nalu_size = pps_start - sps_start;
+    pps_nalu_size = *dataLength - pps_start;
+    VLOG(INFO,"hack_sps old vps_nalu_size=%d,sps_nalu_size=%d,pps_nalu_size=%d",vps_nalu_size, sps_nalu_size, pps_nalu_size);
+
+    memcpy(vps_nalu, header, vps_nalu_size);
+    memcpy(sps_nalu, header + sps_start, sps_nalu_size);
+    memcpy(pps_nalu, header + pps_start, pps_nalu_size);
+#if 0
+    char tmp[1024] = {0};
+    char tmp1[128] = {0};
+    for (int i = 0;i < *dataLength;i++) {
+        sprintf(tmp1," %x",header[i]);
+        strcat(tmp,tmp1);
+    }
+    VLOG(ERR,"old header data:%s",tmp);
+#endif
+    sps_nalu_size = EBSPtoRBSP(sps_nalu,H265_HEADER_LEN,sps_nalu_size);
+
+    pstream_handle = h265bitstream_init();
+    bs_init(&bs, sps_nalu + H265_HEADER_LEN, sps_nalu_size - H265_HEADER_LEN);
+    read_debug_seq_parameter_set_rbsp(pstream_handle, &bs);
+    read_rbsp_trailing_bits(&bs);
+
+    pstream_handle->sps->vui_parameters_present_flag = handle->vui_info.vui_parameters_present_flag;
+    pstream_handle->vui->video_full_range_flag = handle->vui_info.video_full_range_flag;
+    if (pstream_handle->sps->vui_parameters_present_flag) {
+        pstream_handle->vui->video_signal_type_present_flag = 1;//handle->video_signal_type_present_flag;
+    }
+    if (handle->vui_info.colour_primaries && handle->vui_info.transfer_characteristics && handle->vui_info.matrix_coefficients) {
+        pstream_handle->vui->colour_description_present_flag = 1;//handle->colour_description_present_flag;
+        pstream_handle->vui->colour_primaries = handle->vui_info.colour_primaries;
+        pstream_handle->vui->transfer_characteristics = handle->vui_info.transfer_characteristics;
+        pstream_handle->vui->matrix_coeffs = handle->vui_info.matrix_coefficients;
+    }
+    VLOG(INFO,"old header sps.vui_parameters_present_flag:%d, range =%d,primaries = %d,transfer:%d,matrix:%d", pstream_handle->sps->vui_parameters_present_flag,pstream_handle->vui->video_full_range_flag,pstream_handle->vui->colour_primaries,pstream_handle->vui->transfer_characteristics,pstream_handle->vui->matrix_coeffs);
+
+    memset(sps_nalu + H265_HEADER_LEN, 0, *dataLength - H265_HEADER_LEN);
+
+    bs_init(&bs, sps_nalu + H265_HEADER_LEN, *dataLength - H265_HEADER_LEN);
+    write_debug_seq_parameter_set_rbsp(pstream_handle, &bs);
+    write_rbsp_trailing_bits(&bs);
+    new_sps_size = bs.p - bs.start + H265_HEADER_LEN;
+
+    memset(header, 0, vps_nalu_size + new_sps_size + pps_nalu_size);
+
+    memcpy(header,vps_nalu, vps_nalu_size);
+
+    new_sps_size = RBSPtoEBSP(sps_nalu,H265_HEADER_LEN,new_sps_size,0);
+    memcpy(header + vps_nalu_size,sps_nalu,new_sps_size);
+    memcpy(header + new_sps_size + vps_nalu_size, pps_nalu, pps_nalu_size);
+    *dataLength = new_sps_size + pps_nalu_size + vps_nalu_size;
+#if 0
+    memset(tmp,0,sizeof(tmp));
+    memset(tmp1,0,sizeof(tmp1));
+    for (int i = 0;i < *dataLength;i++) {
+        sprintf(tmp1," %x",header[i]);
+        strcat(tmp,tmp1);
+    }
+    VLOG(ERR,"new header:%s",tmp);
+#endif
+    if (vps_nalu)
+        free(vps_nalu);
+    if (sps_nalu)
+        free(sps_nalu);
+    if (pps_nalu)
+        free(pps_nalu);
+    h265_free(pstream_handle);
+}
+
+
+
+
+void vl_multi_encoder_adjust_header(VPMultiEncHandle* handle,char *header,int *dataLength)
+{
+    //adjust pps baseline profile
+    //VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+
+    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
+    if (handle->mEncParams.stream_type == AMV_AVC)
+        vl_multi_encoder_adjust_h264_header(handle,header,dataLength);
+    else if (handle->mEncParams.stream_type == AMV_HEVC)
+        vl_multi_encoder_adjust_h265_header(handle,header,dataLength);
+    return;
 }
 
 encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
@@ -499,7 +723,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
                             (unsigned int *)&dataLength);
     VLOG(DEBUG, "ret = %d", ret);
     if (ret == AMVENC_SUCCESS) {
-      vl_multi_encoder_adjust_header(handle->mEncParams.stream_type, out,&dataLength);
+      vl_multi_encoder_adjust_header(handle, out,&dataLength);
       handle->mSPSPPSDataSize = 0;
       handle->mSPSPPSData = (char *)malloc(dataLength);
       if (handle->mSPSPPSData) {

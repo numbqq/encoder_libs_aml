@@ -171,6 +171,13 @@ typedef struct vl_encode_info {
   int strict_rc_skip_thresh;/* threshold of actual bitrate in compare with target
                               bitrate to trigger skip frame (in percentage)  */
   int bitstream_buf_sz_kb; /* the encoded bitstream buffer size in KB */
+  uint8_t vui_parameters_present_flag;
+  uint8_t video_full_range_flag;
+  uint8_t video_signal_type_present_flag;
+  uint8_t colour_description_present_flag;
+  uint8_t colour_primaries;
+  uint8_t transfer_characteristics;
+  uint8_t matrix_coefficients;
 } vl_encode_info_t;
 
 /* dma buffer info*/

@@ -381,7 +381,7 @@ static void write_vui(h265_stream_t* h, bs_t* b)
     vui_t *vui = h->vui;
     //GetBitContext backup;
     int sar_present, alt = 0;
-    ALOGE("vui->video_signal_type_present_flag:%d",vui->video_signal_type_present_flag);
+    //ALOGE("vui->video_signal_type_present_flag:%d",vui->video_signal_type_present_flag);
     //av_log(avctx, AV_LOG_DEBUG, "Decoding VUI\n");
 
     bs_write_u1(b,vui->aspect_ratio_info_present_flag);
@@ -722,7 +722,7 @@ void write_debug_seq_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
     bs_write_u1(b,sps->sps_temporal_mvp_enabled_flag);
     bs_write_u1(b,sps->strong_intra_smoothing_enabled_flag);
     bs_write_u1(b,sps->vui_parameters_present_flag);
-    ALOGE("vui_parameters_present_flag:%d",sps->vui_parameters_present_flag);
+    //ALOGE("vui_parameters_present_flag:%d",sps->vui_parameters_present_flag);
     if (sps->vui_parameters_present_flag)
     {
         //TODO: vui_parameters()

@@ -877,10 +877,14 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     videoInput.op_flag = 0;
 
     if (handle->mKeyFrameRequested == true) {
-      videoInput.op_flag |= AMVEncFrameIO_FORCE_IDR_FLAG;
-      handle->mKeyFrameRequested = false;
-      VLOG(INFO, "Force encode a IDR frame at %d frame",
-           handle->mNumInputFrames);
+        if (handle->mEncParams.GopPreset == GOP_IP_SVC5 && (handle->mNumInputFrames % 4)) {
+          VLOG(INFO, "Force encode key frame at %d frame,but this frame can't insert,skip!!",handle->mNumInputFrames);
+        }
+        else {
+          videoInput.op_flag |= AMVEncFrameIO_FORCE_IDR_FLAG;
+          handle->mKeyFrameRequested = false;
+          VLOG(INFO, "Force encode key frame at %d frame",handle->mNumInputFrames);
+        }
     }
     if (handle->mSkipFrameRequested == true) {
       videoInput.op_flag |= AMVEncFrameIO_FORCE_SKIP_FLAG;

@@ -20,7 +20,7 @@ LOCAL_C_INCLUDES:= \
 	$(LOCAL_PATH)/../vpuapi
 
 LOCAL_SRC_FILES := \
-	libvpmulti_codec.c AML_MultiEncoder.c h264bitstream.c h265bitstream.c
+	libvpmulti_codec.c AML_MultiEncoder.c h264bitstream.c
 
 LOCAL_ARM_MODE := arm
 LOCAL_SHARED_LIBRARIES += libutils libcutils libamvenc_api libge2d

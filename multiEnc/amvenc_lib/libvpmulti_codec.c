@@ -485,12 +485,14 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
 
 
   if (handle->bufType == DMA_BUFF) {
-    if ((handle->mEncParams.width % 16 && in_buffer_info->buf_stride == 0) ||
-        in_buffer_info->buf_stride % 16) {
-       VLOG(ERR, "dma buffer stride must be multiple of 16!");
-       result.is_valid = false;
-       result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
-       return result;
+    if (in_buffer_info->buf_fmt == AMVENC_NV12 || in_buffer_info->buf_fmt == AMVENC_NV21 || in_buffer_info->buf_fmt == AMVENC_YUV420P) {
+        if ((handle->mEncParams.width % 16 && in_buffer_info->buf_stride == 0) ||
+            in_buffer_info->buf_stride % 16) {
+           VLOG(ERR, "dma buffer stride must be multiple of 16!");
+           result.is_valid = false;
+           result.err_cod = AMVENC_ENCPARAM_MEM_FAIL;
+           return result;
+        }
     }
   }
 

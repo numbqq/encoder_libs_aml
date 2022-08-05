@@ -1770,6 +1770,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
 
         ctx->pFbSrc[idx].dma_shared_fd[0] = ctx->amlge2d.ge2dinfo.dst_info.shared_fd[0];
         ctx->pFbSrc[idx].dma_buf_planes = 1;
+        ctx->amlge2d.ge2dinfo.src_info[0].shared_fd[0] = -1;
         VLOG(INFO,"Set DMA buffer index %d planes %d fd[%d]\n", idx, ctx->pFbSrc[idx].dma_buf_planes,
             ctx->pFbSrc[idx].dma_shared_fd[0]);
        } else

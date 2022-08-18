@@ -655,7 +655,11 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     videoInput.op_flag = 0;
 
     if (handle->mKeyFrameRequested == true) {
-        if (handle->mEncParams.GopPreset == GOP_IP_SVC5 && (handle->mNumInputFrames % 4)) {
+        if (handle->mEncParams.GopPreset == GOP_IP_SVC1 && (handle->mNumInputFrames % 2) ||
+            handle->mEncParams.GopPreset == GOP_IP_SVC2 && (handle->mNumInputFrames % 3) ||
+            handle->mEncParams.GopPreset == GOP_IP_SVC3 && (handle->mNumInputFrames % 4) ||
+            handle->mEncParams.GopPreset == GOP_IP_SVC4 && (handle->mNumInputFrames % 5) ||
+            handle->mEncParams.GopPreset == GOP_IP_SVC5 && (handle->mNumInputFrames % 4)) {
           VLOG(INFO, "Force encode key frame at %d frame,but this frame can't insert,skip!!",handle->mNumInputFrames);
         }
         else {

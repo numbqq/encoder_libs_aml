@@ -1788,6 +1788,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   ctx->encodedSrcFrmIdxArr[idx] = 1; // occupic the frames.
   ctx->encMEMSrcFrmIdxArr[param->srcIdx]  = idx; //indirect  link due to reodering. srcIdx increase linear.
   ctx->pFbSrc[idx].stride = src_stride; /**< A horizontal stride for given frame buffer */
+  ctx->pFbSrc[idx].height = input->height; /**< A height for given frame buffer */
 
   VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",param->srcIdx, idx, src_stride);
   if (ctx->bsBuffer[idx].size == 0) { // allocate buffer

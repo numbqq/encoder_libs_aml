@@ -1,0 +1,154 @@
+===============================================================================
+                      HEVC Encoder Testing for Versatile
+===============================================================================
+
+NOTE:
+This test setup is for versatile and does not apply directly to integrator or
+Linux workstation testing.
+
+the location of the toolchain and ip addresses are examples here
+and can of cource change.
+
+===============================================================================
+
+
+===============================================================================
+                          Setting up the environment
+===============================================================================
+
+1. Log into the tool-chain workstation. Current toolchain requires GLIBC_2.3
+>ssh hantrodom16
+
+2. Source the tool-chain settings script
+> source /afs/hantro.com/i386_linux24/usr/arm/arm-2005q3-2-arm-none-linux-gnueabi-i686-pc-linux-gnu/settings.csh
+
+3. Check out current tag from git
+> git clone projects/gforce/git/h1_encoder
+> git checkout -b <current_tag>
+
+4. Check "Master" Makefile
+> cd h1_encoder/software/linux_reference
+> nedit Makefile
+	- set traces if needed
+	- set wanted format (INCLUDE_H264=y, other n or all y)
+    - polling based or not
+    - uncomment -DASIC_WAVE_TRACE_TRIGGER if you want support for Logic Analyzer tracing
+    
+5 Compile kernel modules    
+
+5.1 Compile encoder kernel modlue. Set the path for the kernel sources correctly.
+> cd h1_encoder/software/linux_reference/kernel_module
+>make
+
+5.2 Compile linear memory allocater kernel module. Set the path for the kernel sources correctly.
+> cd h1_encoder/software/linux_reference/memalloc
+>make
+
+There are scripts for loading these modules! "driver_load.sh" and "memalloc_load.sh"
+
+6 Setup testbench Makefile
+> cd h1_encoder/software/linux_reference/test/h264
+> nedit Makefile
+
+ set INTERNAL_TEST = y in order to run all internal tests and have some internal tests (VP and NAL size buffer).
+
+7. Compile testing program
+> make clean libclean versatile
+
+8. Copy the encoder testbench, kernel modules and scripts to a place where the versatile board can
+mount. At the moment this is done by copying to directory /export/work with 
+the machine hlabc4 which has AFS access.
+
+> ssh hlabc4
+> cp h1_encoder/software/linux_reference/test/h264/h264_testenc /export/work/your_work_dir
+> cp h1_encoder/software/linux_reference/test/h264/test_h264.sh /export/work/your_work_dir
+> cp h1_encoder/software/linux_reference/kernel_module/hx280enc.ko /export/work/your_work_dir
+> cp h1_encoder/software/linux_reference/kernel_module/driver_load.sh /export/work/your_work_dir
+> cp h1_encoder/software/linux_reference/memalloc/memalloc.ko /export/work/your_work_dir
+> cp h1_encoder/software/linux_reference/kernel_module/memalloc_load.sh /export/work/your_work_dir
+
+You might also have to change test data path in the scripts, depending where
+your test data is.
+
+
+9. log on to the versatile board, as root
+
+> telnet vp1
+> cd /export/work/your_work_dir
+
+Load kernel modules!
+> ./driver_load.sh
+> ./memalloc_load.sh alloc_method=2
+
+===============================================================================
+                            Running H.264 encoder test scripts
+===============================================================================
+
+Run test case number 1000
+> ./test_h264.sh 1000
+
+Run all test cases
+> ./test_h264.sh all
+
+Compare results for test case 1000 (uses 'cmp' and can be very heavy)
+Good idea to run on a workstation.
+> ./checkcase_h264.sh 1000
+
+Compare results for all test cases
+> ./checkall_h264.sh
+
+if you want CSV file report (dont forget to update TAGs in the script)
+> ./checkall_h264.sh -csv 
+
+Run testcase 1000 and trigger Logic Analyzer at frame 27
+Encoder library had to be compiled with -DASIC_WAVE_TRACE_TRIGGER
+
+> ./test_data.sh 1000 1000 27
+
+
+===============================================================================
+                            Possible problems
+===============================================================================
+
+Possible reasons for errors:
+Did make use the corrent system settings ("make versatile")?
+Was the memory base set corretly? and the wanted EWL file used?
+Correct tool-chain?
+Are the paths defined correctly in the scripts?
+Kernel modules loaded? check dmesg
+
+
+===============================================================================
+            Clear up headfiles except /VC8000E6.2_DEV/software/inc
+===============================================================================
+1. CL219322: add VCEncGetEWL in api, before app use EWLxxx(), use this interface to get ewl.
+2. CL219334: remove asic field in inputLineBufferCfg, get asic from inst->asic. Move array linBufRegisterDesc to encinputlinebuffer.c
+3. CL219372: add VCEncCuStatis to VCEncOut in hevcencapi.h for adaptive gop decision, the definition is:
+   typedef struct
+   {
+       u32 intraCu8Num;      /* The number of block8x8 with type INTRA. */
+       u32 skipCu8Num;       /* The number of block8x8 with type SKIP. */
+       u32 PBFrame4NRdCost;  /* PBFrame4NRdCost. */
+   }VCEncCuStatis; 
+   when use the three regs INTRACU8NUM, SKIPCU8NUM, PBFRAME4NRDCOST, get from VCEncOut.cuStatis.
+4. CL219375: move container.h test_data_define.h from software/inc to software/source/common, user app can¡¯t use it directly any more.
+5. CL219379: remove include instance.h encasiccontroller.h in test bench, user app can¡¯t use it directly any more.
+6. CL219444: add VCEncGetPass1UpdatedGopSize in api. Use this to replace getPass1UpdatedGopSize defined in sw_cu_tree.c. 
+             Modify Makefile in test/hevc to delete ¨CI dependence when TRACE=n INTERNAL_TEST=n.
+             Redefine some macro definitions which is not defined in software/inc, the definitions are now in test_bench.c:
+               #ifndef CUTREE_BUFFER_CNT
+               #define CUTREE_BUFFER_CNT(depth) ((depth)+MAX_GOP_SIZE-1)
+               #endif
+               #ifndef LEAST_MONITOR_FRAME
+               #define LEAST_MONITOR_FRAME       3
+               #endif
+               #ifndef ENCH2_SLICE_READY_INTERRUPT
+               #define ENCH2_SLICE_READY_INTERRUPT                      1
+               #endif
+7. CL219446: move error.h from source/common to software/inc. There is some general defines, user app can use it directly now.
+8. CL219469: Add api for luma size: int JpegGetLumaSize(JpegEncInst inst); JpegEncRet JpegSetLumaSize(JpegEncInst inst, int lumaSize); User can use these api to replace jpegInstance_s.lumaSize.
+             Add api for chroma size: int JpegGetChromaSize(JpegEncInst inst); JpegEncRet JpegSetChromaSize(JpegEncInst inst, int chromaSize); User can use these api to replace jpegInstance_s.chromaSize.
+             Add api for qphdr: int JpegGetQpHdr(JpegEncInst inst); User can use these api to replace jpegInstance_s.rateControl.
+             Add JpegEncGetEwl for get ewl, before app use EWLxxx(), use this interface to get ewl.
+             Modify Makefile in test/jpeg to delete ¨CI dependence when TRACE=n.
+9: 219534: move av1_obu.h from /source/hevc to software/inc.

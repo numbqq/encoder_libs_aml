@@ -1,0 +1,34 @@
+
+Hantro H2 Encoder Wrapper Layer
+
+Three implementations of the EWL exist:
+- ewl_x280_file.c
+    + A stand-alone user-space implementation, no HW, input from file
+    + Used for software testing and simulations
+- ewl_x280_polling.c ewl_x280_common.c ewl_linux_lock.c
+    + A user-space implementation, polling used instead of interrupts
+    + Requires the kernel driver just for getting the HW IO base
+- ewl_x280_irq.c ewl_x280_common.c ewl_linux_lock.c
+    + EWL for Linux that requires a kernel driver to handle the interrupts
+    + Kernel driver implemented for Linux kernel 2.6
+
+NOTES:
+- ewl_x280_common.c contains common parts for linux
+- ewl_linux_lock.c contains the linux binary semaphore handling for
+    multi-instance
+    
+
+
+The kernel driver is built separately from the codec library and loaded into
+the kernel. The user space interface is compiled into the codec library. 
+These two communicate using signals and standard device I/O.
+
+Compile time parameters:
+
+EWL_NO_HW_TIMEOUT - EWL does not support timed wait. Always define!
+SDRAM_LM_BASE=n   - base address of the RAM as seen by HW 
+                    (0x80000000 in Integrator and 0x00 in Versatile)
+ENC_IO_BASE=n     - base address of the HW IO registers
+ENC_MODULE_PATH=n - path of the encoder device file used to communicate with the
+                    kernel driver                 
+

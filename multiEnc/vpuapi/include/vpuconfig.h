@@ -116,6 +116,8 @@
 #define ONE_TASKBUF_SIZE_FOR_CQ     (0)
 #define SIZE_COMMON                 (2*1024*1024)
 
+#define VLC_BUF_MODIFY_WIDTH_1920   (1920)
+
 //=====4. VPU REPORT MEMORY  ======================//
 #define SIZE_REPORT_BUF                 (0x10000)
 

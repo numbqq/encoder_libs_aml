@@ -22,8 +22,7 @@ TARGET = libvpcodec.so
 
 LDLIBS += -lm -lrt
 # pthread
-LDLIBS += -lpthread -lge2d
-LIB= -L../vpuapi -lamvenc_api
+LDLIBS += -lpthread -lge2d -lamvenc_api
 
 
 LDFLAGS += -shared

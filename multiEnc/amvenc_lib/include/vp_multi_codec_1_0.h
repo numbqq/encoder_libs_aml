@@ -272,6 +272,29 @@ vl_codec_handle_t vl_multi_encoder_init(vl_codec_id_t codec_id,
 
 
 /**
+ * gemerate header
+ *
+ *@param : codec_handle: handle
+ *@param : vl_encode_info_t: encode info
+ *         width:      video width
+ *         height:     video height
+ *         frame_rate: framerate
+ *         bit_rate:   bitrate
+ *         gop GOP:    max I frame interval
+ *         prepend_spspps_to_idr_frames: if true, adds spspps header
+ *         to all idr frames (keyframes).
+ *         buf_type:
+ *         0: need memcpy from input buf to encoder internal dma buffer.
+ *         3: input buf is dma buffer, encoder use input buf without memcopy.
+ *img_format: image format
+ *@return : if success return encoder handle,else return <= 0
+ */
+encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_handle,
+                                                     unsigned char *pHeader,
+                                                     unsigned int *pLength);
+
+
+/**
  * encode video
  *
  *@param : handle

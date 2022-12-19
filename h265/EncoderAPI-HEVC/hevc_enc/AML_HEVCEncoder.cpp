@@ -1041,8 +1041,8 @@ AMVEnc_Status Wave4VpuEncSeqInit(AMVHEVCEncHandle *Handle, int alloc) {
     VpuWriteReg(coreIdx, W4_CMD_ENC_RC_BIT_RATIO_LAYER_4_7, 0x01010101);
     VpuWriteReg(coreIdx, W4_CMD_ENC_NR_PARAM, 0x00000008);
     VpuWriteReg(coreIdx, W4_CMD_ENC_NR_WEIGHT, 0x08421ce7);
-    VpuWriteReg(coreIdx, W4_CMD_ENC_NUM_UNITS_IN_TICK, 0);
-    VpuWriteReg(coreIdx, W4_CMD_ENC_TIME_SCALE, 0);
+    VpuWriteReg(coreIdx, W4_CMD_ENC_NUM_UNITS_IN_TICK, 1000);
+    VpuWriteReg(coreIdx, W4_CMD_ENC_TIME_SCALE, Handle->frame_rate * 1000);
     VpuWriteReg(coreIdx, W4_CMD_ENC_NUM_TICKS_POC_DIFF_ONE, 0);
     VpuWriteReg(coreIdx, W4_CMD_ENC_RC_TRANS_RATE, Handle->bitrate * 6 / 5);
     VpuWriteReg(coreIdx, W4_CMD_ENC_RC_TARGET_RATE, Handle->bitrate);

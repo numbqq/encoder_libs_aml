@@ -1633,6 +1633,8 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
     else
         pEncInfo->vbSubSamBuf   = vbSubSamBuf;
 
+    if (bufWidth == VLC_BUF_MODIFY_WIDTH_1920)
+        pEncInfo->vlcBufSize = bufWidth * bufHeight;
     vbTask.size      = (Uint32)((pEncInfo->vlcBufSize * VLC_BUF_NUM) + (pEncInfo->paramBufSize * COMMAND_QUEUE_DEPTH));
     vbTask.phys_addr = 0;
     if (pEncInfo->vbTask.size == 0) {

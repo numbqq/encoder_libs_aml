@@ -456,6 +456,53 @@ void vl_multi_encoder_adjust_header(AMVEncStreamType streamType,char *header,int
         free(pps_nalu);
 }
 
+encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_handle,
+                                                              unsigned char *pHeader,
+                                                              unsigned int *pLength)
+{
+  int ret;
+  //uint32_t dataLength = 0;
+  VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
+  encoding_metadata_t result;
+  memset(&result, 0, sizeof(encoding_metadata_t));
+
+  if (!handle->mSpsPpsHeaderReceived) {
+    ret = AML_MultiEncHeader(handle->am_enc_handle, (unsigned char*)pHeader,
+                             pLength);
+    VLOG(DEBUG, "ret = %d", ret);
+    if (ret == AMVENC_SUCCESS) {
+      handle->mSPSPPSDataSize = 0;
+      handle->mSPSPPSData = (char *)malloc(*pLength);
+      if (handle->mSPSPPSData) {
+        handle->mSPSPPSDataSize = *pLength;
+        //*pLength = dataLength;
+        VLOG(DEBUG, "begin memcpy");
+        memcpy(handle->mSPSPPSData, (unsigned char*)pHeader,
+               handle->mSPSPPSDataSize);
+        VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
+               handle->mSPSPPSDataSize, __LINE__);
+      }
+      handle->mNumInputFrames = 0;
+      handle->mSpsPpsHeaderReceived = true;
+      result.is_valid = true;
+      result.err_cod = AMVENC_SUCCESS;
+    } else {
+      *pLength = 0;
+      VLOG(ERR, "Encode SPS and PPS error, encoderStatus = %d. handle: %p\n",
+           ret, (void*)handle);
+      result.is_valid = false;
+      if (ret == AMVENC_FAIL)
+         result.err_cod = AMVENC_INVALID_PARAM;
+      else
+         result.err_cod = ret;
+      return result;
+    }
+  }
+  return result;
+}
+
+
+
 encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
                                            vl_frame_type_t type,
                                            unsigned char* out,

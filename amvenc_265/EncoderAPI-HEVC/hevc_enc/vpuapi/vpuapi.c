@@ -843,6 +843,13 @@ RetCode VPU_EncStartOneFrame(
         return RETCODE_WRONG_CALL_SEQUENCE;
     }
 
+    if (pEncInfo->srcBufUseIndex[param->srcIdx] == 1
+        && param->srcEndFlag == 0) {
+        VLOG(ERR,"source frame was already in encoding index %d \n",
+                param->srcIdx);
+        return RETCODE_INVALID_PARAM;
+    }
+
     pSrcFrame = param->sourceFrame;
     if (pSrcFrame && pSrcFrame->dma_buf_planes && (param->srcEndFlag == 0)) { // use dma_buf
         vpu_multi_dma_buf_info_t dma_info;
@@ -893,6 +900,12 @@ RetCode VPU_EncStartOneFrame(
 
     ret = ProductVpuEncode(pCodecInst, param);
 
+    if (ret == RETCODE_SUCCESS) {
+        /* record the used source frame */
+        pEncInfo->srcBufUseIndex[param->srcIdx] = 1;
+        pEncInfo->srcBufMap[param->srcIdx] = *pSrcFrame;
+    }
+
     SetPendingInst(pCodecInst->coreIdx, pCodecInst);
 
     return ret;
@@ -929,7 +942,20 @@ RetCode VPU_EncGetOutputInfo(
     ret = ProductVpuEncGetResult(pCodecInst, info);
 
     if (ret == RETCODE_SUCCESS) {
-        info->pts = pEncInfo->ptsMap[info->encSrcIdx];
+        if (info->encSrcIdx >= 0 && info->reconFrameIndex >= 0 )
+        {
+
+            info->pts = pEncInfo->ptsMap[info->encSrcIdx];
+             /* return the used soure frame */
+            if (pEncInfo->srcBufUseIndex[info->encSrcIdx] == 1) {
+                pSrcFrame = &(pEncInfo->srcBufMap[info->encSrcIdx]);
+                info->encSrcFrame = *pSrcFrame;
+                pEncInfo->srcBufUseIndex[info->encSrcIdx] = 0;
+             } else
+               VLOG(ERR, "Soure Frame already retired index= %d use %d\n",
+                        info->encSrcIdx,
+                        pEncInfo->srcBufUseIndex[info->encSrcIdx]);
+        }
     }
     else {
         info->pts = 0LL;

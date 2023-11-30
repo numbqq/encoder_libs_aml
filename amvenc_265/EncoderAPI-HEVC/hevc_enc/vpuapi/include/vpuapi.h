@@ -3657,6 +3657,7 @@ Coded picture type
     int frameCycle;         /**<  The parameter for reporting the cycle number of decoding/encoding one frame.*/
     Uint64      pts;        /**< Presentation Timestamp of encoded picture. */
     Uint32      encInstIdx;     /**< An index of instance which have finished encoding with a picture at this command. This is only for Multi-Core encoder product. */
+    FrameBuffer encSrcFrame;/*< the encoded (retired) source frame buffer information, use together with encSrcIdx field */
 } EncOutputInfo;
 
 /**

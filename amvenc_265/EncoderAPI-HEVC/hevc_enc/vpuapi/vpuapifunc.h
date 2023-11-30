@@ -327,6 +327,8 @@ typedef struct {
     Int32   errorReasonCode;
     Uint64          curPTS;             /**! Current timestamp in 90KHz */
     Uint64          ptsMap[32];         /**! PTS mapped with source frame index */
+    FrameBuffer     srcBufMap[32]; /**! source frame index map */
+    Uint32          srcBufUseIndex[32]; /**! flag the occupied src buf */
 } EncInfo;
 
 

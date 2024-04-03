@@ -26,8 +26,7 @@ CFLAGS  +=  $(INC)
 ARFLAGS += rcs
 TARGET = aml_enc_test
 
-LDLIBS += -L../vpuapi -L../amvenc_lib
-LDLIBS += -lm -lrt -lamvenc_api -lvpcodec
+LDLIBS += -lm -lrt -lvpcodec -lamvenc_api
 # pthread
 LDLIBS += -lpthread -lion
 
@@ -49,7 +48,7 @@ OBJECTPATHS=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES)))
 
 
 $(TARGET): CREATE_DIR $(OBJECTPATHS)
-	$(CC) -o $(TARGET) $(LDFLAGS) $(LDLIBS) $(OBJECTPATHS)
+	$(CC) -o $(TARGET) $(OBJECTPATHS) $(LDFLAGS) $(LDLIBS)
 
 CREATE_DIR:
 	$(MKDIR) $(OBJDIR)

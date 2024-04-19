@@ -3,7 +3,7 @@
 #export CXX=$(CROSS_CC_PREFIX)g++
 #export AR=$(CROSS_CC_PREFIX)ar
 
-TARGET=testApi
+TARGET=h264EncoderDemo
 SOURCES=test.cpp test_dma.c
 AMLENC_LIB=$(patsubst %.c, %.o, $(patsubst %.cpp, %.o, $(SOURCES)))
 #LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -Lbjunion_enc/h264bitstream -lh264bitstream

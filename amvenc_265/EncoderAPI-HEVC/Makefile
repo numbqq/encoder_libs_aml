@@ -1,4 +1,4 @@
-TARGET=testHevcApi
+TARGET=h265EncoderDemo
 SOURCES=test.cpp test_dma.c
 AMLENC_LIB=$(patsubst %.c, %.o, $(patsubst %.cpp, %.o, $(SOURCES)))
 LDFLAGS += -lm -lrt -Lhevc_enc -lamvenc_265 -lge2d -lion -lpthread

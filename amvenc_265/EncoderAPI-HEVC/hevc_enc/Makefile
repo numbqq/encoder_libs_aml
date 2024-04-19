@@ -28,7 +28,7 @@ endif
 
 $(TARGET): $(C_OBJS) $(CXX_OBJS)
 	@echo " [LINK] $@"
-	$(CXX) $(LDLIBS) -Wl,-soname,$(TARGET)  -o $@ $^
+	$(CXX)  -Wl,-soname,$(TARGET)  -o $@ $^ $(LDLIBS)
 
 %.o: %.c
 	@echo " [CXX] $<"

@@ -3,7 +3,7 @@
 #export CXX=$(CROSS_CC_PREFIX)g++
 #export AR=$(CROSS_CC_PREFIX)ar
 
-CFLAGS +=-O2 -fPIC
+CFLAGS +=-O2 -fPIC -mstrict-align
 CFLAGS += -g
 #LDLIBS +=  -L./h264bitstream/.libs -lh264bitstream -lm -lrt -shared
 LDLIBS += -lh264bitstream -lm -lrt -shared

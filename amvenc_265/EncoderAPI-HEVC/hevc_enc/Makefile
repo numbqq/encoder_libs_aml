@@ -1,4 +1,4 @@
-CFLAGS +=-O2 -fPIC
+CFLAGS +=-O2 -fPIC -mstrict-align
 CFLAGS += -g
 LDLIBS += -lm -lrt -shared
 LDLIBS += -lge2d

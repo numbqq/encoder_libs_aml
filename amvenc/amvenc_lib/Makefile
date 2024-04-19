@@ -4,7 +4,7 @@
 #--------------------------------------
 .PHONY: CREATE_DIR clean all
 
-CFLAGS += -O2 -std=c99
+CFLAGS += -O2 -std=c99 -mstrict-align
 CFLAGS+= -fPIC -g
 
 LDFLAGS =

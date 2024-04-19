@@ -8,7 +8,7 @@ SOURCES=test.cpp test_dma.c
 AMLENC_LIB=$(patsubst %.c, %.o, $(patsubst %.cpp, %.o, $(SOURCES)))
 #LDFLAGS += -lm -lrt -Lbjunion_enc -lvpcodec -Lbjunion_enc/h264bitstream -lh264bitstream
 LDFLAGS += -lm -lrt -Lbjunion_enc -lamvenc_264 -lh264bitstream -lion -lpthread
-CFLAGS +=-O2 -g
+CFLAGS +=-O2 -g -mstrict-align
 INC = -I./ -I./bjunion_enc/include/
 CFLAGS += $(INC)
 

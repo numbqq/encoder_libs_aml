@@ -6,7 +6,7 @@
 
 
 ifeq ($(ARM), 0)
-CFLAGS += -O2 -std=c99
+CFLAGS += -O2 -std=c99 -mstrict-align
 else
 CFLAGS += -DARM
 endif

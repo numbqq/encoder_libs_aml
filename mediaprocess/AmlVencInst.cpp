@@ -469,7 +469,7 @@ c2_status_t AmlVencInst::CheckPicSize(std::shared_ptr<const C2GraphicView> view,
     memset(&VencParam,0,sizeof(stVencParam));
     mVencParamInst->GetVencParam(VencParam);
 
-    if (!mIsChangeResolutionInternal && (VencParam.Width != view->width() || VencParam.Height != view->height())) {
+    if (VencParam.Width != view->width() || VencParam.Height != view->height()) {
         if (0 == frameIndex) {  //first frame is normally
             AMLVenc_LOG(CODEC2_VENC_LOG_ERR,"pic size :%d x %d,this buffer is:%d x %d,change pic size...",VencParam.Width,VencParam.Height,view->width(),view->height());
             mVencParamInst->UpdatePicSize(view->width(), view->height());

@@ -103,6 +103,7 @@ public:
     virtual void ExtraInit(amvenc_info_t &VencInfo,amvenc_qp_param_t &QpParam);
     virtual void ExtraProcess();
     virtual void ExtraPreProcess(stInputFrameInfo &InputFrameInfo);
+    virtual c2_status_t CheckPicSize(std::shared_ptr<const C2GraphicView> view,uint64_t frameIndex);
 private:
     bool IsYUV420(const C2GraphicView &view);
     bool IsNV12(const C2GraphicView &view);
@@ -113,7 +114,6 @@ private:
     c2_status_t DMAProc(const native_handle_t *priv_handle,stInputFrameInfo *pFrameInfo,uint32_t *dumpFileSize);
     c2_status_t ViewDataProc(std::shared_ptr<const C2GraphicView> view,stInputFrameInfo *pFrameInfo,uint32_t *dumpFileSize);
     c2_status_t CanvasDataProc(DataModeInfo_t *pDataMode,stInputFrameInfo *pFrameInfo);
-    c2_status_t CheckPicSize(std::shared_ptr<const C2GraphicView> view,uint64_t frameIndex);
     c2_status_t genVuiParam(stVencParam VencParam,int32_t *primaries,int32_t *transfer,int32_t *matrixCoeffs,bool *range);
 protected:
     bool InitEncoder();

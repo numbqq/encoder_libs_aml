@@ -25,7 +25,9 @@ namespace android {
 
 AmlVencInstWave5::AmlVencInstWave5()
                  :mIsInit(false),
-                  mActualFormat(AML_IMG_FMT_NONE) {
+                  mActualFormat(AML_IMG_FMT_NONE),
+                  mWidthBackup(0),
+                  mHeightBackup(0) {
 
 }
 
@@ -190,6 +192,8 @@ bool AmlVencInstWave5::init() {
     memset(&VencParam,0,sizeof(VencParam));
     mVencParamInst->GetVencParam(VencParam);
     mActualFormat = PixelFormatConvert(VencParam.PixFormat);
+    mWidthBackup = VencParam.Width;
+    mHeightBackup = VencParam.Height;
     ALOGD("fake init colorfmt:%d",mActualFormat);
     return true;
 }
@@ -222,6 +226,10 @@ void AmlVencInstWave5::ExtraInit(amvenc_info_t &VencInfo,amvenc_qp_param_t &QpPa
 
     VencInfo.width = VencParam.Width;
     VencInfo.height = VencParam.Height;
+
+    mWidthBackup = VencParam.Width;
+    mHeightBackup = VencParam.Height;
+
     if (VencParam.Width < 256) {
         VencInfo.crop_enable = true;
         VencInfo.crop.right = VencParam.Width;
@@ -275,6 +283,31 @@ void AmlVencInstWave5::ExtraInit(amvenc_info_t &VencInfo,amvenc_qp_param_t &QpPa
     }
 
 }
+
+
+c2_status_t AmlVencInstWave5::CheckPicSize(std::shared_ptr<const C2GraphicView> view,uint64_t frameIndex) {
+    stVencParam VencParam;
+
+    memset(&VencParam,0,sizeof(stVencParam));
+    mVencParamInst->GetVencParam(VencParam);
+
+    ALOGE("VencParam.Width:%d,view->width():%d",mWidthBackup,view->width());
+    if ((mWidthBackup != view->width() || mHeightBackup != view->height())) {
+        if (0 == frameIndex) {  //first frame is normally
+            ALOGE("pic size :%d x %d,this buffer is:%d x %d,change pic size...",VencParam.Width,VencParam.Height,view->width(),view->height());
+            mVencParamInst->UpdatePicSize(view->width(), view->height());
+            mWidthBackup = view->width();
+            mHeightBackup = view->height();
+        }
+        else {
+            ALOGE("buffer is not valid,pic size :%d x %d,but this buffer is:%d x %d",VencParam.Width,VencParam.Height,view->width(),view->height());
+            return C2_BAD_VALUE;
+        }
+    }
+
+    return C2_OK;
+}
+
 
 
 void AmlVencInstWave5::ExtraPreProcess(stInputFrameInfo &InputFrameInfo) {

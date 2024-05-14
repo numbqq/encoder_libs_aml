@@ -18,6 +18,7 @@ public:
     virtual void ExtraInit(amvenc_info_t &VencInfo,amvenc_qp_param_t &QpParam);
     virtual void ExtraProcess();
     virtual void ExtraPreProcess(stInputFrameInfo &InputFrameInfo);
+    virtual c2_status_t CheckPicSize(std::shared_ptr<const C2GraphicView> view,uint64_t frameIndex);
 private:
     bool GetIsSupportSVC();
     int AVCProfileConvert(C2Config::profile_t profile);
@@ -27,6 +28,8 @@ private:
 private:
     bool mIsInit;
     int mActualFormat;
+    int mWidthBackup;
+    int mHeightBackup;
 };
 
 

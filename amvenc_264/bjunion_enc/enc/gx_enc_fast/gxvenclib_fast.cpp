@@ -1841,17 +1841,6 @@ void* GxInitFastEncode(int fd, amvenc_initpara_t* init_para) {
 //    }
     //add for cts test
     media_custom = 1;
-    pp = p->bitrate / p->enc_width / p->enc_height;
-    if (pp < 3) {
-        if (media_custom > 0) {
-        p->qp_mode = 1;
-        ret = ioctl(p->fd, FASTGX_AVC_IOC_QP_MODE, &(p->qp_mode));
-        if (ret)
-            VLOG(DEBUG,"set qp mode failed!\n");
-        else
-            VLOG(DEBUG,"set qp mode successfully!");
-        }
-    }
 
     p->quant = init_para->initQP;
     p->enc_width = init_para->enc_width;
@@ -1879,6 +1868,18 @@ void* GxInitFastEncode(int fd, amvenc_initpara_t* init_para) {
     p->cbr_hw = init_para->cbr_hw;
     if (p->cbr_hw)
         get_block_resolution(p, p->src.mb_width, p->src.mb_height);
+
+    pp = p->bitrate / p->enc_width / p->enc_height;
+    if (pp < 3) {
+        if (media_custom > 0) {
+        p->qp_mode = 1;
+        ret = ioctl(p->fd, FASTGX_AVC_IOC_QP_MODE, &(p->qp_mode));
+        if (ret)
+            VLOG(DEBUG,"set qp mode failed!\n");
+        else
+            VLOG(DEBUG,"set qp mode successfully!");
+        }
+    }
 
     buff_info[0] = mode;
     buff_info[1] = p->src.mb_height;

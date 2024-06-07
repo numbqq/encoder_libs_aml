@@ -522,6 +522,57 @@ exit:
     return (vl_codec_handle_t) NULL;
 }
 
+static void write_sei_rbsp_private(bs_t *s, uint8_t *payload, int payload_size, int payload_type)
+{
+    int i;
+
+    for (i = 0; i <= payload_type-255; i += 255)
+        bs_write_u(s, 8, 255);
+    bs_write_u(s, 8, payload_type-i);
+
+    for (i = 0; i <= payload_size-255; i += 255)
+        bs_write_u(s, 8, 255);
+    bs_write_u(s, 8, payload_size-i);
+
+    for (i = 0; i < payload_size; i++)
+        bs_write_u(s, 8, payload[i]);
+}
+
+int vl_video_encode_sei(vl_sei_payload_t sei_payload, int *in_size, unsigned char *out)
+{
+    bs_t b;
+    int rbsp_size = 0;
+    unsigned char start_code[] = {0x00, 0x00, 0x00, 0x01};
+
+    rbsp_size = sei_payload.payload_size + 4 + 16; /*+4 for start code*/
+    uint8_t* rbsp_buf = (uint8_t*)calloc(1, rbsp_size);
+
+    if (rbsp_buf == NULL) {
+        VLOG(ERR,"malloc for rbsp buf failed");
+        return -1;
+    }
+    bs_init(&b, rbsp_buf, rbsp_size);
+
+    bs_write_u(&b, 1, 0);
+    bs_write_u(&b, 2, 0);
+    bs_write_u(&b, 5, 6);
+
+    write_sei_rbsp_private(&b, sei_payload.payload, sei_payload.payload_size, sei_payload.payload_type);
+    write_rbsp_trailing_bits(&b);
+
+    rbsp_size = bs_pos(&b);
+    rbsp_size = RBSPtoEBSP(rbsp_buf, 0, rbsp_size,0);
+    memset(out, 0, rbsp_size + 4);
+    memcpy(out, start_code, 4);
+    memcpy(out + 4, rbsp_buf, rbsp_size);
+    *in_size = rbsp_size + 4;
+
+    if (rbsp_buf)
+        free(rbsp_buf);
+
+    return *in_size;
+
+}
 
 int vl_video_encode_header(vl_codec_handle_t codec_handle, vl_vui_params_t vui, int in_size, unsigned char *out)
 {
@@ -890,6 +941,8 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
     int type;
     size_t rawdata_size = frame_info.frame_size;//in_size;
     ssize_t io_ret;
+    uint8_t *sei_data = NULL;
+    int sei_size = 0;
     AMVEncHandle *handle = (AMVEncHandle *)codec_handle;
     if (!handle->mSpsPpsHeaderReceived)
     {
@@ -1086,6 +1139,17 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
             VLOG(ERR,"encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             return ENC_FAILED;
         }
+
+        if ((frame_info.sei_payload.payload_size > 0) && (NULL  != frame_info.sei_payload.payload))
+        {
+            sei_data = outPtr;
+            ret = vl_video_encode_sei(frame_info.sei_payload, &sei_size, sei_data);
+            if (ret > 0) {
+                outPtr = (uint8_t *)sei_data + sei_size;
+                VLOG(DEBUG,"sei_size: %d\n", sei_size);
+            }
+        }
+
         VLOG(DEBUG,"before AML_HWEncNAL");
         ret = AML_HWEncNAL(handle, (unsigned char *)outPtr, (unsigned int *)&dataLength, &type);
         VLOG(DEBUG,"after AML_HWEncNAL");
@@ -1099,6 +1163,10 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
                     dataLength += handle->mSPSPPSDataSize;
                     VLOG(DEBUG,"copy mSPSPPSData to buffer size= %d at line %d \n", handle->mSPSPPSDataSize, __LINE__);
                 }
+            }
+            if (sei_size > 0)
+            {
+                dataLength += sei_size;
             }
             if (handle->fd_out >= 0) {
                 io_ret = write(handle->fd_out, (void *)out, dataLength);

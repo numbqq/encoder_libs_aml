@@ -189,6 +189,13 @@ typedef struct amvenc_qp_param_s {
     int qp_B_max;
 } amvenc_qp_param_t;
 
+typedef struct amvenc_sei_payload
+{
+    int payload_size;
+    int payload_type;
+    unsigned char *payload;
+} amvenc_sei_payload_t;
+
 typedef struct amvenc_frame_info
 {
     unsigned long frame_size;
@@ -203,6 +210,7 @@ typedef struct amvenc_frame_info
     unsigned int crop_bottom;
     unsigned int bitrate;
     unsigned int frame_rate;
+    amvenc_sei_payload_t sei_payload;
 } amvenc_frame_info_t;
 
 /**

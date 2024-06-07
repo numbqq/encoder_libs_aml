@@ -210,7 +210,9 @@ amvenc_metadata_t amvenc_264_encode(amvenc_handle_t handle,
     enc_frame_info.crop_bottom = frame_info.crop_bottom;
     enc_frame_info.bitrate = frame_info.bitrate;
     enc_frame_info.frame_rate = frame_info.frame_rate * 1000;
-
+    enc_frame_info.sei_payload.payload_size = frame_info.sei_payload.payload_size;
+    enc_frame_info.sei_payload.payload_type = frame_info.sei_payload.payload_type;
+    enc_frame_info.sei_payload.payload = frame_info.sei_payload.payload;
 
     if (in_buffer_info->buf_type == AML_CANVAS_TYPE) {
         enc_frame_info.type = CANVAS_BUFFER_TYPE;

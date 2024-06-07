@@ -114,6 +114,13 @@ typedef struct vl_init_params
     vl_h_enc_level_e level;
 }vl_init_params_t;
 
+typedef struct vl_sei_payload_t
+{
+    int payload_size;
+    int payload_type;
+    unsigned char *payload;
+} vl_sei_payload_t;
+
 typedef struct vl_frame_info
 {
     unsigned long YCbCr[3];
@@ -134,6 +141,7 @@ typedef struct vl_frame_info
     unsigned int bitrate;
     unsigned int plane_num;
     unsigned int frame_rate;
+    vl_sei_payload_t sei_payload;
 } vl_frame_info_t;
 
 typedef struct vl_dma_info {
@@ -217,7 +225,6 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
 
 vl_enc_result_e vl_video_encoder_getavgqp(vl_codec_handle_t handle, float *avg_qp);
 
-//double round(double r);
 
 
 /**

@@ -328,7 +328,8 @@ android: OBJS += $(ANDROID_LIB_PATH)/crtbegin_dynamic.o $(ANDROID_LIB_PATH)/crte
 pcdemo: CFLAGS  = -O2 -g -Wall -D_GNU_SOURCE -D_REENTRANT -D_THREAD_SAFE \
                   -DDEBUG -D_ASSERT_USED $(INCLUDE)
 
-pci: CROSS_COMPILE=/opt/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+#pci: CROSS_COMPILE=/opt/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+pci: CROSS_COMPILE=/opt/gcc-linaro-7.3.1-2018.05-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
 pci: ARCH=
 pci: ENVSET  = -DPC_PCI_FPGA_DEMO \
                -DSDRAM_LM_BASE=$(CHW_BASE_ADDRESS) \

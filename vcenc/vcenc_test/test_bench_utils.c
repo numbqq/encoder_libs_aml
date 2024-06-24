@@ -377,6 +377,8 @@ void readStrm(unsigned char *data, u32 *strmbuf, u32 size, u32 endian)
     if (!data || !strmbuf || !size)
         return;
 
+    size = ((size + 15) >> 4) << 4;
+
     /* Swap the stream endianess before writing to file if needed */
     if (endian == 1) {
         u32 i = 0, words = (size + 3) / 4;

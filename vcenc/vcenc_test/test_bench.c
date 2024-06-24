@@ -808,12 +808,12 @@ void processFrame(struct test_bench *tb, VCEncInst encoder, commandLine_s *cml, 
             *streamSize += tilestreamSize;
             *maxSliceSize = MAX(*maxSliceSize, pEncOut->maxSliceStreamSize);
 
-            MULTI_TRACE_E("=== Encoded %i bits=%d totalBits=%lu averageBitrate=%lu HWCycles=%d "
+            /*MULTI_TRACE_E("=== Encoded %i bits=%d totalBits=%lu averageBitrate=%lu HWCycles=%d "
                    "codingType=%d\n",
                    tb->picture_encoded_cnt, tilestreamSize * 8, (long unsigned int)(*total_bits),
                    (long unsigned int)(*total_bits * tb->outputRateNumer) /
                        ((tb->picture_encoded_cnt + 1) * tb->outputRateDenom),
-                   VCEncGetPerformance(encoder), pEncOut->codingType);
+                   VCEncGetPerformance(encoder), pEncOut->codingType);*/
 
             if (pEncOut->codingType != VCENC_NOTCODED_FRAME)
                 tb->picture_encoded_cnt++;
@@ -1351,7 +1351,7 @@ vc_encoding_metadata_t vc_encode_header(vc_codec_handle_t codec_handle,
     VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
 
     memset(&result, 0, sizeof(vc_encoding_metadata_t));
-    if (NULL == codec_handle) {
+    if (NULL == handle) {
         result.is_valid = false;
         MULTI_TRACE_E("codec_handle is null,not init first?");
         return result;
@@ -1438,13 +1438,16 @@ i32 encode_nal(vc_codec_handle_t codec_handle,
     //pictureSize = tb->lumaSize + tb->chromaSize;
 
     gettimeofday(&readStart, NULL);
+    pEncIn->luma_stride = in_buffer_info->buf_stride;
+    pEncIn->chroma_stride = in_buffer_info->buf_stride;
+
+    if (handle->cml.inputFormat == VCENC_YUV420_PLANAR)
+        pEncIn->chroma_stride = in_buffer_info->buf_stride/2;
 
     if (VC_DMA_TYPE == in_buffer_info->buf_type) {
         struct versdrv_dma_buf_info_t versdrv_dma_buf_info;
         versdrv_dma_buf_info.num_planes = in_buffer_info->buf_info.dma_info.num_planes;
         versdrv_dma_buf_info.fd[0] = in_buffer_info->buf_info.dma_info.shared_fd[0];
-        pEncIn->luma_stride = in_buffer_info->buf_stride;
-        pEncIn->chroma_stride = in_buffer_info->buf_stride;
         ret = ioctl(g_fd_enc, HANTRO_IOCTL_CONFIG_DMA, &versdrv_dma_buf_info);
         pEncIn->busLuma = versdrv_dma_buf_info.phys_addr[0];
         pEncIn->busChromaU = pEncIn->busLuma + pEncIn->luma_stride * handle->cml.lumHeightSrc;
@@ -1458,8 +1461,6 @@ i32 encode_nal(vc_codec_handle_t codec_handle,
         pEncIn->busChromaU = pEncIn->busLuma + handle->cml.lumWidthSrc*handle->cml.lumHeightSrc;
         pEncIn->busChromaV = pEncIn->busChromaU;
     } else {
-        pEncIn->luma_stride = in_buffer_info->buf_stride;
-        pEncIn->chroma_stride = in_buffer_info->buf_stride;
         switch (handle->cml.inputFormat) {
             case VCENC_YUV420_PLANAR: {
                 /* Lum */
@@ -1507,7 +1508,7 @@ i32 encode_nal(vc_codec_handle_t codec_handle,
 
     gettimeofday(&handle->tb.timeFrameStart, NULL);
 
-    MULTI_TRACE_E("=== Encoding %i %s ...\n", handle->tb.picture_enc_cnt, handle->tb.input);
+    //MULTI_TRACE_E("=== Encoding %i %s ...\n", handle->tb.picture_enc_cnt, handle->tb.input);
       pEncIn->externalSEICount = 0;
       pEncIn->pExternalSEI = NULL;
     if (VC_FRAME_TYPE_IDR == type) {
@@ -1550,8 +1551,8 @@ i32 encode_nal(vc_codec_handle_t codec_handle,
 
       gettimeofday(&handle->tb.timeFrameEnd, NULL);
 
-      MULTI_TRACE_E("=== Time(us %u HW+SW) ===\n",
-             uTimeDiff(handle->tb.timeFrameEnd, handle->tb.timeFrameStart) - frameWriteTime);
+      //MULTI_TRACE_E("=== Time(us %u HW+SW) ===\n",
+             //uTimeDiff(handle->tb.timeFrameEnd, handle->tb.timeFrameStart) - frameWriteTime);
       break;
     case VCENC_OUTPUT_BUFFER_OVERFLOW:
       handle->tb.encIn.picture_cnt++;

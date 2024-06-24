@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/mman.h>
+#include <IONmem.h>
+#include "kernel-headers/linux/dma-heap.h"
 #include "vp_vc_codec_1_0.h"
 #include "test_dma_api.h"
-#include <sys/time.h>
 #ifdef __ANDROID__
 #define LOG_NDEBUG 0
 #define LOG_TAG "MultiDriver_bench"
@@ -16,7 +20,6 @@
 #endif
 
 static int encode_main(void *param);
-static struct usr_ctx_s ctx;
 /*-----------
   * main
   *-----------*/
@@ -28,8 +31,12 @@ static struct usr_ctx_s ctx;
 #define ENCODER_STRING_LEN_MAX	256
 
 #define ENCODER_STRING_LEN_MAX	256
+#define DMABUF_HEAP_FLAG                      1 << 30
 
 typedef struct {
+	int ion_fd;
+	void *cmemParm_src[3];
+	unsigned int src_size[3];
 	int   nstream;
 	struct timeval timeFrameStart;
 	struct timeval timeFrameEnd;
@@ -134,6 +141,9 @@ int encode_main(void *param)
 	unsigned int frameWriteTime = 0;
 	unsigned long long totalTime = 0, ioTime = 0;
 	struct timeval timeStart, timeEnd, readStart, readEnd, writeStart, writeEnd;
+	int ion_fd = 0;
+	int dma_fd = 0;
+	int i = 0;
 
 	if (NULL != param)
 		cfg_encode = (encodecCfgParam *)param;
@@ -234,7 +244,7 @@ int encode_main(void *param)
 
 	memset(&inbuf_info, 0, sizeof(vc_buffer_info_t));
 	inbuf_info.buf_type = (vc_buffer_type_t) buf_type;
-	inbuf_info.buf_stride = 0;
+	inbuf_info.buf_stride = width;
 	inbuf_info.buf_fmt = fmt;
 
 	memset(&encode_info, 0, sizeof(vc_encode_info_t));
@@ -244,7 +254,7 @@ int encode_main(void *param)
 	encode_info.frame_rate = framerate;
 	encode_info.gop = gop;
 	encode_info.img_format = fmt;
-
+	encode_info.level = -255;
 	int ret = 0;
 	unsigned ysize;
 	unsigned usize;
@@ -291,141 +301,72 @@ int encode_main(void *param)
 	vc_dma_info_t *dma_info = &(inbuf_info.buf_info.dma_info);
 	if (inbuf_info.buf_type == VC_DMA_TYPE)
 	{
-		dma_info = &(inbuf_info.buf_info.dma_info);
-		dma_info->num_planes = num_planes;
-		dma_info->shared_fd[0] = -1;	// dma buf fd
+		memset(dma_info, 0, sizeof(vc_dma_info_t));
+		dma_info->num_planes = cfg_encode->num_planes;
+		dma_info->shared_fd[0] = -1; // dma buf fd
 		dma_info->shared_fd[1] = -1;
 		dma_info->shared_fd[2] = -1;
-		ret = create_ctx(&ctx);
-		if (ret < 0)
-		{
-			printf("gdc create fail ret=%d\n", ret);
-			goto exit;
+		ion_fd = dmabuf_heap_open(GENERIC_HEAP);
+		if (ion_fd < 0) {
+			ion_fd = ion_mem_init();
+			if (ion_fd < 0) {
+				printf("%s, %d, ion and dma_heap open failed!\n", __func__, __LINE__);
+			}
+		} else {
+			ion_fd = ion_fd | DMABUF_HEAP_FLAG;
+		}
+		cfg_encode->ion_fd = ion_fd;
+		if (dma_info->num_planes == 3) {
+			if (cfg_encode->fmt != VC_IMG_FMT_YUV420P)
+			{
+				printf("error fmt %d\n", cfg_encode->fmt);
+				goto exit;
+			}
+			cfg_encode->src_size[0] = ysize;
+			cfg_encode->src_size[1] = usize;
+			cfg_encode->src_size[2] = vsize;
+		} else if (dma_info->num_planes == 2) {
+			cfg_encode->src_size[0] = ysize;
+			cfg_encode->src_size[1] = uvsize;
+			cfg_encode->src_size[2] = 0;
+		} else if (dma_info->num_planes == 1) {
+			cfg_encode->src_size[0] = framesize;
+			cfg_encode->src_size[1] = 0;
+			cfg_encode->src_size[2] = 0;
+		}
+		for (i = 0; i < dma_info->num_planes; i++) {
+			if (cfg_encode->ion_fd & DMABUF_HEAP_FLAG) {
+			ret = dmabuf_heap_alloc(cfg_encode->ion_fd ^ DMABUF_HEAP_FLAG, cfg_encode->src_size[i], 0, &dma_fd);
+			if (ret < 0) {
+				printf("%s,%d,Not enough memory\n",__func__, __LINE__);
+				goto exit;
+			}
+			}else if (cfg_encode->ion_fd >= 0) {
+				cfg_encode->cmemParm_src[0] = malloc(sizeof(IONMEM_AllocParams));
+				ret = ion_mem_alloc(cfg_encode->ion_fd, cfg_encode->src_size[i], (IONMEM_AllocParams *)cfg_encode->cmemParm_src[i], false);
+				if (ret < 0) {
+					printf("%s,%d,Not enough memory\n",__func__, __LINE__);
+					goto exit;
+				}
+				dma_fd = ((IONMEM_AllocParams*)cfg_encode->cmemParm_src[i])->mImageFd;
+			}
+			vaddr = (unsigned char*)mmap( NULL, cfg_encode->src_size[i],
+				PROT_READ | PROT_WRITE, MAP_SHARED, dma_fd, 0);;
+			if (!vaddr)
+			{
+				printf("mmap failed,Not enough memory\n");
+				goto exit;
+			}
+			dma_info->shared_fd[i] = dma_fd;
+			input[i] = vaddr;
 		}
 
-		if (dma_info->num_planes == 3)
-		{
-			if (fmt != VC_IMG_FMT_YUV420P)
-			{
-				printf("error fmt %d\n", fmt);
-				goto exit;
-			}
-			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, ysize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       ysize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[0];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-
-			printf("hoan debug canvas >> alloc_dma_buffer y,ret=%d, vaddr=0x%p\n", ret,vaddr);
-			dma_info->shared_fd[0] = ret;
-			input[0] = vaddr;
-
-			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, usize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       usize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[1];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-			dma_info->shared_fd[1] = ret;
-			input[1] = vaddr;
-			printf("hoan debug canvas >> alloc_dma_buffer u,ret=%d, vaddr=0x%p\n", ret,vaddr);
-
-			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, vsize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       vsize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[2];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-
-			dma_info->shared_fd[2] = ret;
-			input[2] = vaddr;
-			printf("hoan debug canvas >> alloc_dma_buffer v,ret=%d, vaddr=0x%p\n", ret,vaddr);
-		} else if (dma_info->num_planes == 2)
-		{
-			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, ysize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       ysize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[0];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-			dma_info->shared_fd[0] = ret;
-			input[0] = vaddr;
-			if (fmt != VC_IMG_FMT_NV12 && fmt != VC_IMG_FMT_NV21)
-			{
-				printf("error fmt %d\n", fmt);
-				goto exit;
-			}
-			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, uvsize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       uvsize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[1];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-			dma_info->shared_fd[1] = ret;
-			input[1] = vaddr;
-		} else if (dma_info->num_planes == 1)
-		{
-			ret =
-			    alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, framesize);
-			if (ret < 0)
-			{
-				printf("alloc fail ret=%d, len=%u\n", ret,
-				       framesize);
-				goto exit;
-			}
-			vaddr = (unsigned char *) ctx.i_buff[0];
-			if (!vaddr)
-			{
-				printf("mmap failed,Not enough memory\n");
-				goto exit;
-			}
-			dma_info->shared_fd[0] = ret;
-			input[0] = vaddr;
-		}
-
-		inputBuffer =  input[0];
 		printf("in[0] %d, in[1] %d, in[2] %d\n", dma_info->shared_fd[0],
-		       dma_info->shared_fd[1], dma_info->shared_fd[2]);
+			   dma_info->shared_fd[1], dma_info->shared_fd[2]);
 		printf("input[0] %p, input[1] %p,input[2] %p\n", input[0],
-		       input[1], input[2]);
+			   input[1], input[2]);
 	} else
-    {
+	{
 		inputBuffer = (unsigned char *) malloc(framesize);
 		if (inputBuffer == NULL) {
 			printf("Can not allocat inputBuffer\n");
@@ -456,16 +397,46 @@ int encode_main(void *param)
 
 	gettimeofday(&timeStart, NULL);
 	while (num > 0) {
-        /* Read YUV to input buffer */
-        gettimeofday(&readStart, NULL);
-        if (fread(inputBuffer, 1, framesize, fp) != framesize)
-        {
-            printf("read input file error!\n");
-            goto exit;
-        }
-        gettimeofday(&readEnd, NULL);
-        ioTime += uTimeDiff(readEnd, readStart);
-        gettimeofday(&cfg_encode->timeFrameStart, NULL);
+		/* Read YUV to input buffer */
+		gettimeofday(&readStart, NULL);
+		if (inbuf_info.buf_type == VC_DMA_TYPE) { // read data to dma buf vaddr
+			if (dma_info->num_planes == 1) {
+				if (fread(input[0], 1, framesize, fp) != framesize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+			} else if (dma_info->num_planes == 2) {
+				if (fread(input[0], 1, ysize, fp) != ysize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+				if (fread(input[1], 1, uvsize, fp) != uvsize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+			} else if (dma_info->num_planes == 3) {
+				if (fread(input[0], 1, ysize, fp) != ysize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+				if (fread(input[1], 1, usize, fp) != usize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+				if (fread(input[2], 1, vsize, fp) != vsize) {
+					printf("read input file error!\n");
+					goto exit;
+				}
+			}
+		} else {
+			if (fread(inputBuffer, 1, framesize, fp) != framesize) {
+				printf("read input file error!\n");
+				goto exit;
+			}
+		}
+		gettimeofday(&readEnd, NULL);
+		ioTime += uTimeDiff(readEnd, readStart);
+		gettimeofday(&cfg_encode->timeFrameStart, NULL);
 		encoding_metadata =
 		    vc_encoder_encode(handle_enc, frame_type, outbuffer, &inbuf_info, &ret_buf);
 		gettimeofday(&writeStart, NULL);
@@ -491,7 +462,7 @@ int encode_main(void *param)
 	totalTime = uTimeDiffLL(timeEnd, timeStart);
 	MULTI_TRACE_E("[Total time: %llu us], [IO time: %llu us]\n", totalTime, ioTime);
 	if (frameCntTotal > 1) {
-		MULTI_TRACE_E("[Encode Total time: %llu us], [avgTime: %llu us], [avgfps: %d]\n", totalTime - ioTime,
+		MULTI_TRACE_E("[Encode Total time: %llu us], [avgTime: %llu us], [avgfps: %lld]\n", totalTime - ioTime,
 			   (totalTime - ioTime) / frameCntTotal, 1*1000*1000/((totalTime - ioTime) / frameCntTotal));
 	}
 exit:
@@ -503,20 +474,27 @@ exit:
 		fclose(outfp);
 	if (outbuffer != NULL)
 		free(outbuffer);
-	if (inbuf_info.buf_type == VC_DMA_TYPE) {
-		if (dma_info->shared_fd[0] >= 0)
-			close(dma_info->shared_fd[0]);
-
-		if (dma_info->shared_fd[1] >= 0)
-			close(dma_info->shared_fd[1]);
-
-		if (dma_info->shared_fd[2] >= 0)
-			close(dma_info->shared_fd[2]);
-
-		destroy_ctx(&ctx);
+	if (cfg_encode->buf_type == VC_DMA_TYPE)
+	{
+		for (i = 0; i < dma_info->num_planes; i++) {
+			if (cfg_encode->src_size[i]) {
+				if (cfg_encode->cmemParm_src[i]) {
+					free((IONMEM_AllocParams*)cfg_encode->cmemParm_src[i]);
+					cfg_encode->cmemParm_src[i] = NULL;
+				}
+			}
+			if (input[i])
+				munmap(input[i], cfg_encode->src_size[i]);
+			if (dma_info->shared_fd[i] != -1) {
+				MULTI_TRACE_E("src close shared_fd -- %d\n",
+					dma_info->shared_fd[i]);
+				close(dma_info->shared_fd[i]);
+				dma_info->shared_fd[i] = -1;
+			}
+		}
 	} else {
-	    if (inputBuffer != NULL)
-	        free(inputBuffer);
+		if (inputBuffer != NULL)
+			free(inputBuffer);
 	}
 	return encRet;
 }

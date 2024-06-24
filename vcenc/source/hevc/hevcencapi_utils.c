@@ -73,6 +73,9 @@ void VCEncShutdown(VCEncInst inst)
 
     ewl = pEncInst->asic.ewl;
 
+    if (pEncInst->asic.regs.regMirror)
+        EWLfree(pEncInst->asic.regs.regMirror);
+
     if (pEncInst->asic.regs.vcmdBuf)
         EWLfree(pEncInst->asic.regs.vcmdBuf);
 

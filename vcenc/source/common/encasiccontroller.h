@@ -941,7 +941,7 @@ typedef struct {
     /* psy factor */
     u32 psyFactor;
 
-    u32 regMirror[ASIC_SWREG_AMOUNT];
+    u32 *regMirror;
     u32 *vcmdBuf;
     u32 vcmdBufSize;
     u32 totalCmdbufSize;

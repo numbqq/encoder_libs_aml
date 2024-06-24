@@ -529,7 +529,7 @@ u32 EWLReadAsicID(u32 id, void *ctx)
         struct cmdbuf_mem_parameter vcmd_cmdbuf_info;
         u32 module_type = 0;
         u32 client_type;
-        vcmd_cmdbuf_info.status_virt_addr = (u32)MAP_FAILED;
+        vcmd_cmdbuf_info.status_virt_addr = 0;
 
         client_type = id;
         switch (client_type) {
@@ -558,10 +558,10 @@ u32 EWLReadAsicID(u32 id, void *ctx)
         //remap status cmdbuf virtual address.
         /* Map the bus address to virtual address */
         vcmd_cmdbuf_info.status_virt_addr =
-            (u32)mmap(0, vcmd_cmdbuf_info.status_total_size, PROT_READ, MAP_SHARED, fd_mem,
-                      vcmd_cmdbuf_info.status_phy_addr);
+            (ulong)mmap(0, vcmd_cmdbuf_info.status_total_size, PROT_READ, MAP_SHARED, fd_mem,
+                        vcmd_cmdbuf_info.status_phy_addr);
 
-        if ((u32 *)vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
+        if ((void *)vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
             PTRACE_E("ioctl mmap  failed \n");
             goto end;
         }
@@ -666,7 +666,7 @@ EWLHwConfig_t EWLReadAsicConfig(u32 id, void *ctx)
     } else {
         struct config_parameter vcmd_core_info;
         struct cmdbuf_mem_parameter vcmd_cmdbuf_info;
-        vcmd_cmdbuf_info.status_virt_addr = (u32)MAP_FAILED;
+        vcmd_cmdbuf_info.status_virt_addr = 0;
         u32 client_type = id;
         u32 module_type = 0;
 
@@ -697,10 +697,10 @@ EWLHwConfig_t EWLReadAsicConfig(u32 id, void *ctx)
         /* Map the bus address to virtual address */
 
         vcmd_cmdbuf_info.status_virt_addr =
-            (u32)mmap(0, vcmd_cmdbuf_info.status_total_size, PROT_READ, MAP_SHARED, fd_mem,
-                      vcmd_cmdbuf_info.status_phy_addr);
+            (ulong)mmap(0, vcmd_cmdbuf_info.status_total_size, PROT_READ, MAP_SHARED, fd_mem,
+                        vcmd_cmdbuf_info.status_phy_addr);
 
-        if ((u32 *)vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
+        if ((void *)vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
             PTRACE_E("ioctl mmap  failed \n");
             goto end;
         }
@@ -1167,8 +1167,8 @@ const void *EWLInit(EWLInitParam_t *param)
     enc->clientType = param->clientType;
     enc->fd_mem = enc->fd_enc = enc->fd_memalloc = -1;
     enc->reg_all_cores = NULL;
-    enc->vcmd_cmdbuf_info.cmd_virt_addr = (u32)MAP_FAILED;
-    enc->vcmd_cmdbuf_info.status_virt_addr = (u32)MAP_FAILED;
+    enc->vcmd_cmdbuf_info.cmd_virt_addr = 0;
+    enc->vcmd_cmdbuf_info.status_virt_addr = 0;
     /* New instance allocated */
     enc->fd_mem = open(MEM_MODULE_PATH, O_RDWR | O_SYNC);
     if (enc->fd_mem == -1) {
@@ -1278,22 +1278,22 @@ const void *EWLInit(EWLInitParam_t *param)
         //remap status cmdbuf virtual address.
         /* Map the bus address to virtual address */
         enc->vcmd_cmdbuf_info.cmd_virt_addr =
-            (u32)mmap(0, enc->vcmd_cmdbuf_info.cmd_total_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                      enc->fd_mem, enc->vcmd_cmdbuf_info.cmd_phy_addr);
+            (ulong)mmap(0, enc->vcmd_cmdbuf_info.cmd_total_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                        enc->fd_mem, enc->vcmd_cmdbuf_info.cmd_phy_addr);
 
-        if ((u32 *)enc->vcmd_cmdbuf_info.cmd_virt_addr == MAP_FAILED) {
-            PTRACE_E("EWLInit: Failed to mmap busAddress: %p\n",
-                     (void *)enc->vcmd_cmdbuf_info.cmd_phy_addr);
+        if ((void *)enc->vcmd_cmdbuf_info.cmd_virt_addr == MAP_FAILED) {
+            PTRACE_E("EWLInit: Failed to mmap busAddress: 0x%lx\n",
+                     enc->vcmd_cmdbuf_info.cmd_phy_addr);
             goto err;
         }
 
         enc->vcmd_cmdbuf_info.status_virt_addr =
-            (u32)mmap(0, enc->vcmd_cmdbuf_info.status_total_size, PROT_READ | PROT_WRITE,
-                      MAP_SHARED, enc->fd_mem, enc->vcmd_cmdbuf_info.status_phy_addr);
+            (ulong)mmap(0, enc->vcmd_cmdbuf_info.status_total_size, PROT_READ | PROT_WRITE,
+                        MAP_SHARED, enc->fd_mem, enc->vcmd_cmdbuf_info.status_phy_addr);
 
-        if ((u32 *)enc->vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
-            PTRACE_E("EWLInit: Failed to mmap busAddress: %p\n",
-                     (void *)enc->vcmd_cmdbuf_info.status_phy_addr);
+        if ((void *)enc->vcmd_cmdbuf_info.status_virt_addr == MAP_FAILED) {
+            PTRACE_E("EWLInit: Failed to mmap busAddress: 0x%lx\n",
+                     enc->vcmd_cmdbuf_info.status_phy_addr);
             goto err;
         }
         queue_init(&enc->workers);

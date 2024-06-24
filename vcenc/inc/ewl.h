@@ -359,8 +359,8 @@ typedef enum {
 struct versdrv_dma_buf_info_t {
 	u32 num_planes;
 	u32 canvas_index;
-	i32 fd[3];
-	u32 phys_addr[3]; /* phys address for DMA buffer */
+	int fd[3];
+	ulong phys_addr[3]; /* phys address for DMA buffer */
 };
 
 /* Use 'k' as magic number */
@@ -375,38 +375,38 @@ struct versdrv_dma_buf_info_t {
  * H means "sHift": T and Q atomically
  */
 
-#define HANTRO_IOCG_HWOFFSET _IOR(HANTRO_IOC_MAGIC, 3, unsigned long *)
-#define HANTRO_IOCG_HWIOSIZE _IOR(HANTRO_IOC_MAGIC, 4, unsigned int *)
+#define HANTRO_IOCG_HWOFFSET _IOR(HANTRO_IOC_MAGIC, 3, ulong)
+#define HANTRO_IOCG_HWIOSIZE _IOR(HANTRO_IOC_MAGIC, 4, u32)
 #define HANTRO_IOC_CLI _IO(HANTRO_IOC_MAGIC, 5)
 #define HANTRO_IOC_STI _IO(HANTRO_IOC_MAGIC, 6)
-#define HANTRO_IOCX_VIRT2BUS _IOWR(HANTRO_IOC_MAGIC, 7, unsigned long *)
+#define HANTRO_IOCX_VIRT2BUS _IOWR(HANTRO_IOC_MAGIC, 7, ulong)
 #define HANTRO_IOCH_ARDRESET _IO(HANTRO_IOC_MAGIC, 8) /* debugging tool */
-#define HANTRO_IOCG_SRAMOFFSET _IOR(HANTRO_IOC_MAGIC, 9, unsigned long *)
-#define HANTRO_IOCG_SRAMEIOSIZE _IOR(HANTRO_IOC_MAGIC, 10, unsigned int *)
-#define HANTRO_IOCH_ENC_RESERVE _IOR(HANTRO_IOC_MAGIC, 11, unsigned int *)
-#define HANTRO_IOCH_ENC_RELEASE _IOR(HANTRO_IOC_MAGIC, 12, unsigned int *)
-#define HANTRO_IOCG_CORE_NUM _IOR(HANTRO_IOC_MAGIC, 13, unsigned int *)
-#define HANTRO_IOCG_CORE_INFO _IOR(HANTRO_IOC_MAGIC, 14, SUBSYS_CORE_INFO *)
-#define HANTRO_IOCG_CORE_WAIT _IOR(HANTRO_IOC_MAGIC, 15, unsigned int *)
-#define HANTRO_IOCG_ANYCORE_WAIT _IOR(HANTRO_IOC_MAGIC, 16, CORE_WAIT_OUT *)
-#define HANTRO_IOCG_ANYCORE_WAIT_POLLING _IOR(HANTRO_IOC_MAGIC, 17, CORE_WAIT_OUT *)
+#define HANTRO_IOCG_SRAMOFFSET _IOR(HANTRO_IOC_MAGIC, 9, ulong)
+#define HANTRO_IOCG_SRAMEIOSIZE _IOR(HANTRO_IOC_MAGIC, 10, u32)
+#define HANTRO_IOCH_ENC_RESERVE _IOR(HANTRO_IOC_MAGIC, 11, u32)
+#define HANTRO_IOCH_ENC_RELEASE _IOR(HANTRO_IOC_MAGIC, 12, u32)
+#define HANTRO_IOCG_CORE_NUM _IOR(HANTRO_IOC_MAGIC, 13, u32)
+#define HANTRO_IOCG_CORE_INFO _IOR(HANTRO_IOC_MAGIC, 14, SUBSYS_CORE_INFO_LEN)
+#define HANTRO_IOCG_CORE_WAIT _IOR(HANTRO_IOC_MAGIC, 15, u32)
+#define HANTRO_IOCG_ANYCORE_WAIT _IOR(HANTRO_IOC_MAGIC, 16, CORE_WAIT_OUT_LEN)
+#define HANTRO_IOCG_ANYCORE_WAIT_POLLING _IOR(HANTRO_IOC_MAGIC, 17, CORE_WAIT_OUT_LEN)
 
-#define HANTRO_IOCH_GET_CMDBUF_PARAMETER _IOWR(HANTRO_IOC_MAGIC, 25, struct cmdbuf_mem_parameter)
-#define HANTRO_IOCH_GET_CMDBUF_POOL_SIZE _IOWR(HANTRO_IOC_MAGIC, 26, unsigned long)
-#define HANTRO_IOCH_SET_CMDBUF_POOL_BASE _IOWR(HANTRO_IOC_MAGIC, 27, unsigned long)
-#define HANTRO_IOCH_GET_VCMD_PARAMETER _IOWR(HANTRO_IOC_MAGIC, 28, struct config_parameter)
-#define HANTRO_IOCH_RESERVE_CMDBUF _IOWR(HANTRO_IOC_MAGIC, 29, struct exchange_parameter)
-#define HANTRO_IOCH_LINK_RUN_CMDBUF _IOWR(HANTRO_IOC_MAGIC, 30, struct exchange_parameter)
+#define HANTRO_IOCH_GET_CMDBUF_PARAMETER _IOWR(HANTRO_IOC_MAGIC, 25, CMDBUF_MEM_PARAMETER_LEN)
+#define HANTRO_IOCH_GET_CMDBUF_POOL_SIZE _IOWR(HANTRO_IOC_MAGIC, 26, ulong)
+#define HANTRO_IOCH_SET_CMDBUF_POOL_BASE _IOWR(HANTRO_IOC_MAGIC, 27, ulong)
+#define HANTRO_IOCH_GET_VCMD_PARAMETER _IOWR(HANTRO_IOC_MAGIC, 28, CONFIG_PARAMETER_LEN)
+#define HANTRO_IOCH_RESERVE_CMDBUF _IOWR(HANTRO_IOC_MAGIC, 29, EXCHANGE_PARAMETER_LEN)
+#define HANTRO_IOCH_LINK_RUN_CMDBUF _IOR(HANTRO_IOC_MAGIC, 30, EXCHANGE_PARAMETER_LEN)
 #define HANTRO_IOCH_WAIT_CMDBUF _IOR(HANTRO_IOC_MAGIC, 31, u16)
 #define HANTRO_IOCH_RELEASE_CMDBUF _IOR(HANTRO_IOC_MAGIC, 32, u16)
 #define HANTRO_IOCH_POLLING_CMDBUF _IOR(HANTRO_IOC_MAGIC, 33, u16)
 
-#define HANTRO_IOCH_GET_VCMD_ENABLE _IOWR(HANTRO_IOC_MAGIC, 50, u64)
+#define HANTRO_IOCH_GET_VCMD_ENABLE _IOWR(HANTRO_IOC_MAGIC, 50, u32)
 #define HANTRO_IOCH_GET_MMU_ENABLE _IOWR(HANTRO_IOC_MAGIC, 51, u32)
-#define HANTRO_IOCTL_CONFIG_DMA _IOWR(HANTRO_IOC_MAGIC, 52, struct versdrv_dma_buf_info_t)
-#define HANTRO_IOCTL_UNMAP_DMA _IOWR(HANTRO_IOC_MAGIC, 53, struct versdrv_dma_buf_info_t)
-#define HANTRO_IOCTL_READ_CANVAS _IOWR(HANTRO_IOC_MAGIC, 54, struct versdrv_dma_buf_info_t)
 
+#define HANTRO_IOCTL_CONFIG_DMA _IOWR(HANTRO_IOC_MAGIC, 52, VERSDRV_DMABUF_LEN)
+#define HANTRO_IOCTL_UNMAP_DMA _IOWR(HANTRO_IOC_MAGIC, 53, VERSDRV_DMABUF_LEN)
+#define HANTRO_IOCTL_READ_CANVAS _IOWR(HANTRO_IOC_MAGIC, 54, VERSDRV_DMABUF_LEN)
 
 #define GET_ENCODER_IDX(type_info) (CORE_VC8000E)
 
@@ -450,25 +450,22 @@ enum vcmd_module_type {
     MAX_VCMD_TYPE
 };
 
-#ifdef CONFIG_COMPAT
+
 struct cmdbuf_mem_parameter {
-    u32 cmd_virt_addr; //cmdbuf pool base virtual address
-    u32 status_virt_addr;
-    u32 cmd_phy_addr;      //cmdbuf pool base physical address, it's for cpu
-    u32 cmd_hw_addr;       //cmdbuf pool base hardware address, it's for hardware ip
-    u32 cmd_total_size;    //cmdbuf pool total size in bytes.
-    u32 status_phy_addr;   //status cmdbuf pool base physical address, it's for cpu
-    u32 status_hw_addr;    //status cmdbuf pool base hardware address, it's for hardware ip
+    ulong cmd_virt_addr; //cmdbuf pool base virtual address
+    ulong cmd_phy_addr; //cmdbuf pool base physical address, it's for cpu
+    ulong cmd_hw_addr;  //cmdbuf pool base hardware address, it's for hardware ip
+    u32 cmd_total_size; //cmdbuf pool total size in bytes.
+    u16 cmd_unit_size;  //one cmdbuf size in bytes. all cmdbuf have same size.
+    ulong status_virt_addr;
+    ulong status_phy_addr; //status cmdbuf pool base physical address, it's for cpu
+    ulong status_hw_addr;  //status cmdbuf pool base hardware address, it's for hardware ip
     u32 status_total_size; //status cmdbuf pool total size in bytes.
-    u32 base_ddr_addr; //for pcie interface, hw can only access phy_cmdbuf_addr-pcie_base_ddr_addr.
+    u16 status_unit_size;  //one status cmdbuf size in bytes. all status cmdbuf have same size.
+    ulong base_ddr_addr; //for pcie interface, hw can only access phy_cmdbuf_addr-pcie_base_ddr_addr.
                        //for other interface, this value should be 0?
-    u16 status_unit_size; //one status cmdbuf size in bytes. all status cmdbuf have same size.
-    u16 cmd_unit_size;    //one cmdbuf size in bytes. all cmdbuf have same size.
 };
-#else
-struct cmdbuf_mem_parameter {
-};
-#endif
+
 struct config_parameter {
     u16 module_type;         //input vc8000e=0,cutree=1,vc8000d=2，jpege=3, jpegd=4
     u16 vcmd_core_num;       //output, how many vcmd cores are there with corresponding module_type.
@@ -501,10 +498,19 @@ typedef struct CoreWaitOut {
 
 typedef struct {
     u32 type_info; //indicate which IP is contained in this subsystem and each uses one bit of this variable
-    unsigned long offset[CORE_MAX];
-    unsigned long regSize[CORE_MAX];
-    int irq[CORE_MAX];
+    ulong offset[CORE_MAX];
+    ulong regSize[CORE_MAX];
+    i32 irq[CORE_MAX];
 } SUBSYS_CORE_INFO;
+
+
+#define SUBSYS_CORE_INFO_LEN SUBSYS_CORE_INFO
+#define CORE_WAIT_OUT_LEN CORE_WAIT_OUT
+#define CMDBUF_MEM_PARAMETER_LEN struct cmdbuf_mem_parameter
+#define CONFIG_PARAMETER_LEN struct config_parameter
+#define EXCHANGE_PARAMETER_LEN struct exchange_parameter
+#define VERSDRV_DMABUF_LEN struct versdrv_dma_buf_info_t
+
 
 #define HANTRO_IOC_MMU 'm'
 
@@ -519,6 +525,15 @@ struct addr_desc {
 };
 
 //memalloc
+typedef struct {
+    ulong bus_address;
+    u32 size;
+    ulong translation_offset;
+    u32 mem_type;
+} MemallocParams;
+
+#define MEMALLOC_PARAMS_LEN MemallocParams
+
 /*
  * Ioctl definitions
  */
@@ -532,38 +547,12 @@ struct addr_desc {
  * X means "eXchange": G and S atomically
  * H means "sHift": T and Q atomically
  */
-#ifdef CONFIG_COMPAT
-typedef struct MemallocParams_t {
-    unsigned int bus_address;
-    unsigned int size;
-    unsigned int translation_offset;
-    unsigned int mem_type;
-} MemallocParams;
-#else
-typedef struct {
-    unsigned long bus_address;
-    unsigned int size;
-    unsigned long translation_offset;
-    unsigned int mem_type;
-} MemallocParams;
-#endif
-
-#ifdef CONFIG_COMPAT
-#define MEMALLOC_IOCXGETBUFFER _IOWR(MEMALLOC_IOC_MAGIC, 1, struct MemallocParams_t)
-#define MEMALLOC_IOCSFREEBUFFER _IOW(MEMALLOC_IOC_MAGIC, 2, u32)
-#define MEMALLOC_IOCGMEMBASE _IOR(MEMALLOC_IOC_MAGIC, 3, u32)
+#define MEMALLOC_IOCXGETBUFFER _IOWR(MEMALLOC_IOC_MAGIC, 1, MEMALLOC_PARAMS_LEN)
+#define MEMALLOC_IOCSFREEBUFFER _IOW(MEMALLOC_IOC_MAGIC, 2, ulong)
+#define MEMALLOC_IOCGMEMBASE _IOR(MEMALLOC_IOC_MAGIC, 3, ulong)
 
 /* ... more to come */
 #define MEMALLOC_IOCHARDRESET _IO(MEMALLOC_IOC_MAGIC, 15) /* debugging tool */
-#else
-#define MEMALLOC_IOCXGETBUFFER _IOWR(MEMALLOC_IOC_MAGIC, 1, MemallocParams *)
-#define MEMALLOC_IOCSFREEBUFFER _IOW(MEMALLOC_IOC_MAGIC, 2, unsigned long *)
-#define MEMALLOC_IOCGMEMBASE _IOR(MEMALLOC_IOC_MAGIC, 3, unsigned long *)
-
-/* ... more to come */
-#define MEMALLOC_IOCHARDRESET _IO(MEMALLOC_IOC_MAGIC, 15) /* debugging tool */
-#endif
-
 
 
 typedef struct {

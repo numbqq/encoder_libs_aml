@@ -501,6 +501,11 @@ VCEncRet VCEncInit(const VCEncConfig *config, VCEncInst *instAddr, void *ctx)
         } else
             vcenc_inst->EncOut[coreId].tileExtra = NULL;
     }
+    if (!(vcenc_inst->asic.regs.regMirror =
+              (u32 *)EWLcalloc(1, ASIC_SWREG_AMOUNT * sizeof(u32)))) {
+        ret = VCENC_MEMORY_ERROR;
+        goto error;
+    }
 
     vcenc_inst->asic.regs.bVCMDAvailable = EWLGetVCMDSupport() ? true : false;
     vcenc_inst->asic.regs.bVCMDEnable = EWLGetVCMDMode(ewl) ? true : false;
@@ -7821,7 +7826,7 @@ VCEncRet VCEncStrmEncodeExt(VCEncInst inst, VCEncIn *pEncIn, const VCEncExtParaI
         if (pEncIn->luma_stride != 0 && pEncIn->chroma_stride != 0) {
             asic->regs.input_luma_stride = pEncIn->luma_stride;
             asic->regs.input_chroma_stride = pEncIn->chroma_stride;
-            APITRACEERR("luma_stride:%d,chroma_stride:%d",asic->regs.input_luma_stride,asic->regs.input_chroma_stride);
+            //APITRACEERR("luma_stride:%d,chroma_stride:%d",asic->regs.input_luma_stride,asic->regs.input_chroma_stride);
         }
         vcenc_instance->tileCtrl[tileId].input_luma_stride = asic->regs.input_luma_stride;
         vcenc_instance->tileCtrl[tileId].input_chroma_stride = asic->regs.input_chroma_stride;

@@ -1,131 +1,102 @@
 /*
-* Copyright (c) 2019 Amlogic, Inc. All rights reserved.
-*
-* This source code is subject to the terms and conditions defined in below
-* which is part of this source code package.
-*
-* Description:
-*/
+ * Copyright (c) 2014 Amlogic, Inc. All rights reserved.
+ *
+ * This source code is subject to the terms and conditions defined in the
+ * file 'LICENSE' which is part of this source code package.
+ *
+ * Description:
+ */
 
-// Copyright (C) 2019 Amlogic, Inc. All rights reserved.
-//
-// All information contained herein is Amlogic confidential.
-//
-// This software is provided to you pursuant to Software License
-// Agreement (SLA) with Amlogic Inc ("Amlogic"). This software may be
-// used only in accordance with the terms of this agreement.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification is strictly prohibited without prior written permission
-// from Amlogic.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#ifndef DMABUF_H
+#define DMABUF_H
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
-#ifndef __TEST_DMA_API_H__
-#define __TEST_DMA_API_H__
-
-#define WORD_SIZE 16
-#define WORD_MASK (~(WORD_SIZE - 1))
-#define AXI_WORD_ALIGN(size) ((size + WORD_SIZE - 1) & WORD_MASK)
-
-enum dma_data_direction {
-	DMA_BIDIRECTIONAL = 0,
-	DMA_TO_DEVICE = 1,
-	DMA_FROM_DEVICE = 2,
-	DMA_NONE = 3,
-};
-
-typedef unsigned int uint32_t;
-
-/* for gdc dma buf define */
-struct dmabuf_req_s {
-	int index;
-	unsigned int len;
-	unsigned int dma_dir;
-};
-
-struct dmabuf_exp_s {
-	int index;
-	unsigned int flags;
-	int fd;
-};
-/* end of gdc dma buffer define */
-
-#define GDC_IOC_MAGIC 'G'
-
-#define GDC_REQUEST_DMA_BUFF _IOW(GDC_IOC_MAGIC, 0x06, struct dmabuf_req_s)
-#define GDC_EXP_DMA_BUFF _IOW(GDC_IOC_MAGIC, 0x07, struct dmabuf_exp_s)
-#define GDC_FREE_DMA_BUFF _IOW(GDC_IOC_MAGIC, 0x08, int)
-#define GDC_SYNC_DEVICE _IOW(GDC_IOC_MAGIC, 0x09, int)
-#define GDC_SYNC_CPU _IOW(GDC_IOC_MAGIC, 0x0a, int)
+#define DEVPATH "/dev/dma_heap"
+#define GENERIC_HEAP "heap-codecmm"
 
 enum {
-	INPUT_BUFF_TYPE = 0x1000,
-	OUTPUT_BUFF_TYPE,
-	CONFIG_BUFF_TYPE,
-	GDC_BUFF_TYPE_MAX
+	GE2D_BUF_INPUT1,
+	GE2D_BUF_INPUT2,
+	GE2D_BUF_OUTPUT,
 };
-typedef unsigned long ulong;
-struct usr_ctx_s {
-	// currently do not support multi-context
-	int gdc_client;
-	int ion_client;
-	char *i_buff[3];
-	char *o_buff;
-	char *c_buff;
-	void *cmemParm[3];
-	ulong i_len[3];
-	ulong o_len;
-	ulong c_len;
-	int fd[3];
-	int inbuf_num;
-};
+int dmabuf_heap_open(char *name);
+int dmabuf_heap_alloc(int fd, size_t len, unsigned int flags,
+				 int *dmabuf_fd);
+void dmabuf_sync(int fd, int start_stop);
+void dmabuf_heap_close(int heap_fd);
 
-/**
- *   This function create a contex for gdc work.
- *
- *   @param  ctx - contains client of gdc and ion.
- *
- *   @return 0 - success
- *           -1 - fail
- */
-int create_ctx(struct usr_ctx_s *ctx);
-
-/**
- *   This function points gdc to its input resolution and yuv address and
- * offsets
- *
- *   @param  gdc_settings - overall gdc settings
- *   @param  in_buf_fd    - input buffer's fd
- *   @param  out_buf_fd   - output buffer's fd
- *
- *   @return 0 - success
- *           -1 - no interrupt from GDC.
- */
-int destroy_ctx(struct usr_ctx_s *ctx);
-
-/**
- *   This function points gdc to its input resolution and yuv address and
- * offsets
- *
- *   @param  ctx - contains client of gdc and ion.
- *   @param  share_fd - buffer's fd
- *   @param  len - buffer's size
- *
- *   @return 0 - success
- *           -1 - no interrupt from GDC.
- */
-int alloc_dma_buffer(struct usr_ctx_s *ctx, uint32_t type, size_t len);
-
-int sync_cpu(struct usr_ctx_s *ctx);
+#if defined (__cplusplus)
+}
 #endif
+
+#endif
+
+#ifndef _DMA_BUF_UAPI_H_
+#define _DMA_BUF_UAPI_H_
+
+#include <linux/types.h>
+
+/* begin/end dma-buf functions used for userspace mmap. */
+struct dma_buf_sync {
+	__u64 flags;
+};
+
+#define DMA_BUF_SYNC_READ	   (1 << 0)
+#define DMA_BUF_SYNC_WRITE	   (2 << 0)
+#define DMA_BUF_SYNC_RW 	   (DMA_BUF_SYNC_READ | DMA_BUF_SYNC_WRITE)
+#define DMA_BUF_SYNC_START	   (0 << 2)
+#define DMA_BUF_SYNC_END	   (1 << 2)
+#define DMA_BUF_SYNC_VALID_FLAGS_MASK \
+	(DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END)
+
+#define DMA_BUF_NAME_LEN	32
+
+/**
+ * struct dma_buf_export_sync_file - Get a sync_file from a dma-buf
+ *
+ * Userspace can perform a DMA_BUF_IOCTL_EXPORT_SYNC_FILE to retrieve the
+ * current set of fences on a dma-buf file descriptor as a sync_file.  CPU
+ * waits via poll() or other driver-specific mechanisms typically wait on
+ * whatever fences are on the dma-buf at the time the wait begins.	This
+ * is similar except that it takes a snapshot of the current fences on the
+ * dma-buf for waiting later instead of waiting immediately.  This is
+ * useful for modern graphics APIs such as Vulkan which assume an explicit
+ * synchronization model but still need to inter-operate with dma-buf.
+ */
+struct dma_buf_export_sync_file {
+	/**
+	 * @flags: Read/write flags
+	 *
+	 * Must be DMA_BUF_SYNC_READ, DMA_BUF_SYNC_WRITE, or both.
+	 *
+	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is not set,
+	 * the returned sync file waits on any writers of the dma-buf to
+	 * complete.  Waiting on the returned sync file is equivalent to
+	 * poll() with POLLIN.
+	 *
+	 * If DMA_BUF_SYNC_WRITE is set, the returned sync file waits on
+	 * any users of the dma-buf (read or write) to complete.  Waiting
+	 * on the returned sync file is equivalent to poll() with POLLOUT.
+	 * If both DMA_BUF_SYNC_WRITE and DMA_BUF_SYNC_READ are set, this
+	 * is equivalent to just DMA_BUF_SYNC_WRITE.
+	 */
+	__u32 flags;
+	/** @fd: Returned sync file descriptor */
+	__s32 fd;
+};
+
+#define DMA_BUF_BASE		'b'
+#define DMA_BUF_IOCTL_SYNC	_IOW(DMA_BUF_BASE, 0, struct dma_buf_sync)
+
+/* 32/64bitness of this uapi was botched in android, there's no difference
+ * between them in actual uapi, they're just different numbers.
+ */
+#define DMA_BUF_SET_NAME	_IOW(DMA_BUF_BASE, 1, const char *)
+#define DMA_BUF_SET_NAME_A	_IOW(DMA_BUF_BASE, 1, u32)
+#define DMA_BUF_SET_NAME_B	_IOW(DMA_BUF_BASE, 1, u64)
+#define DMA_BUF_IOCTL_EXPORT_SYNC_FILE	_IOWR(DMA_BUF_BASE, 2, struct dma_buf_export_sync_file)
+
+#endif
+

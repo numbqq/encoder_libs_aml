@@ -49,6 +49,7 @@ typedef int32_t i32;  /**< \brief signed 32-bit integer */
 typedef uint32_t u32; /**< \brief unsigned 32-bit integer */
 typedef int64_t i64;  /**< \brief signed 64-bit integer */
 typedef uint64_t u64; /**< \brief unsigned 64-bit integer */
+typedef unsigned long ulong;
 
 /**@}*/
 

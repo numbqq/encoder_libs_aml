@@ -712,7 +712,10 @@ static void *encode_thread(void *param)
 
     memset(&inbuf_info, 0, sizeof(amvenc_buffer_info_t));
     inbuf_info.buf_type = (amvenc_buffer_type_t) buf_type;
-    inbuf_info.buf_stride = src_buf_stride;
+    inbuf_info.buf_stride = width;
+    if (src_buf_stride != 0)
+        inbuf_info.buf_stride = src_buf_stride;
+
     inbuf_info.buf_fmt = fmt;
 
     memset(&qp_tbl, 0, sizeof(amvenc_qp_param_t));

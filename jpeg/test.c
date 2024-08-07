@@ -74,6 +74,10 @@ int main(int argc, const char *argv[])
     jpegenc_frame_info_t frame_info;
     int datalen = 0;
     int num_planes = 1;
+    int w_stride = 0;
+    int h_stride = 0;
+    int w_alignment = 0;
+    int h_alignment = 0;
 
     unsigned int output_size  = 0;
     unsigned char *output_buffer = NULL;
@@ -85,7 +89,7 @@ int main(int argc, const char *argv[])
     jpegenc_result_e result = ENC_FAILED;
     jpegenc_handle_t handle = 0;
 
-    if (argc < 6) {
+    if (argc < 11) {
         printf("Amlogic AVC Encode API \n");
         printf("usage: output [srcfile] [outfile] [width] [height] [quality] [iformat] [oformat] [w_stride] [h_stride] [memtype]\n");
         printf("options :\n");
@@ -99,7 +103,7 @@ int main(int argc, const char *argv[])
         printf("         width alignment  : width alignment \n");
         printf("         height alignment : height alignment \n");
         printf("         memory type   : memory type for input data, 0:vmalloc, 3:dma\n");
-        //printf("         num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
+        printf("         num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 
         return -1;
     } else {
@@ -119,12 +123,12 @@ int main(int argc, const char *argv[])
     quality	= atoi(argv[5]);
     iformat	= (jpegenc_frame_fmt_e)atoi(argv[6]);
     oformat	= (jpegenc_frame_fmt_e)atoi(argv[7]);
-    int w_alignment, h_alignment;
     w_alignment	= atoi(argv[8]);
     h_alignment	= atoi(argv[9]);
 
     jpegenc_mem_type_e mem_type = (jpegenc_mem_type_e)atoi(argv[10]);
-    //num_planes = atoi(argv[11]);
+    if (argc > 11)
+        num_planes = atoi(argv[11]);
 
     printf("src url: %s \n", argv[1]);
     printf("out url: %s \n", argv[2]);
@@ -136,8 +140,16 @@ int main(int argc, const char *argv[])
     printf("width alignment: %d \n", w_alignment);
     printf("height alignment: %d \n", h_alignment);
     printf("memory type: %s\n", mem_type == JPEGENC_LOCAL_BUFF ? "VMALLOC" : mem_type == JPEGENC_DMA_BUFF ? "DMA" : "unsupported mem type");
-    int w_stride = (width % w_alignment) == 0 ? width : (((width / w_alignment)+1)*w_alignment);
-    int h_stride = (height % h_alignment) == 0 ? height : (((height / h_alignment)+1)*h_alignment);
+    if (w_alignment > 0)
+        w_stride = (width % w_alignment) == 0 ? width : (((width / w_alignment)+1)*w_alignment);
+    else
+        w_stride = width;
+
+    if (h_alignment > 0)
+        h_stride = (height % h_alignment) == 0 ? height : (((height / h_alignment)+1)*h_alignment);
+    else
+        h_stride = height;
+
     printf("align: %d->%d\n", width, w_stride);
     printf("align: %d->%d\n", height, h_stride);
 

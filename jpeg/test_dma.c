@@ -86,7 +86,6 @@ int destroy_ctx(struct usr_ctx_s *ctx)
 
 static int _alloc_dma_buffer(int fd, unsigned int dir, unsigned int len)
 {
-    int ret = -1;
     struct dmabuf_req_s buf_cfg;
 
     memset(&buf_cfg, 0, sizeof(buf_cfg));
@@ -94,10 +93,9 @@ static int _alloc_dma_buffer(int fd, unsigned int dir, unsigned int len)
     buf_cfg.dma_dir = dir;
     buf_cfg.len = len;
 
-    ret = ioctl(fd, GDC_REQUEST_DMA_BUFF, &buf_cfg);
-    if (ret < 0) {
-        printf("GDC_REQUEST_DMA_BUFF %s failed: %s\n", __func__, strerror(ret));
-        return ret;
+    if (ioctl(fd, GDC_REQUEST_DMA_BUFF, &buf_cfg)) {
+        printf("GDC_REQUEST_DMA_BUFF %s failed\n", __func__);
+        return -1;
     }
     return buf_cfg.index;
 }

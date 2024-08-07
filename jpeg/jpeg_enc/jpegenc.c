@@ -150,11 +150,10 @@ long hw_encode_init(int timeout) {
 	uint32_t buff_info[7];
 
 	hw_jpegenc_t* hw_info = (hw_jpegenc_t*) malloc(sizeof(hw_jpegenc_t));
-	memset(hw_info,0,sizeof(hw_jpegenc_t));
-
 	if (!hw_info)
 		return (long)NULL;
 
+	memset(hw_info,0,sizeof(hw_jpegenc_t));
 	hw_info->jpeg_size = 0;
 
 	hw_info->dev_fd = open(ENCODER_PATH, O_RDWR);
@@ -206,9 +205,12 @@ EXIT_INIT:
 		hw_info->mmap_buff.addr = NULL;
 	}
 
-	close(hw_info->dev_fd);
-
-	hw_info->dev_fd = -1;
+	if (hw_info->dev_fd >= 0) {
+		close(hw_info->dev_fd);
+		hw_info->dev_fd = -1;
+	}
+	if (hw_info != NULL)
+		free(hw_info);
 
 	return (long)NULL;
 }
@@ -599,7 +601,7 @@ int hw_encode(jpegenc_handle_t handle, jpegenc_frame_info_t frame_info, uint8_t 
 		printf("[%s:%d]param err!, src is NULL!\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	if ((frame_info.mem_type == JPEGENC_DMA_BUFF) && (frame_info.YCbCr[0] < 0)) {
+	if ((frame_info.mem_type == JPEGENC_DMA_BUFF) && ((int)frame_info.YCbCr[0] < 0)) {
 		printf("[%s:%d]param err!, dma_fd < 0\n", __FUNCTION__, __LINE__);
 		return -1;
 	}

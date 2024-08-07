@@ -53,12 +53,6 @@ jpegenc_handle_t jpegenc_init() {
 	jpegenc_handle_t handle = hw_encode_init(0);
 
 	return handle;
-
-exit:
-	if (handle != (long)NULL)
-		free((void *)handle);
-
-	return (jpegenc_handle_t) NULL;
 }
 
 

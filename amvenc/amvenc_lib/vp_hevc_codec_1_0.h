@@ -79,6 +79,13 @@ typedef enum {
         bit field value: 1 enable, 0: disable (default)*/
 #define ENABLE_LONG_TERM_REF    0x80
 
+typedef struct crop_info_hevc {
+    int left;
+    int top;
+    int right;
+    int bottom;
+}crop_info_hevc_t;
+
 /* encoder info*/
 typedef struct vl_encode_info_hevc {
   int width;
@@ -109,6 +116,8 @@ typedef struct vl_encode_info_hevc {
   int transfer; /*color transfer charicstics*/
   int matrix; /* color space matrix coefficients*/
   bool range; /*color range flag, 0:full, 1:limitedd*/
+  bool crop_enable;
+  crop_info_hevc_t crop;
 } vl_encode_info_hevc_t;
 
 /* dma buffer info*/

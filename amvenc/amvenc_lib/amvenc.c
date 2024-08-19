@@ -129,7 +129,7 @@ int selectHW(amvenc_codec_id_t codec_id, int *hw_type)
             VLOG(DEBUG, "amvenc_multi 265 present");
             ret = 0;
         }
-        else if (access(AMVENC_264_DEVICE, F_OK ) != -1) {
+        else if (access(AMVENC_265_DEVICE, F_OK ) != -1) {
             *hw_type = AMVENC_265;
             VLOG(DEBUG, "amvenc_265 present");
             ret = 0;

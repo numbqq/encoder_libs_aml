@@ -186,6 +186,7 @@ AMVEnc_Status AML_HWEncInitialize(AMVEncHandle *Handle, AMVEncParams *encParam, 
         info->initQP = 15;
 #endif
     }
+    info->initQP = 35;
 
     info->hw_info.init_para.enc_width = info->enc_width;
     info->hw_info.init_para.enc_height = info->enc_height;

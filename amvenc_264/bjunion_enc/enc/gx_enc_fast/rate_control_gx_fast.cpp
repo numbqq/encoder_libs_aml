@@ -153,7 +153,7 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
             /* compression ratio large than 1.5M 720p and result is large than 1.7 times target */
 //            if (isReenc == 1) {
                 if ((rateCtrl->bitsPerFrame / p->src.mb_width / p->src.mb_height > 14)
-                        && (numFrameBits > p->target * 17 / 10)) {
+                        && ((uint32_t)numFrameBits > p->target * 170 / 10)) {
                     status = AMVENC_REENCODE_PICTURE;
                     if ((uint32_t)(p->src.mb_width * p->src.mb_height) < 3 * p->qp_stic.i_count)
                         p->quant += 6 * numFrameBits / p->target;
@@ -164,22 +164,13 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
                 qp_max = 48;
         }
 
-        if (!rateCtrl->BitrateScale && !p->cabac_mode) {
-            if (p->bitrate_urgent_mode) {
-                qp_max = 51;
-            } else if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID) {
-                int temp = p->bitrate_urgent_cnt - BITRATE_URGENT_MID;
-
-                if ((temp * 3) >= BITRATE_URGENT_MID)
-                    qp_max += 2;
-                else if ((temp * 2) >= BITRATE_URGENT_MID)
-                    qp_max += 3;
-                else if (((temp * 10) /7) >= BITRATE_URGENT_MID)
-                    qp_max += 4;
-                if (qp_max > 51)
-                    qp_max = 51;
-            }
-        }
+        //sam mdf
+        #ifdef FASTGX_AVC_FIX_QP_CBR
+        //qp_max = 51;
+        #endif
+        qp_max = 51;
+        //end
+        printf("sam debug RC >> qp_max = %d,numFrameBits = %d,p->target = %d\n",qp_max,numFrameBits,p->target);
         if ((unsigned int) numFrameBits > p->target * 3) {
             VLOG(NONE,"base qp + 10:%d, bu_cnt:%d,qp_max:%d", p->quant, p->bitrate_urgent_cnt,qp_max);
             p->quant += 10;
@@ -211,47 +202,18 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
             p->quant -= 4;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP3)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP3;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP3)
-                p->bitrate_urgent_cnt = 0;
         } else if ((unsigned int) numFrameBits < p->target * 2 / 3) {
             VLOG(NONE,"base qp - 2:%d, bu_cnt:%d,qp_max:%d", p->quant, p->bitrate_urgent_cnt,qp_max);
             p->quant -= 2;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP2)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP2;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP2)
-                p->bitrate_urgent_cnt = 0;
         } else if ((unsigned int) numFrameBits < p->target * 9 / 10) {
             VLOG(NONE,"base qp--:%d, bu_cnt:%d,qp_max:%d", p->quant, p->bitrate_urgent_cnt,qp_max);
             p->quant--;
             if (p->quant < ADJ_QP_MIN)
                 p->quant = ADJ_QP_MIN;
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_MID)
-                p->bitrate_urgent_cnt = BITRATE_URGENT_MID;
-            else if (p->bitrate_urgent_cnt >= BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP1;
-            else if (p->bitrate_urgent_cnt < BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt = 0;
-        } else if (!p->bitrate_urgent_mode) {
-            VLOG(NONE,"base qp:%d, bu_cnt:%d,qp_max:%d", p->quant, p->bitrate_urgent_cnt,qp_max);
-            if (p->bitrate_urgent_cnt > BITRATE_URGENT_DEC_STEP1)
-                p->bitrate_urgent_cnt -= BITRATE_URGENT_DEC_STEP1;
         }
 
-        if (p->bitrate_urgent_cnt >= BITRATE_URGENT_TH) {
-            p->bitrate_urgent_mode = true;
-            p->bitrate_urgent_cnt = BITRATE_URGENT_TH;
-        } else if (p->bitrate_urgent_mode &&
-            (p->bitrate_urgent_cnt < BITRATE_URGENT_MID)) {
-            p->bitrate_urgent_mode = false;
-        }
         if (p->quant >= qp_max - 5)
             p->max_qp_count++;
         else
@@ -260,8 +222,6 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
         if ((uint32_t)(p->src.mb_width * p->src.mb_height) > 3 * p->qp_stic.i_count) {
             p->need_inc_me_weight = 0;
             p->inc_me_weight_count = 0;
-            if (p->quant > 35)
-                p->quant = 35;
         } else {
             if (p->max_qp_count > 30) {
                 if ((unsigned int) numFrameBits > p->target * 21 / 20) {
@@ -334,6 +294,11 @@ AMVEnc_Status GxFastRCInitFrameQP(void *dev, void *rc, bool IDR, int bitrate, fl
     int frame_duration_ms = 0;
 //    char prop[PROPERTY_VALUE_MAX];
     int media_custom = 0;
+    /* modify for const qp*/
+    if (p->fix_qp >= 0)
+    {
+        media_custom = 0;
+    }
 //#ifdef SUPPORT_STANDARD_PROP
 //    if (property_get("vendor.media.encoder.bitrate.custom", prop, NULL) > 0) {
 //#else
@@ -523,6 +488,13 @@ void* GxFastInitRateControlModule(amvenc_initpara_t* init_para) {
 
         rateCtrl->refresh = false;
         rateCtrl->force_IDR = false;
+
+#ifdef ENABLE_SKIP
+        rateCtrl->frame_position = 0;
+        rateCtrl->skip_cnt = 0;
+        rateCtrl->skip_cnt_per_second = 0;
+        rateCtrl->skip_interval = 0;
+#endif
     }
     return (void*) rateCtrl;
 

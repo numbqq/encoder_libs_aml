@@ -67,6 +67,40 @@ typedef enum {
   DMA_TYPE = 3,
 } vl_buffer_type_hevc_t;
 
+typedef enum
+{
+    NONE_HEVC = 0,
+    MAIN_HEVC = 1,
+    MAINSTILLPICTURE_HEVC = 3,
+} vl_profile_t;
+
+//HEVCTier
+typedef enum {
+    HEVC_TIER_MAIN = 0,
+    HEVC_TIER_HIGH = 1
+} vl_tier_t;
+
+
+typedef enum {
+    LEVEL_HEVC_NONE = 0,
+    LEVEL1_HEVC = 30,
+    LEVEL2_HEVC = 60,
+    LEVEL2_1_HEVC = 63,
+    LEVEL3_HEVC = 90,
+    LEVEL3_1_HEVC = 93,
+    LEVEL4_HEVC = 120,
+    LEVEL4_1_HEVC = 123,
+    LEVEL5_HEVC = 150,
+    LEVEL5_1_HEVC = 153,
+    LEVEL5_2_HEVC = 156,
+    LEVEL6_HEVC = 180,
+    LEVEL6_1_HEVC = 183,
+    LEVEL6_2_HEVC = 186,
+    LEVEL8_5_HEVC = 255
+} vl_level_t;
+
+
+
 /* encoder features configure flags bit masks for enc_feature_opts */
 /* Enable RIO feature.
         bit field value 1: enable, 0: disable (default) */
@@ -117,6 +151,9 @@ typedef struct vl_encode_info_hevc {
   bool range; /*color range flag, 0:full, 1:limitedd*/
   bool crop_enable;
   crop_info_t crop;
+  vl_profile_t profile;
+  vl_tier_t tier;
+  vl_level_t level;
 } vl_encode_info_hevc_t;
 
 /* dma buffer info*/

@@ -201,6 +201,12 @@ AMVEnc_Status initEncParams(AMVHEVCEncHandle *handle,
     handle->mEncParams.transfer = encode_info.transfer;
     handle->mEncParams.matrix = encode_info.matrix;
     handle->mEncParams.range = encode_info.range;
+    if (encode_info.profile)
+        handle->mEncParams.profile = (HEVCProfile)encode_info.profile;
+    if (encode_info.tier)
+        handle->mEncParams.tier = encode_info.tier;
+    if (encode_info.level)
+        handle->mEncParams.level = (HEVCLevel)encode_info.level;
     return AMVENC_SUCCESS;
 }
 
@@ -262,21 +268,19 @@ exit:
 void vl_encoder_adjust_h265_header(vl_codec_handle_hevc_t handle,char *header,int *dataLength)
 {
     bs_t bs;
-    //sps_h265_t sps = {0};
+    bs_t bs_v;
     uint32_t i = 0;
     int vps_nalu_size = 0;
     int sps_nalu_size = 0;
     int pps_nalu_size = 0;
     int new_sps_size = 0;
+    int new_vps_size = 0;
     int vps_start = -1;
     int sps_start = -1;
     int pps_start = -1;
     int ret = 0;
     h265_stream_t *pstream_handle = NULL;
     AMVHEVCEncHandle *codec_handle = (AMVHEVCEncHandle *)handle;
-//    VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
-   /* if (handle->mEncParams.stream_type != AMV_HEVC || !handle->vui_info.vui_parameters_present_flag)
-        return;*/
 
     uint8_t *vps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
     uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
@@ -317,7 +321,7 @@ void vl_encoder_adjust_h265_header(vl_codec_handle_hevc_t handle,char *header,in
 #if 0
     char tmp[1024] = {0};
     char tmp1[128] = {0};
-    for (int i = 0;i < *dataLength;i++) {
+    for (int i = 0;i < vps_nalu_size;i++) {
         sprintf(tmp1," %x",header[i]);
         strcat(tmp,tmp1);
     }
@@ -325,24 +329,33 @@ void vl_encoder_adjust_h265_header(vl_codec_handle_hevc_t handle,char *header,in
 #endif
     sps_nalu_size = EBSPtoRBSP(sps_nalu,H265_HEADER_LEN,sps_nalu_size);
 
+    vps_nalu_size = EBSPtoRBSP(vps_nalu,H265_HEADER_LEN,vps_nalu_size);
+
     pstream_handle = h265bitstream_init();
+    bs_init(&bs_v,vps_nalu + H265_HEADER_LEN, vps_nalu_size - H265_HEADER_LEN);
+
+    read_debug_video_parameter_set_rbsp(pstream_handle, &bs_v);
+    read_debug_rbsp_trailing_bits(pstream_handle,&bs_v);
+
+    pstream_handle->ptl->general_profile_idc = codec_handle->mEncParams.profile;//3;
+    pstream_handle->ptl->general_tier_flag = codec_handle->mEncParams.tier;
+    pstream_handle->ptl->general_level_idc = codec_handle->mEncParams.level;//120;
+
+    bs_init(&bs_v,vps_nalu + H265_HEADER_LEN, vps_nalu_size - H265_HEADER_LEN);
+    write_debug_video_parameter_set_rbsp(pstream_handle, &bs_v);
+
+    new_vps_size = vps_nalu_size;
+    new_vps_size = RBSPtoEBSP(vps_nalu,H265_HEADER_LEN,new_vps_size,0);
+
     bs_init(&bs, sps_nalu + H265_HEADER_LEN, sps_nalu_size - H265_HEADER_LEN);
     read_debug_seq_parameter_set_rbsp(pstream_handle, &bs);
     read_debug_rbsp_trailing_bits(pstream_handle,&bs);
-/*
-    pstream_handle->sps->vui_parameters_present_flag = handle->vui_info.vui_parameters_present_flag;
-    pstream_handle->vui->video_full_range_flag = handle->vui_info.video_full_range_flag;
-    if (pstream_handle->sps->vui_parameters_present_flag) {
-        pstream_handle->vui->video_signal_type_present_flag = 1;//handle->video_signal_type_present_flag;
-    }
-    if (handle->vui_info.colour_primaries && handle->vui_info.transfer_characteristics && handle->vui_info.matrix_coefficients) {
-        pstream_handle->vui->colour_description_present_flag = 1;//handle->colour_description_present_flag;
-        pstream_handle->vui->colour_primaries = handle->vui_info.colour_primaries;
-        pstream_handle->vui->transfer_characteristics = handle->vui_info.transfer_characteristics;
-        pstream_handle->vui->matrix_coeffs = handle->vui_info.matrix_coefficients;
-    }
-    VLOG(INFO,"old header sps.vui_parameters_present_flag:%d, range =%d,primaries = %d,transfer:%d,matrix:%d", pstream_handle->sps->vui_parameters_present_flag,pstream_handle->vui->video_full_range_flag,pstream_handle->vui->colour_primaries,pstream_handle->vui->transfer_characteristics,pstream_handle->vui->matrix_coeffs);
-    */
+
+    pstream_handle->ptl->general_profile_idc = codec_handle->mEncParams.profile;//3;
+    pstream_handle->ptl->general_tier_flag = codec_handle->mEncParams.tier;
+    pstream_handle->ptl->general_level_idc = codec_handle->mEncParams.level;//120;
+
+    VLOG(INFO,"write profile :%d,level:%d",pstream_handle->ptl->general_profile_idc,pstream_handle->ptl->general_level_idc);
 
     pstream_handle->sps->conformance_window_flag = codec_handle->mEncParams.crop_enable;//1;
     if (pstream_handle->sps->conformance_window_flag) {
@@ -364,14 +377,14 @@ void vl_encoder_adjust_h265_header(vl_codec_handle_hevc_t handle,char *header,in
     write_debug_rbsp_trailing_bits(&bs);
     new_sps_size = bs.p - bs.start + H265_HEADER_LEN;
 
-    memset(header, 0, vps_nalu_size + new_sps_size + pps_nalu_size);
+    memset(header, 0, new_vps_size + new_sps_size + pps_nalu_size);
 
-    memcpy(header,vps_nalu, vps_nalu_size);
+    memcpy(header,vps_nalu, new_vps_size);
 
     new_sps_size = RBSPtoEBSP(sps_nalu,H265_HEADER_LEN,new_sps_size,0);
-    memcpy(header + vps_nalu_size,sps_nalu,new_sps_size);
-    memcpy(header + new_sps_size + vps_nalu_size, pps_nalu, pps_nalu_size);
-    *dataLength = new_sps_size + pps_nalu_size + vps_nalu_size;
+    memcpy(header + new_vps_size,sps_nalu,new_sps_size);
+    memcpy(header + new_sps_size + new_vps_size, pps_nalu, pps_nalu_size);
+    *dataLength = new_sps_size + pps_nalu_size + new_vps_size;
 #if 0
     memset(tmp,0,sizeof(tmp));
     memset(tmp1,0,sizeof(tmp1));

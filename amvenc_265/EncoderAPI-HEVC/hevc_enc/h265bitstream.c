@@ -195,7 +195,7 @@ void read_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
             vps->layer_id_included_flag[i][j] = bs_read_u1(b);
         }
     vps->vps_timing_info_present_flag = bs_read_u1(b);
-    /*
+
     if (vps->vps_timing_info_present_flag)
     {
         vps->vps_num_units_in_tick = bs_read_u(b, 32);
@@ -224,8 +224,8 @@ void read_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
             vps->vps_extension_data_flag = bs_read_u1(b);
         }
     }
-    read_debug_rbsp_trailing_bits(h, b);
-    */
+    //read_debug_rbsp_trailing_bits(h, b);
+
 }
 static void read_decode_sublayer_hrd(bs_t* b, h265_stream_t* h, unsigned int nb_cpb,
                                 int subpic_params_present)
@@ -727,6 +727,126 @@ int hevc_decode_short_term_rps(bs_t*b, h265_stream_t* h/*const HEVCSPS *sps*/, i
         }
     }
     return 0;
+}
+
+
+void write_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
+{
+    int i = 0;
+    int j = 0;
+    vps_t* vps = h->vps;
+    if (0)
+    {
+        memset(vps, 0, sizeof(vps_t));
+    }
+    bs_write_u(b, 4, vps->vps_video_parameter_set_id);
+    bs_write_u1(b, vps->vps_base_layer_internal_flag);
+    bs_write_u1(b, vps->vps_base_layer_available_flag);
+    bs_write_u(b, 6, vps->vps_max_layers_minus1);
+    bs_write_u(b, 3, vps->vps_max_sub_layers_minus1);
+    bs_write_u1(b, vps->vps_temporal_id_nesting_flag);
+    bs_write_u(b, 16, vps->vps_reserved_0xffff_16bits);
+    write_profile_tier_level(h,b,1,vps->vps_max_sub_layers_minus1);
+   /* bs_write_u1(b, vps->vps_sub_layer_ordering_info_present_flag);
+    for (i = (vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1);i <= vps->vps_max_sub_layers_minus1;i++)
+    {
+        bs_write_u1(b, vps->vps_max_dec_pic_buffering_minus1[i]);
+        bs_write_u1(b, vps->vps_max_num_reorder_pics[i]);
+        bs_write_u1(b, vps->vps_max_latency_increase_plus1[i]);
+    }
+    bs_write_u(b, 6, vps->vps_max_layer_id);
+    bs_write_u1(b, vps->vps_num_layer_sets_minus1);
+    for (i=1;i<= vps->vps_num_layer_sets_minus1;i++)
+        for (j = 0;j <= vps->vps_max_layer_id;j++)
+        {
+            bs_write_u1(b, vps->layer_id_included_flag[i][j]);
+        }
+    bs_write_u1(b, vps->vps_timing_info_present_flag);
+    if (vps->vps_timing_info_present_flag)
+    {
+        bs_write_u(b, 32, vps->vps_num_units_in_tick);
+        bs_write_u(b, 32, vps->vps_time_scale);
+        bs_write_u1(b, vps->vps_poc_proportional_to_timing_flag);
+        if (vps->vps_poc_proportional_to_timing_flag)
+        {
+            bs_write_ue(b, vps->vps_num_ticks_poc_diff_one_minus1);
+        }
+        bs_write_ue(b, vps->vps_num_hrd_parameters);
+        for (i = 0;i < vps->vps_num_hrd_parameters;i++)
+        {
+            bs_write_ue(b, vps->hrd_layer_set_idx[i]);
+            if (i > 0)
+            {
+                bs_write_u1(b,vps->cprms_present_flag[i]);
+            }
+            //TODO: hrd-parameters()
+        }
+        bs_write_u1(b, vps->vps_extension_flag);
+        vps->vps_extension_flag = bs_read_u1(b);
+        if (vps->vps_extension_flag)
+        {
+            while (more_rbsp_trailing_data(h, b))
+            {
+                bs_write_u1(b, vps->vps_extension_data_flag);
+            }
+        }
+    }*/
+
+#if 0
+    vps->vps_video_parameter_set_id = bs_write_u(b, 4);
+    vps->vps_base_layer_internal_flag = bs_read_u1(b);
+    vps->vps_base_layer_available_flag = bs_read_u1(b);
+    vps->vps_max_layers_minus1 = bs_read_u(b, 6);
+    vps->vps_max_sub_layers_minus1 = bs_read_u(b, 3);
+    vps->vps_temporal_id_nesting_flag = bs_read_u1(b);
+    vps->vps_reserved_0xffff_16bits = bs_read_u(b,16);
+    read_profile_tier_level(h, b, 1, vps->vps_max_sub_layers_minus1);
+    vps->vps_sub_layer_ordering_info_present_flag = bs_read_u1(b);
+    for (i = (vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1);i <= vps->vps_max_sub_layers_minus1;i++)
+    {
+        vps->vps_max_dec_pic_buffering_minus1[i] = bs_read_ue(b);
+        vps->vps_max_num_reorder_pics[i] = bs_read_ue(b);
+        vps->vps_max_latency_increase_plus1[i] = bs_read_ue(b);
+    }
+    vps->vps_max_layer_id = bs_read_u(b, 6);
+    vps->vps_num_layer_sets_minus1 = bs_read_ue(b);
+    for (i=1;i<= vps->vps_num_layer_sets_minus1;i++)
+        for (j = 0;j <= vps->vps_max_layer_id;j++)
+        {
+            vps->layer_id_included_flag[i][j] = bs_read_u1(b);
+        }
+    vps->vps_timing_info_present_flag = bs_read_u1(b);
+#endif
+/*
+    if (vps->vps_timing_info_present_flag)
+    {
+        vps->vps_num_units_in_tick = bs_read_u(b, 32);
+        vps->vps_time_scale = bs_read_u(b, 32);
+        vps->vps_poc_proportional_to_timing_flag = bs_read_u1(b);
+        if (vps->vps_poc_proportional_to_timing_flag)
+        {
+            vps->vps_num_ticks_poc_diff_one_minus1 = bs_read_ue(b);
+        }
+        vps->vps_num_hrd_parameters = bs_read_ue(b);
+        for (i = 0;i < vps->vps_num_hrd_parameters;i++)
+        {
+            vps->hrd_layer_set_idx[i] = bs_read_ue(b);
+            if (i > 0)
+            {
+                vps->cprms_present_flag[i] = bs_read_u1(b);
+            }
+            //TODO: hrd-parameters()
+        }
+    }
+    vps->vps_extension_flag = bs_read_u1(b);
+    if (vps->vps_extension_flag)
+    {
+        while (more_rbsp_trailing_data(h, b))
+        {
+            vps->vps_extension_data_flag = bs_read_u1(b);
+        }
+    }*/
+   // read_debug_rbsp_trailing_bits(h, b);
 }
 
 

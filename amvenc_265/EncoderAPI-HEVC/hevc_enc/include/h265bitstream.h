@@ -616,6 +616,7 @@ enum {
     void write_profile_tier_level(h265_stream_t* h, bs_t* b, int profilePresentFlag, int maxNumSubLayersMinus1);
     void write_scaling_list_data(h265_stream_t* h, bs_t* b);
     void write_debug_seq_parameter_set_rbsp(h265_stream_t* h, bs_t* b);
+    void write_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b);
 
     void printVPS(h265_stream_t* h);
     void printSPS(h265_stream_t* h);

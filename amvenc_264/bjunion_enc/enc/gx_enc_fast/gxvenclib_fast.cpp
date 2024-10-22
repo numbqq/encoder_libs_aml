@@ -728,7 +728,7 @@ static void Fill_CBR_Table_Custom(gx_fast_enc_drv_t* p, bool rc)
 #endif
         //end
 
-        printf("sam debug qp_tbl >> Fill_CBR_Table_Custom rc 1:qp = 0x%x,quant = 0x%x,qp_base = 0x%x,p->qp_tbl[0] = 0x%x,p->qp_tbl[1] = 0x%x\n",qp,p->quant,qp_base,p->qp_tbl[0],p->qp_tbl[1]);
+        VLOG(NONE, "sam debug qp_tbl >> Fill_CBR_Table_Custom rc 1:qp = 0x%x,quant = 0x%x,qp_base = 0x%x,p->qp_tbl[0] = 0x%x,p->qp_tbl[1] = 0x%x\n",qp,p->quant,qp_base,p->qp_tbl[0],p->qp_tbl[1]);
         //sam mdf
         //
 #ifdef FASTGX_AVC_FIX_QP_CBR

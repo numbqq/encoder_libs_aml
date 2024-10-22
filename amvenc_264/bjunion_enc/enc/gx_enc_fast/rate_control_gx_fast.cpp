@@ -170,7 +170,7 @@ AMVEnc_Status GxFastRCUpdateFrame(void *dev, void *rc, bool IDR, int* skip_num, 
         #endif
         qp_max = 51;
         //end
-        printf("sam debug RC >> qp_max = %d,numFrameBits = %d,p->target = %d\n",qp_max,numFrameBits,p->target);
+        VLOG(NONE, "sam debug RC >> qp_max = %d,numFrameBits = %d,p->target = %d\n",qp_max,numFrameBits,p->target);
         if ((unsigned int) numFrameBits > p->target * 3) {
             VLOG(NONE,"base qp + 10:%d, bu_cnt:%d,qp_max:%d", p->quant, p->bitrate_urgent_cnt,qp_max);
             p->quant += 10;

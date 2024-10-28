@@ -455,14 +455,12 @@ int vdi_allocate_common_memory(u32 core_idx)
         VLOG(ERR, "[VDI] fail to vdi_allocate_dma_memory size=%d\n", vdb.size);
         return -1;
     }
-
-    vdb.virt_addr = (unsigned long)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE, MAP_SHARED, vdi->vpu_fd, vdb.phys_addr);
+    vdb.virt_addr = (unsigned long)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE, MAP_SHARED, vdi->vpu_fd, vdb.phys_addr - vdb.base);
     if ((void *)vdb.virt_addr == MAP_FAILED)
     {
         VLOG(ERR, "[VDI] fail to map common memory phyaddr=0x%lx, size = %d\n", (ulong)vdb.phys_addr, (int)vdb.size);
         return -1;
     }
-
     VLOG(INFO, "[VDI] vdi_allocate_common_memory, physaddr=0x%lx, virtaddr=0x%lx\n", (ulong)vdb.phys_addr, (ulong)vdb.virt_addr);
 
     // convert os driver buffer type to vpu buffer type
@@ -1116,10 +1114,9 @@ int vdi_allocate_dma_memory(u32 core_idx, vpu_buffer_t *vb)
     }
     vb->phys_addr = (ulong)vdb.phys_addr;
     vb->base = (ulong)vdb.base;
-
     //map to virtual address
     vdb.virt_addr = (ulong)mmap(NULL, vdb.size, PROT_READ | PROT_WRITE,
-        MAP_SHARED, vdi->vpu_fd, vdb.phys_addr);
+        MAP_SHARED, vdi->vpu_fd, vdb.phys_addr - vdb.base);
     if ((void *)vdb.virt_addr == MAP_FAILED)
     {
         memset(vb, 0x00, sizeof(vpu_buffer_t));

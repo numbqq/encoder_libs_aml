@@ -3402,6 +3402,7 @@ It selects the entropy coding mode used in encoding process.
     Uint32          reportMvHistoThreshold2; /**< The value of MV threshold 2. (1 ~ 16)*/
     Uint32          reportMvHistoThreshold3; /**< The value of MV threshold 3. (1 ~ 16)*/
 #endif
+    int QpModify;
 }EncVpParam;
 
 /**
@@ -3604,7 +3605,7 @@ A slice mode for independent slice
     // ENC_SET_CHANGE_PARAM_RC_WEIGHT
     Uint32 rcWeightBuf;   /**< It is the smoothing factor in the estimation. (Min: 1, Max: 255) This parameter indicates the speed of adjusting bitrate toward fullness of buffer as a reaction parameter. As it becomess larger, the bit-rate error promptly affects the target bit allocation of the following picture. */
     Uint32 rcWeightParam; /**< Adjusts the speed of updating parameters to the rate control model. If RcWeightFactor is set with a large value, the RC parameters are updated slowly. (Min: 1, Max: 31)*/
-
+    int pic_type;
 }EncChangeParam;
 
 /**

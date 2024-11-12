@@ -70,6 +70,7 @@ typedef struct FrameIO_s {
   int enc_intra_blocks; //intra blockes (in 8x8) of the encoded frame
   int enc_merged_blocks; //merged blockes (in 8x8) of the encoded frame
   int enc_skipped_blocks; //skipped blockes (in 8x8) of the encoded frame
+  int pic_type;
 } AMVMultiEncFrameIO;
 
 typedef enum AMVGOPModeOPT_S {

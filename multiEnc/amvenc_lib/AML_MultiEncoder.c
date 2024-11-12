@@ -284,7 +284,7 @@ typedef struct AMVEncContext_s {
   uint32 CustomUpdateID; //store the update count
   uint32 CustomMapUpdatedId[MAX_REG_FRAME]; // updated ID cnt
   WeigtedPredInfo wp_para;
-
+  int pic_type;
 #if SUPPORT_SCALE
   uint32 ge2d_initial_done;
   aml_ge2d_t amlge2d;
@@ -646,6 +646,8 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
     param->maxQpB = 51;
     param->hvsMaxDeltaQp = 10;
   }
+  if (param->maxQpI < param->maxQpP && param->gopPresetIdx != PRESET_IDX_ALL_I)
+      param->QpModify = 1;
 
   if (param->gopPresetIdx == PRESET_IDX_CUSTOM_GOP) {
     /* for CMD_ENC_CUSTOM_GOP_PARAM */
@@ -1526,7 +1528,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   int64_t t1, t2, t3, t4, t5, t6, t7;
 
   AMVMultiCtx * ctx = (AMVMultiCtx* )ctx_handle;
-
+  ctx->pic_type = input->pic_type;
   if (input->type == CANVAS_BUFFER) {
       VLOG(INFO, "set fmt to nv21 for canvas buffer mode as default");
       input->fmt = AMVENC_NV21;
@@ -2258,6 +2260,7 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
                              AMVMultiEncFrameIO *Retframe) {
   RetCode                 result;
   EncParam*               encParam;
+  EncVpParam*             VpParam;
   EncOutputInfo           encOutputInfo;
   ENC_INT_STATUS          intStatus;
   ENC_QUERY_WRPTR_SEL     encWrPtrSel     = GET_ENC_PIC_DONE_WRPTR;
@@ -2265,6 +2268,8 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
   int idx;
   QueueStatusInfo         qStatus;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  ctx->mNumInputFrames++;
+  VpParam = &ctx->encOpenParam.EncStdParam.vpParam;
   if (ctx == NULL) return AMVENC_FAIL;
   if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
 
@@ -2273,6 +2278,23 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
 #endif
 
 retry_point:
+    if (VpParam->QpModify) {
+        ctx->param_change_flag = 1;
+        ctx->changeParam.enable_option |= ENC_SET_CHANGE_PARAM_RC_MIN_MAX_QP;
+        ctx->changeParam.enable_option |= ENC_SET_CHANGE_PARAM_RC_INTER_MIN_MAX_QP;
+        ctx->changeParam.intraPeriod = VpParam->intraPeriod;
+        ctx->changeParam.pic_type = ctx->pic_type;
+        if ((ctx->mNumInputFrames % ctx->changeParam.intraPeriod == 1) || ctx->changeParam.pic_type == 3) {
+            ctx->changeParam.maxQpI = VpParam->maxQpI;
+            ctx->changeParam.maxQpP = VpParam->maxQpP;
+            ctx->changeParam.hvsMaxDeltaQp = VpParam->hvsMaxDeltaQp;
+        }
+        else {
+            ctx->changeParam.maxQpI = VpParam->maxQpP;
+            ctx->changeParam.maxQpP = VpParam->maxQpP;
+            ctx->changeParam.hvsMaxDeltaQp = VpParam->hvsMaxDeltaQp;
+        }
+    }
     if(ctx ->param_change_flag) {
         result = VPU_EncGiveCommand(ctx->enchandle, ENC_SET_PARA_CHANGE, &ctx->changeParam);
         if (result == RETCODE_SUCCESS) {

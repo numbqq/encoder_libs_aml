@@ -1143,6 +1143,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
     // if (handle->idrPeriod == 0) {
     // videoInput.op_flag |= AMVEncFrameIO_FORCE_IDR_FLAG;
     //}
+    videoInput.pic_type = type;
     ret = AML_MultiEncSetInput(handle->am_enc_handle, &videoInput);
     ++(handle->mNumInputFrames);
 

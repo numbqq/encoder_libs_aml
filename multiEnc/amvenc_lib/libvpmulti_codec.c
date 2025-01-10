@@ -256,6 +256,13 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
     handle->mEncParams.CPB_size = (uint32)(encode_info.bit_rate >> 1);
     handle->mEncParams.FreeRun = ENC_SETTING_OFF;
 
+    handle->mEncParams.srcBitDepth = encode_info.srcBitDepth;
+    handle->mEncParams.internalBitDepth = encode_info.internalBitDepth;
+    if (handle->mEncParams.srcBitDepth != 8 && handle->mEncParams.srcBitDepth != 10)
+        handle->mEncParams.srcBitDepth = 8;
+    if (handle->mEncParams.internalBitDepth != 8 && handle->mEncParams.internalBitDepth != 10)
+        handle->mEncParams.internalBitDepth = 8;
+
     if (encode_info.bitstream_buf_sz_kb > 0 && encode_info.bitstream_buf_sz_kb <= (32 * 1024)) {
         handle->mEncParams.es_buf_sz =  encode_info.bitstream_buf_sz_kb*1024;
     } else {
@@ -1282,12 +1289,11 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
       unsigned long* in = in_buffer_info->buf_info.in_ptr;
       videoInput.YCbCr[0] = (unsigned long)in[0];
       videoInput.YCbCr[1] = (unsigned long)(videoInput.YCbCr[0] +
-      videoInput.height * videoInput.pitch);
-
+      videoInput.height * videoInput.pitch * (handle->mEncParams.srcBitDepth == 10 ? 2 : 1));
       if (videoInput.fmt == AMVENC_NV21 || videoInput.fmt == AMVENC_NV12) {
         videoInput.YCbCr[2] = 0;
       } else if (videoInput.fmt == AMVENC_YUV420P) {
-        videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / 4);
+        videoInput.YCbCr[2] = (unsigned long)(videoInput.YCbCr[1] + videoInput.height * videoInput.pitch / (handle->mEncParams.srcBitDepth == 10 ? 2 : 4));
       }
     }
 

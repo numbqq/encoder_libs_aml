@@ -56,6 +56,7 @@ typedef struct FrameIO_s {
   AMVEncFrameFmt fmt;
   vl_sei_payload_t sei_payload;
   int pitch;
+  int temp_pitch;
   int height;
   uint32 disp_order;
   uint is_reference;
@@ -184,6 +185,8 @@ typedef struct EncInitParams_s {
   int crop_top;
   int crop_right;
   int crop_bottom;
+  int srcBitDepth;
+  int internalBitDepth;
 } AMVEncInitParams;
 
 extern amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam);

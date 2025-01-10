@@ -165,6 +165,8 @@ typedef struct {
 	int   cust_qp_delta; 			 	// optional, cust_qp_delta apply to P frames value >0 lower; <0 increase the quality
 	int   strict_rate_control_parmeter;	// optional, High 16 bit bitrate window (frames max 120). low 16 bit bitrate threshold (percent)
 	int   forcePicQpIPB;
+	int   srcBitDepth;
+	int   internalBitDepth;
 } encodecCfgParam;
 
 typedef struct {
@@ -238,6 +240,8 @@ int main(int argc, const char *argv[])
 		printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
 		printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 		printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
+		printf("  srcBitDepth \t: src yuv BitDepth, src yuv is 8bit,set 8,10bit set 10\n");
+		printf("  interBitDepth : internal BitDepth,internal encode is 8 bit,set 8,10bit set 10\n");
 		printf("  cfg_opt  \t: optional, flags to control the encode feature settings\n");
 		printf("            \t\t  bit 0:roi control. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 1: update control. 0: disabled (default) 1: enabled\n");
@@ -311,12 +315,13 @@ int main(int argc, const char *argv[])
 		cfg_encode[0].buf_type = atoi(argv[10]);
 		cfg_encode[0].num_planes = atoi(argv[11]);
 		cfg_encode[0].codec_id = atoi(argv[12]);
-
-		if (argc > 13) {
-			cfg_encode[0].cfg_opt = atoi(argv[13]);
+		cfg_encode[0].srcBitDepth = atoi(argv[13]);
+		cfg_encode[0].internalBitDepth = atoi(argv[14]);
+		if (argc > 15) {
+			cfg_encode[0].cfg_opt = atoi(argv[15]);
 		}
-		if (argc > 14) {
-			arg_count = 14;
+		if (argc > 16) {
+			arg_count = 16;
 			if ((cfg_encode[0].cfg_opt & 0x1) == 0x1 && argc > arg_count) {
 				if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
 					printf("Warning: roi filename too long (max length: %d), will be truncated\n",
@@ -403,7 +408,7 @@ int main(int argc, const char *argv[])
 
 static void *encode_thread(void *param)
 {
-	int width, height, gop, framerate, bitrate, num, my_qp;
+	int width, height, gop, framerate, bitrate, num, my_qp,srcBitDepth,internalBitDepth;
 	int ret = 0;
 	int outfd = -1;
 	FILE *fp = NULL;
@@ -498,7 +503,8 @@ static void *encode_thread(void *param)
 	fmt = cfg_encode->fmt;
 	buf_type = cfg_encode->buf_type;
 	num_planes = cfg_encode->num_planes;
-
+	srcBitDepth = cfg_encode->srcBitDepth;
+	internalBitDepth = cfg_encode->internalBitDepth;
 	switch (cfg_encode->codec_id)
 	{
 	case 0:
@@ -733,6 +739,13 @@ static void *encode_thread(void *param)
 		vsize = width * height / 4;
 		uvsize = width * height / 2;
 	}
+	if (srcBitDepth == 10) {
+		framesize = width * height * 3;
+		ysize = width * height  * 2;
+		usize = width * height / 2;
+		vsize = width * height / 2;
+		uvsize = width * height;
+	}
 
 	inbuf_info.buf_type = (vl_buffer_type_t) buf_type;
 	inbuf_info.buf_stride = src_buf_stride;
@@ -763,7 +776,8 @@ static void *encode_thread(void *param)
 	encode_info.forcePicQpI = forcePicQpIPB;
 	encode_info.forcePicQpB = forcePicQpIPB;
 	encode_info.forcePicQpP = forcePicQpIPB;
-
+	encode_info.srcBitDepth = srcBitDepth;
+	encode_info.internalBitDepth = internalBitDepth;
 	if (frame_rotation == 0)
 		encode_info.frame_rotation = 0;
 	else if (frame_rotation == 1)

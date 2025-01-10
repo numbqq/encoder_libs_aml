@@ -207,6 +207,7 @@ typedef struct AMVEncContext_s {
   uint32 src_idx;
   uint32 src_count;
   uint32 enc_width;
+  uint32 temp_enc_width;
   uint32 enc_height;
   uint32 bitrate;    /* target encoding bit rate in bits/second */
   uint32 frame_rate; /* frame rate */
@@ -411,10 +412,10 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
   pEncOP->bitRate = InitParam->bitrate;
   pEncOP->rcEnable = InitParam->rate_control;
   /* default */
-  pEncOP->srcBitDepth     = 8; /*pCfg->SrcBitDepth; */
+  pEncOP->srcBitDepth     = InitParam->srcBitDepth; /*pCfg->SrcBitDepth; */
   param->level = 0;
   param->tier  = 0;
-  param->internalBitDepth = 8; /*pCfg->vpCfg.internalBitDepth;*/
+  param->internalBitDepth = InitParam->internalBitDepth;; /*pCfg->vpCfg.internalBitDepth;*/
 
   if ( param->internalBitDepth == 10 ) {
     pEncOP->outputFormat = FORMAT_420_P10_16BIT_MSB;
@@ -802,7 +803,10 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVEncInitParams* InitPa
 
   if (pEncOP->streamBufCount < COMMAND_QUEUE_DEPTH )
     pEncOP->streamBufCount = COMMAND_QUEUE_DEPTH; //for encoder->numSinkPortQueue
-  pEncOP->srcFormat = FORMAT_420;
+  if (InitParam->srcBitDepth == 10)
+    pEncOP->srcFormat = FORMAT_420_P10_16BIT_MSB;
+  else
+    pEncOP->srcFormat = FORMAT_420;
   if (InitParam->fmt == AMVENC_NV21)
     pEncOP->nv21 = 1;
   else
@@ -1614,8 +1618,8 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   if (src_stride != input->pitch) {
     width32alinged = false;
   }
-  luma_stride = src_stride;
-  chroma_stride = src_stride;
+  luma_stride = src_stride * (ctx->encOpenParam.srcBitDepth == 10 ? 2 : 1);
+  chroma_stride = src_stride * (ctx->encOpenParam.srcBitDepth == 10 ? 2 : 1);
   //  Pick a no used src frame buffer descriptor
  idx_1 = -1;
   for (idx = 0; idx< ENC_SRC_BUF_NUM; idx++) {
@@ -1732,9 +1736,16 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
       VLOG(INFO, "idx %d luma %d src %p dst %p  width %d, height %d \n",
           idx, size_src_luma, src, y_dst, ctx->enc_width, ctx->enc_height);
 
+      ctx->temp_enc_width = ctx->enc_width;
+      input->temp_pitch = input->pitch;
+      if (!width32alinged && ctx->encOpenParam.srcBitDepth == 10) {
+          ctx->temp_enc_width *= 2;
+          input->temp_pitch *= 2;
+      }
+
       yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufY, src,
-                       ctx->enc_width, ctx->enc_height, luma_stride,
-                       input->pitch, width32alinged, endian);
+                       ctx->temp_enc_width, ctx->enc_height, luma_stride,
+                       input->temp_pitch, width32alinged, endian);
 
       if (ctx->fmt == AMVENC_NV12 || ctx->fmt == AMVENC_NV21) {
         src = (char *)input->YCbCr[1];
@@ -1744,14 +1755,14 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
       } else if (ctx->fmt == AMVENC_YUV420P) {
         src = (char *)input->YCbCr[1];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCb,
-                         src, ctx->enc_width/2, ctx->enc_height/ 2,
-                         chroma_stride / 2, input->pitch / 2, width32alinged,
+                         src, ctx->temp_enc_width /2, ctx->enc_height/ 2,
+                         chroma_stride / 2, input->temp_pitch / 2, width32alinged,
                          endian);
 //        v_dst = (char *)(ctx->pFbSrcMem[idx].virt_addr + size_src_luma + size_src_luma / 4);
         src = (char *)input->YCbCr[2];
         yuv_plane_memcpy(ctx->encOpenParam.coreIdx, ctx->pFbSrc[idx].bufCr,
-                         src, ctx->enc_width/2, ctx->enc_height/ 2,
-                         chroma_stride / 2, input->pitch / 2, width32alinged,
+                         src, ctx->temp_enc_width/2, ctx->enc_height/ 2,
+                         chroma_stride / 2, input->temp_pitch / 2, width32alinged,
                          endian);
       }
     }
@@ -1813,7 +1824,7 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   ctx->FrameIO[idx] = *input;
   ctx->encodedSrcFrmIdxArr[idx] = 1; // occupic the frames.
   ctx->encMEMSrcFrmIdxArr[param->srcIdx]  = idx; //indirect  link due to reodering. srcIdx increase linear.
-  ctx->pFbSrc[idx].stride = src_stride; /**< A horizontal stride for given frame buffer */
+  ctx->pFbSrc[idx].stride = src_stride * (ctx->encOpenParam.srcBitDepth == 10 ? 2 : 1); /**< A horizontal stride for given frame buffer */
   ctx->pFbSrc[idx].height = input->height; /**< A height for given frame buffer */
 
   VLOG(INFO, "Assign src buffer,input idx %d poolidx %d stride %d \n",param->srcIdx, idx, src_stride);

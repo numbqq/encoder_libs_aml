@@ -120,7 +120,6 @@ typedef struct {
 	int   seqNum;
 	struct timeval timeFrameStart;
 	struct timeval timeFrameEnd;
-	int   encodeEnd;
 	char  srcfile[ENCODER_STRING_LEN_MAX];    // yuv data url in your root fs
 	char  outfile[ENCODER_STRING_LEN_MAX];    // stream url in your root fs
 	int   width;           // width
@@ -214,7 +213,6 @@ int main(int argc, const char *argv[])
 {
 	int i = 0;
 	int arg_count = 0;
-	int len = 0;
 
 	FILE *fp_cfg_encode = NULL;
 	encodecCfgParam cfg_encode[CFG_ENCODE_NUM_MAX];
@@ -287,11 +285,17 @@ int main(int argc, const char *argv[])
 	} else {
 		memset(&cfg_encode[0], 0, sizeof(encodecCfgParam));
 
-		len = strlen(argv[1]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[1]);
-		strncpy(cfg_encode[0].srcfile, argv[1], len);
+		if (strlen(argv[1]) >= ENCODER_STRING_LEN_MAX) {
+			printf("Warning: Input filename too long (max length: %d), will be truncated\n",
+					ENCODER_STRING_LEN_MAX - 1);
+		}
+		snprintf(cfg_encode[0].srcfile, ENCODER_STRING_LEN_MAX, "%s", argv[1]);
 
-		len = strlen(argv[2]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[2]);
-		strncpy(cfg_encode[0].outfile, argv[2], len);
+		if (strlen(argv[2]) >= ENCODER_STRING_LEN_MAX) {
+			printf("Warning: Output filename too long (max length: %d), will be truncated\n",
+					ENCODER_STRING_LEN_MAX - 1);
+		}
+		snprintf(cfg_encode[0].outfile, ENCODER_STRING_LEN_MAX, "%s", argv[2]);
 
 		cfg_encode[0].width = atoi(argv[3]);
 		cfg_encode[0].height = atoi(argv[4]);
@@ -311,14 +315,20 @@ int main(int argc, const char *argv[])
 		if (argc > 14) {
 			arg_count = 14;
 			if ((cfg_encode[0].cfg_opt & 0x1) == 0x1 && argc > arg_count) {
-				len = strlen(argv[arg_count]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[arg_count]);
-				strncpy(cfg_encode[0].roifile, argv[arg_count], len);
+				if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
+					printf("Warning: roi filename too long (max length: %d), will be truncated\n",
+							ENCODER_STRING_LEN_MAX - 1);
+				}
+				snprintf(cfg_encode[0].roifile, ENCODER_STRING_LEN_MAX, "%s", argv[arg_count]);
 				printf("roi_url is\t: %s ;\n", cfg_encode[0].roifile);
 				arg_count ++;
 			}
 			if ((cfg_encode[0].cfg_opt & 0x2) == 0x2 && argc > arg_count) {
-				len = strlen(argv[arg_count]) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(argv[arg_count]);
-				strncpy(cfg_encode[0].cfg_file, argv[arg_count], len);
+				if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
+					printf("Warning: config filename too long (max length: %d), will be truncated\n",
+							ENCODER_STRING_LEN_MAX - 1);
+				}
+				snprintf(cfg_encode[0].cfg_file, ENCODER_STRING_LEN_MAX, "%s", argv[arg_count]);
 				printf("cfg_upd_url is\t: %s ;\n", cfg_encode[0].cfg_file);
 				arg_count ++;
 			}
@@ -418,8 +428,8 @@ static void *encode_thread(void *param)
 	vl_encode_info_t encode_info;
 	vl_buffer_info_t ret_buf;
 	vl_codec_id_t codec_id = CODEC_ID_H264;
-	uint32_t frame_rotation;
-	uint32_t frame_mirroring;
+	uint32_t frame_rotation = 0;
+	uint32_t frame_mirroring = 0;
 	encoding_metadata_t encoding_metadata;
 	int   forcePicQpEnable = 0;
 	int   forcePicQpIPB = 0;
@@ -441,12 +451,21 @@ static void *encode_thread(void *param)
 	unsigned long long totalTime = 0, ioTime = 0;
 	struct timeval timeStart, timeEnd, readStart, readEnd, writeStart, writeEnd;
 
-	int len = 0;
 	unsigned char srcfile[ENCODER_STRING_LEN_MAX] = {0};
 	unsigned char outfile[ENCODER_STRING_LEN_MAX] = {0};
 	unsigned char roifile[ENCODER_STRING_LEN_MAX] = {0};
 	unsigned char cfg_file[ENCODER_STRING_LEN_MAX] = {0};
 	encodecCfgParam *cfg_encode = NULL;
+
+	unsigned char *inputBuffer = NULL;
+	unsigned char *input[3] = { NULL };
+	vl_buffer_info_t inbuf_info;
+	vl_dma_info_t *dma_info = NULL;
+	unsigned char *roi_buffer = NULL;
+	unsigned int roi_size;
+	unsigned char *outbuffer =  NULL;
+	unsigned int outbuffer_len;
+	memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
 
 	pthread_detach(pthread_self());
 	if (NULL != param)
@@ -595,16 +614,20 @@ static void *encode_thread(void *param)
 		if ((cfg_option & 0x1) == 0x1 && (strlen(cfg_encode->roifile) > 1)) {
 			printf("roi_url is\t: %s ;\n", cfg_encode->roifile);
 			roi_enabled = 1;
-
-			len = strlen(cfg_encode->roifile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->roifile);
-			strncpy(roifile, cfg_encode->roifile, len);
+			if (strlen(cfg_encode->roifile) >= ENCODER_STRING_LEN_MAX) {
+				printf("Warning: roi filename too long (max length: %d), will be truncated\n",
+						ENCODER_STRING_LEN_MAX - 1);
+			}
+			snprintf(roifile, ENCODER_STRING_LEN_MAX, "%s", cfg_encode->roifile);
 		}
 		if ((cfg_option & 0x2) == 0x2 && (strlen(cfg_encode->cfg_file) > 1)) {
 			printf("cfg_upd_url is\t: %s ;\n", cfg_encode->cfg_file);
 			cfg_upd_enabled = 1;
-
-			len = strlen(cfg_encode->cfg_file) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->cfg_file);
-			strncpy(cfg_file, cfg_encode->cfg_file, len);
+			if (strlen(cfg_encode->cfg_file) >= ENCODER_STRING_LEN_MAX) {
+				printf("Warning: config filename too long (max length: %d), will be truncated\n",
+						ENCODER_STRING_LEN_MAX - 1);
+			}
+			snprintf(cfg_file, ENCODER_STRING_LEN_MAX, "%s", cfg_encode->cfg_file);
 		}
 		if ((cfg_option & 0x100) == 0x100 && cfg_encode->src_buf_stride > 0) {
 			src_buf_stride = cfg_encode->src_buf_stride;
@@ -651,26 +674,26 @@ static void *encode_thread(void *param)
 		goto end;
 	}
 
-	len = strlen(cfg_encode->srcfile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->srcfile);
-	strncpy(srcfile, cfg_encode->srcfile, len);
+	if (strlen(cfg_encode->srcfile) >= ENCODER_STRING_LEN_MAX) {
+		printf("Warning: Input filename too long (max length: %d), will be truncated\n",
+				ENCODER_STRING_LEN_MAX - 1);
+	}
+	snprintf(srcfile, ENCODER_STRING_LEN_MAX, "%s", cfg_encode->srcfile);
 
-	len = strlen(cfg_encode->outfile) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(cfg_encode->outfile);
-	strncpy(outfile, cfg_encode->outfile, len);
+	if (strlen(cfg_encode->outfile) >= ENCODER_STRING_LEN_MAX) {
+		printf("Warning: output filename too long (max length: %d), will be truncated\n",
+				ENCODER_STRING_LEN_MAX - 1);
+	}
+	snprintf(outfile, ENCODER_STRING_LEN_MAX, "%s", cfg_encode->outfile);
 
-	unsigned int outbuffer_len = 8*1024 * 1024 * sizeof(char);
+	outbuffer_len = 8 * 1024 * 1024 * sizeof(char);
 	if (bitstream_buf_size > 8)
 		outbuffer_len = bitstream_buf_size*1024 * 1024 * sizeof(char);
-	unsigned char *outbuffer = (unsigned char *) malloc(outbuffer_len);
+	outbuffer = (unsigned char *) malloc(outbuffer_len);
 	if (outbuffer == NULL) {
 		printf("Can not malloc outbuffer\n");
-		goto exit;
+		goto end;
 	}
-	unsigned char *inputBuffer = NULL;
-	unsigned char *input[3] = { NULL };
-	vl_buffer_info_t inbuf_info;
-	vl_dma_info_t *dma_info = NULL;
-	unsigned char *roi_buffer = NULL;
-	unsigned int roi_size;
 
 	if (src_buf_stride) {
 		if (fmt == IMG_FMT_RGB888)
@@ -708,7 +731,6 @@ static void *encode_thread(void *param)
 		uvsize = width * height / 2;
 	}
 
-	memset(&inbuf_info, 0, sizeof(vl_buffer_info_t));
 	inbuf_info.buf_type = (vl_buffer_type_t) buf_type;
 	inbuf_info.buf_stride = src_buf_stride;
 	inbuf_info.buf_fmt = fmt;
@@ -751,7 +773,7 @@ static void *encode_thread(void *param)
 		printf("frame rotation angle is wrong\n");
 		encode_info.frame_rotation = 0;
 	}
-	if (frame_mirroring >= 0 && frame_mirroring <=3)
+	if (frame_mirroring <=3)
 		encode_info.frame_mirroring = frame_mirroring;
 	else
 		encode_info.frame_mirroring = 0;
@@ -765,7 +787,7 @@ static void *encode_thread(void *param)
 		roi_buffer = (unsigned char *) malloc(roi_size + 1);
 		if (roi_buffer == NULL) {
 			printf("Can not allocat roi_buffer\n");
-			goto exit;
+			goto end;
 		}
 	}
 	if (cfg_upd_enabled) {
@@ -803,7 +825,7 @@ static void *encode_thread(void *param)
 		if (ret < 0)
 		{
 			printf("gdc create fail ret=%d\n", ret);
-			goto exit;
+			goto end;
 		}
 
 		if (dma_info->num_planes == 3)
@@ -827,7 +849,7 @@ static void *encode_thread(void *param)
 				goto exit;
 			}
 
-			printf("hoan debug canvas >> alloc_dma_buffer y,ret=%d, vaddr=0x%x\n", ret,vaddr);
+			printf("hoan debug canvas >> alloc_dma_buffer y,ret=%d, vaddr=%p\n", ret,vaddr);
 			dma_info->shared_fd[0] = ret;
 			input[0] = vaddr;
 
@@ -846,7 +868,7 @@ static void *encode_thread(void *param)
 			}
 			dma_info->shared_fd[1] = ret;
 			input[1] = vaddr;
-			printf("hoan debug canvas >> alloc_dma_buffer u,ret=%d, vaddr=0x%x\n", ret,vaddr);
+			printf("hoan debug canvas >> alloc_dma_buffer u,ret=%d, vaddr=%p\n", ret,vaddr);
 
 			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, vsize);
 			if (ret < 0)
@@ -864,7 +886,7 @@ static void *encode_thread(void *param)
 
 			dma_info->shared_fd[2] = ret;
 			input[2] = vaddr;
-			printf("hoan debug canvas >> alloc_dma_buffer v,ret=%d, vaddr=0x%x\n", ret,vaddr);
+			printf("hoan debug canvas >> alloc_dma_buffer v,ret=%d, vaddr=%p\n", ret,vaddr);
 		} else if (dma_info->num_planes == 2)
 		{
 			ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, ysize);
@@ -1434,13 +1456,40 @@ retry:
 	printf("[Total time: %llu us], [IO time: %llu us]\n", totalTime, ioTime);
 	if (frame_num > 1) {
 		printf("[Encode Total time: %llu us], [avgTime: %llu us], [avgfps: %d]\n", totalTime - ioTime,
-			   (totalTime - ioTime) / frame_num, 1*1000*1000/((totalTime - ioTime) / frame_num));
+			   (totalTime - ioTime) / frame_num, (int)(1*1000*1000/((totalTime - ioTime) / frame_num)));
 	}
 
 exit:
 
 	if (handle_enc)
 		vl_multi_encoder_destroy(handle_enc);
+
+	if (inbuf_info.buf_type == DMA_TYPE)
+	{
+		if (dma_info) {
+			if (dma_info->shared_fd[0] >= 0)
+				close(dma_info->shared_fd[0]);
+
+			if (dma_info->shared_fd[1] >= 0)
+				close(dma_info->shared_fd[1]);
+
+			if (dma_info->shared_fd[2] >= 0)
+				close(dma_info->shared_fd[2]);
+	   }
+
+		destroy_ctx(&ctx);
+	} else
+	{
+		if (inputBuffer)
+			free(inputBuffer);
+	}
+	printf("Encode End!width:%d\n",width);
+end:
+	if (outbuffer != NULL)
+		free(outbuffer);
+
+	if (roi_buffer != NULL)
+		free(roi_buffer);
 
 	if (outfd >= 0)
 		close(outfd);
@@ -1453,48 +1502,8 @@ exit:
 
 	if (fp_cfg)
 		fclose(fp_cfg);
-
-	if (outbuffer != NULL)
-		free(outbuffer);
-
-	if (roi_buffer != NULL)
-		free(roi_buffer);
-
-	if (inbuf_info.buf_type == DMA_TYPE)
-	{
-		if (dma_info->shared_fd[0] >= 0)
-			close(dma_info->shared_fd[0]);
-
-		if (dma_info->shared_fd[1] >= 0)
-			close(dma_info->shared_fd[1]);
-
-		if (dma_info->shared_fd[2] >= 0)
-			close(dma_info->shared_fd[2]);
-
-		destroy_ctx(&ctx);
-	} else
-	{
-		if (inputBuffer)
-			free(inputBuffer);
-	}
-	printf("Encode End!width:%d\n",width);
-end:
-	cfg_encode->encodeEnd  = 1;
 	pthread_exit(0);
 	return NULL;
-}
-
-
-static char*mystrncpy(char* dest, const char* src, int len)
-{
-	assert(dest != NULL && src != NULL);
-	char* temp = dest;
-	int i=0;
-	//while (i++ < len  && (*temp++ = *src++) != '\0') {}
-	while (i++ < len  && (*temp = *src) != '\n' && (*temp++ = *src++) != '\0') {}
-	if (*(temp) != '\0')
-		*temp = '\0';
-	return dest;
 }
 
 static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
@@ -1504,7 +1513,6 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 	static char lineStr[ENCODER_STRING_LEN_MAX*4] = {0};
 	char valueStr[ENCODER_STRING_LEN_MAX] = {0};
 	int i = 0;
-	int len = 0;
 	while (1) {
 		if (i >= CFG_ENCODE_NUM_MAX)
 			return 0;
@@ -1540,16 +1548,14 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 			lineStr[0] = 0x0;
 			continue;
 		}
-		len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
-		mystrncpy(cfg_encode[i].srcfile, token, len);
+		snprintf(cfg_encode[i].srcfile, ENCODER_STRING_LEN_MAX, "%s", token);
 
 		token = strtok(NULL, delim);
 		if (token == NULL) {
 			lineStr[0] = 0x0;
 			continue;
 		}
-		len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
-		mystrncpy(cfg_encode[i].outfile, token, len);
+		snprintf(cfg_encode[i].outfile, ENCODER_STRING_LEN_MAX, "%s", token);
 
 		token = strtok(NULL, delim);
 		if (token == NULL) {
@@ -1639,8 +1645,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 		}
 
 		if ((cfg_encode[i].cfg_opt & 0x1) == 0x1) {
-			len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
-			mystrncpy(cfg_encode[i].roifile, token, len);
+			snprintf(cfg_encode[i].roifile, ENCODER_STRING_LEN_MAX, "%s", token);
 			printf("roi_url is\t: %s ;\n", cfg_encode[i].roifile);
 
 			token = strtok(NULL, delim);
@@ -1652,8 +1657,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
 			}
 		}
 		if ((cfg_encode[i].cfg_opt & 0x2) == 0x2) {
-			len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
-			mystrncpy(cfg_encode[i].cfg_file, token, len);
+			snprintf(cfg_encode[i].cfg_file, ENCODER_STRING_LEN_MAX, "%s", token);
 			printf("cfg_upd_url[%d] is\t: %s ;\n", i, cfg_encode[i].cfg_file);
 			token = strtok(NULL, delim);
 			if (token == NULL) {

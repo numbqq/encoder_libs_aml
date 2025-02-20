@@ -1187,11 +1187,18 @@ static void SetCustMapData(AMVMultiCtx *ctx, EncParam *encParam, unsigned long a
   int h, w, bufSize;
 
   if (ctx->encOpenParam.bitstreamFormat == STD_AVC) {
-    AvcEncCustomMap customMapBuf[MAX_MB_NUM];
+    //AvcEncCustomMap customMapBuf[MAX_MB_NUM];
+    /*For stack optimization*/
+    AvcEncCustomMap *customMapBuf = (AvcEncCustomMap *)osal_malloc(MAX_MB_NUM * sizeof(AvcEncCustomMap));
+    if (customMapBuf == NULL) {
+        VLOG(ERR, "fail to allocate customMapBuf\n");
+        return;
+    }
     int MbWidth = VPU_ALIGN16(ctx->encOpenParam.picWidth) >> 4;
     int MbHeight = VPU_ALIGN16(ctx->encOpenParam.picHeight) >> 4;
     int mbAddr;
-    osal_memset(&customMapBuf[0], 0x00, MAX_MB_NUM);
+    //osal_memset(&customMapBuf[0], 0x00, MAX_MB_NUM);
+    osal_memset(customMapBuf, 0x00, MAX_MB_NUM * sizeof(AvcEncCustomMap));
     roiMapBuf = ctx->CustomRoiMapBuf;
     if (encParam->customMapOpt.customRoiMapEnable == 1) {
       bufSize = MbWidth*MbHeight;
@@ -1220,10 +1227,18 @@ static void SetCustMapData(AMVMultiCtx *ctx, EncParam *encParam, unsigned long a
                       encParam->customMapOpt.addrCustomMap,
                       (unsigned char*)customMapBuf,
                       MAX_MB_NUM, VDI_LITTLE_ENDIAN);
+    if (customMapBuf)
+        osal_free(customMapBuf);
   }
   else {
     // for HEVC custom map.
-    EncCustomMap customMapBuf[MAX_CTU_NUM];// custom map 1 CTU data = 64bits
+    //EncCustomMap customMapBuf[MAX_CTU_NUM];// custom map 1 CTU data = 64bits
+    /*For stack optimization*/
+    EncCustomMap *customMapBuf = (EncCustomMap *)osal_malloc(MAX_MB_NUM * sizeof(EncCustomMap));
+    if (customMapBuf == NULL) {
+        VLOG(ERR, "fail to allocate customMapBuf\n");
+        return;
+    }
     int ctuMapWidthCnt = VPU_ALIGN64(ctx->encOpenParam.picWidth) >> 6;
     int ctuMapHeightCnt = VPU_ALIGN64(ctx->encOpenParam.picHeight) >> 6;
     int ctuMapStride = VPU_ALIGN64(ctx->encOpenParam.picWidth) >> 6;
@@ -1231,7 +1246,8 @@ static void SetCustMapData(AMVMultiCtx *ctx, EncParam *encParam, unsigned long a
     int ctuPos;
     Uint8* src;
 
-    osal_memset(&customMapBuf[0], 0x00, MAX_CTU_NUM * 8);
+    //osal_memset(&customMapBuf[0], 0x00, MAX_CTU_NUM * 8);
+    osal_memset(customMapBuf, 0x00, MAX_MB_NUM * sizeof(EncCustomMap));
     roiMapBuf = ctx->CustomRoiMapBuf;
     if (encParam->customMapOpt.customRoiMapEnable == 1) {
       bufSize = subCtuMapStride*(VPU_ALIGN64(ctx->encOpenParam.picHeight) >> 5);
@@ -1287,6 +1303,8 @@ static void SetCustMapData(AMVMultiCtx *ctx, EncParam *encParam, unsigned long a
                      encParam->customMapOpt.addrCustomMap,
                      (unsigned char*)customMapBuf,
                      MAX_CTU_NUM * 8, VDI_LITTLE_ENDIAN);
+    if (customMapBuf)
+        osal_free(customMapBuf);
   }
 }
 
@@ -1469,19 +1487,21 @@ amv_enc_handle_t AML_MultiEncInitialize(AMVEncInitParams* encParam)
 #endif
   return (amv_enc_handle_t) ctx;
 fail_exit:
-  if (ctx->enchandle)
-    VPU_EncClose(ctx->enchandle);
-  if (ctx->vbCustomLambda.size)
-    vdi_free_dma_memory(coreIdx, &ctx->vbCustomLambda, ENC_ETC, ctx->enchandle->instIndex);
-  if (ctx->vbScalingList.size)
-    vdi_free_dma_memory(coreIdx, &ctx->vbScalingList, ENC_ETC, ctx->enchandle->instIndex);
+  if (ctx->enchandle) {
+    if (ctx->vbCustomLambda.size)
+      vdi_free_dma_memory(coreIdx, &ctx->vbCustomLambda, ENC_ETC, ctx->enchandle->instIndex);
+    if (ctx->vbScalingList.size)
+      vdi_free_dma_memory(coreIdx, &ctx->vbScalingList, ENC_ETC, ctx->enchandle->instIndex);
+  }
   if (ctx->bsBuffer[0].size)
     vdi_free_dma_memory(coreIdx, &ctx->bsBuffer[0], ENC_BS, 0);
-  for (idx = 0; idx < MAX_REG_FRAME; idx++) {
-    if (ctx->pFbReconMem[idx].size)
-      vdi_free_dma_memory(coreIdx, &ctx->pFbReconMem[idx], ENC_FBC, ctx->enchandle->instIndex);
-    if (ctx->vbCustomMap[idx].size)
-      vdi_free_dma_memory(coreIdx, &ctx->vbCustomMap[idx], ENC_ETC, ctx->enchandle->instIndex);
+  if (ctx->enchandle) {
+    for (idx = 0; idx < MAX_REG_FRAME; idx++) {
+      if (ctx->pFbReconMem[idx].size)
+        vdi_free_dma_memory(coreIdx, &ctx->pFbReconMem[idx], ENC_FBC, ctx->enchandle->instIndex);
+      if (ctx->vbCustomMap[idx].size)
+        vdi_free_dma_memory(coreIdx, &ctx->vbCustomMap[idx], ENC_ETC, ctx->enchandle->instIndex);
+    }
   }
   if (ctx->CustomRoiMapBuf)
   {
@@ -1498,11 +1518,15 @@ fail_exit:
     free(ctx->CustomModeMapBuf);
     ctx->CustomModeMapBuf = NULL;
   }
-  for (idx = 0; idx < ENC_SRC_BUF_NUM; idx++) {
-    if (ctx->pFbSrcMem[idx].size)
-      vdi_free_dma_memory(coreIdx, &ctx->pFbSrcMem[idx],
-                ENC_SRC, ctx->enchandle->instIndex);
+  if (ctx->enchandle) {
+    for (idx = 0; idx < ENC_SRC_BUF_NUM; idx++) {
+      if (ctx->pFbSrcMem[idx].size)
+        vdi_free_dma_memory(coreIdx, &ctx->pFbSrcMem[idx],
+                  ENC_SRC, ctx->enchandle->instIndex);
+    }
   }
+  if (ctx->enchandle)
+    VPU_EncClose(ctx->enchandle);
 #if SUPPORT_SCALE
   if (ctx->ge2d_initial_done) {
     aml_ge2d_exit(&ctx->amlge2d);
@@ -1528,17 +1552,18 @@ AMVEnc_Status AML_MultiEncSetInput(amv_enc_handle_t ctx_handle,
   int64_t t1, t2, t3, t4, t5, t6, t7;
 
   AMVMultiCtx * ctx = (AMVMultiCtx* )ctx_handle;
-  ctx->pic_type = input->pic_type;
-  if (input->type == CANVAS_BUFFER) {
-      VLOG(INFO, "set fmt to nv21 for canvas buffer mode as default");
-      input->fmt = AMVENC_NV21;
-  }
 
   VLOG(NONE, "AML_MultiEncSetInput, canvas=%u, input fmt=%d, num_planes=%d, type=%d",
           input->canvas, input->fmt, input->num_planes, input->type);
 
   if (ctx == NULL) return AMVENC_FAIL;
   if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
+
+  ctx->pic_type = input->pic_type;
+  if (input->type == CANVAS_BUFFER) {
+      VLOG(INFO, "set fmt to nv21 for canvas buffer mode as default");
+      input->fmt = AMVENC_NV21;
+  }
 
   if (ctx->enc_width % 32) {
     width32alinged = false;
@@ -2268,10 +2293,11 @@ AMVEnc_Status AML_MultiEncNAL(amv_enc_handle_t ctx_handle,
   int idx;
   QueueStatusInfo         qStatus;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
-  ctx->mNumInputFrames++;
-  VpParam = &ctx->encOpenParam.EncStdParam.vpParam;
   if (ctx == NULL) return AMVENC_FAIL;
   if (ctx->magic_num != MULTI_ENC_MAGIC) return AMVENC_FAIL;
+
+  ctx->mNumInputFrames++;
+  VpParam = &ctx->encOpenParam.EncStdParam.vpParam;
 
 #if ENCODE_TIME_STATISTICS
   gettimeofday(&start_test, NULL);
@@ -2500,7 +2526,7 @@ AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
   EncParam*    encParam;
   AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
   ENC_INT_STATUS intStatus;
-  Uint32 coreIdx = ctx->encOpenParam.coreIdx;
+  Uint32 coreIdx;
   int idx;
 
   if (ctx == NULL)
@@ -2512,6 +2538,7 @@ AMVEnc_Status AML_MultiEncRelease(amv_enc_handle_t ctx_handle) {
   VLOG(WARN, "%p#Total encode time : %llu us, Total encode frames : %llu",
     ctx_handle, total_encode_time, total_encode_frames);
 #endif
+    coreIdx = ctx->encOpenParam.coreIdx;
 
     if (ctx->frameIdx ) {
 flush_retry_point:

@@ -65,7 +65,7 @@ int create_ctx(struct usr_ctx_s *ctx)
 		return -1;
 	}
 	return 0;
-	#endif
+	#else
 	ctx->gdc_client = open("/dev/gdc", O_RDWR | O_SYNC);
 
 	if (ctx->gdc_client < 0)
@@ -75,6 +75,7 @@ int create_ctx(struct usr_ctx_s *ctx)
 	}
 
 	return 0;
+	#endif
 }
 
 int destroy_ctx(struct usr_ctx_s *ctx)
@@ -150,12 +151,10 @@ static int _alloc_dma_buffer(int fd, unsigned int dir, unsigned int len)
 	buf_cfg.dma_dir = dir;
 	buf_cfg.len = len;
 
-	ret = ioctl(fd, GDC_REQUEST_DMA_BUFF, &buf_cfg);
-	if (ret < 0)
+	if (ioctl(fd, GDC_REQUEST_DMA_BUFF, &buf_cfg))
 	{
-		printf("GDC_REQUEST_DMA_BUFF %s failed: %s\n", __func__,
-		       strerror(ret));
-		return ret;
+		printf("GDC_REQUEST_DMA_BUFF %s failed\n", __func__);
+		return -1;
 	}
 	return buf_cfg.index;
 }
@@ -287,7 +286,7 @@ int sync_cpu(struct usr_ctx_s *ctx)
 {
 #ifdef USE_ION_DMA_BUFF
 	return 0;
-#endif
+#else
 	int ret = 0;
 	int shared_fd = -1;
 
@@ -324,4 +323,5 @@ int sync_cpu(struct usr_ctx_s *ctx)
 		}
 	}
 	return 0;
+#endif
 }

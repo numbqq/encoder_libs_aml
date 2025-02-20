@@ -312,7 +312,7 @@ enum {
         int general_level_idc;
         int sub_layer_profile_present_flag[6];
         int sub_layer_level_present_flag[6];
-        int reserved_zero_2bits[2];
+        int reserved_zero_2bits;
         int sub_layer_profile_space[6];
         int sub_layer_tier_flag[6];
         int sub_layer_profile_idc[6];

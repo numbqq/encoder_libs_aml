@@ -789,6 +789,10 @@ RetCode VPU_EncUpdateBitstreamBuffer(
     else
         wrPtr = pEncInfo->streamWrPtr;
 
+    if (wrPtr == (unsigned int)-1) {
+        return RETCODE_INVALID_PARAM;
+    }
+
     if ( rdPtr < wrPtr ) {
         if ( rdPtr + size  > wrPtr ) {
             return RETCODE_INVALID_PARAM;
@@ -1202,6 +1206,7 @@ RetCode VPU_EncGiveCommand(
                     return RETCODE_INVALID_PARAM;
             }
         }
+        break;
     case ENC_SET_PARAM:
         {
             if (param == 0) {

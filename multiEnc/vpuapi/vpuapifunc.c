@@ -772,7 +772,7 @@ Int32 ConfigSecAXIVp(Uint32 coreIdx, Int32 codecMode, SecAxiInfo *sa, Uint32 wid
             }
             else if (codecMode == W_AVC_DEC) {
                 luma = (profile == HEVC_PROFILE_MAIN10) ? 5 : 4;
-                chroma = (profile == HEVC_PROFILE_MAIN10) ? 3 : 3;
+                chroma = 3;//(profile == HEVC_PROFILE_MAIN10) ? 3 : 3;
             }
             lumaSize = VPU_ALIGN32(width)*luma;
             chromaSize = VPU_ALIGN32(width)*chroma;
@@ -1041,7 +1041,8 @@ static int fixDivRq(int a, int b, int n)
 {
     Int64 c;
     Int64 a_36bit;
-    Int64 mask, signBit, signExt;
+    Int64 mask, signBit;/*, signExt;*/
+    Uint64 signExt;
     int  i;
 
     // DIVS emulation for BPU accumulator size

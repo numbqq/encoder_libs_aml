@@ -102,6 +102,10 @@ void read_scaling_list(bs_t* b, int* scalingList, int sizeOfScalingList, int* us
                 delta_scale = (nextScale - lastScale) % 256 ;
             }
 
+            /*
+             * Open source code, reserved.
+             */
+            /* coverity[value_overwrite] */
             delta_scale = bs_read_se(b);
 
             if ( 1 )
@@ -397,6 +401,10 @@ void read_debug_scaling_list(bs_t* b, int* scalingList, int sizeOfScalingList, i
                 delta_scale = (nextScale - lastScale) % 256 ;
             }
 
+            /*
+             * Open source code, reserved.
+             */
+            /* coverity[value_overwrite] */
             delta_scale = bs_read_se(b);
 
             if ( 1 )

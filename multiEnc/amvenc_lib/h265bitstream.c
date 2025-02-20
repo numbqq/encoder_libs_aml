@@ -1406,7 +1406,7 @@ void read_profile_tier_level(h265_stream_t* h, bs_t* b, int profilePresentFlag, 
     {
         for (i = maxNumSubLayersMinus1;i < 8;i++)
         {
-            ptl->reserved_zero_2bits[i] = bs_read_u(b,2);
+            ptl->reserved_zero_2bits = bs_read_u(b,2);
         }
     }
     for (i = 0;i < maxNumSubLayersMinus1;i++)
@@ -1466,12 +1466,12 @@ void read_profile_tier_level(h265_stream_t* h, bs_t* b, int profilePresentFlag, 
             }*/
             if ((ptl->sub_layer_profile_idc[i] >= 1 && ptl->sub_layer_profile_idc[i] <= 5) ||
                 /*ptl->sub_layer_profile_idc[i] == 9 ||*/
-                ptl->sub_layer_profile_compatibility_flag[1] ||
-                ptl->sub_layer_profile_compatibility_flag[2] ||
-                ptl->sub_layer_profile_compatibility_flag[3] ||
-                ptl->sub_layer_profile_compatibility_flag[4] ||
-                ptl->sub_layer_profile_compatibility_flag[5]/* ||
-                ptl->sub_layer_profile_compatibility_flag[9]*/)
+                ptl->sub_layer_profile_compatibility_flag[i][1] ||
+                ptl->sub_layer_profile_compatibility_flag[i][2] ||
+                ptl->sub_layer_profile_compatibility_flag[i][3] ||
+                ptl->sub_layer_profile_compatibility_flag[i][4] ||
+                ptl->sub_layer_profile_compatibility_flag[i][5]/* ||
+                ptl->sub_layer_profile_compatibility_flag[i][9]*/)
             {
                 ptl->sub_layer_inbld_flag[i] = bs_read_u1(b);
             }
@@ -1574,7 +1574,7 @@ void write_profile_tier_level(h265_stream_t* h, bs_t* b, int profilePresentFlag,
     {
         for (i = maxNumSubLayersMinus1;i < 8;i++)
         {
-            bs_write_u(b,2,ptl->reserved_zero_2bits[i]);
+            bs_write_u(b,2,ptl->reserved_zero_2bits);
         }
     }
     for (i = 0;i < maxNumSubLayersMinus1;i++)
@@ -1636,12 +1636,12 @@ void write_profile_tier_level(h265_stream_t* h, bs_t* b, int profilePresentFlag,
             }*/
             if ((ptl->sub_layer_profile_idc[i] >= 1 && ptl->sub_layer_profile_idc[i] <= 5)/* ||
                 ptl->sub_layer_profile_idc[i] == 9 */||
-                ptl->sub_layer_profile_compatibility_flag[1] ||
-                ptl->sub_layer_profile_compatibility_flag[2] ||
-                ptl->sub_layer_profile_compatibility_flag[3] ||
-                ptl->sub_layer_profile_compatibility_flag[4] ||
-                ptl->sub_layer_profile_compatibility_flag[5]/* ||
-                ptl->sub_layer_profile_compatibility_flag[9]*/)
+                ptl->sub_layer_profile_compatibility_flag[i][1] ||
+                ptl->sub_layer_profile_compatibility_flag[i][2] ||
+                ptl->sub_layer_profile_compatibility_flag[i][3] ||
+                ptl->sub_layer_profile_compatibility_flag[i][4] ||
+                ptl->sub_layer_profile_compatibility_flag[i][5]/* ||
+                ptl->sub_layer_profile_compatibility_flag[i][9]*/)
             {
                 bs_write_u1(b,ptl->sub_layer_inbld_flag[i]);
             }
@@ -1739,18 +1739,18 @@ void read_debug_rbsp_slice_trailing_bits(h265_stream_t* h, bs_t* b)
     read_debug_rbsp_trailing_bits(h, b);
     while (more_rbsp_trailing_data(h, b))
     {
-        printf("%d.%d: ", b->p - b->start, b->bits_left); int cabac_zero_word = bs_read_u(b, 16); printf("cabac_zero_word: %d \n", cabac_zero_word);
+        printf("%d.%d: ", (int)(b->p - b->start), b->bits_left); int cabac_zero_word = bs_read_u(b, 16); printf("cabac_zero_word: %d \n", cabac_zero_word);
     }
 }
 
 //7.3.2.11 RBSP trailing bits syntax rbsp_trailing_bits( )
 void read_debug_rbsp_trailing_bits(h265_stream_t* h, bs_t* b)
 {
-    printf("%d.%d: ", b->p - b->start, b->bits_left); int rbsp_stop_one_bit = bs_read_u(b, 1); printf("rbsp_stop_one_bit: %d \n", rbsp_stop_one_bit);
+    printf("%d.%d: ", (int)(b->p - b->start), b->bits_left); int rbsp_stop_one_bit = bs_read_u(b, 1); printf("rbsp_stop_one_bit: %d \n", rbsp_stop_one_bit);
 
     while (!bs_byte_aligned(b))
     {
-        printf("%d.%d: ", b->p - b->start, b->bits_left); int rbsp_alignment_zero_bit = bs_read_u(b, 1); printf("rbsp_alignment_zero_bit: %d \n", rbsp_alignment_zero_bit);
+        printf("%d.%d: ", (int)(b->p - b->start), b->bits_left); int rbsp_alignment_zero_bit = bs_read_u(b, 1); printf("rbsp_alignment_zero_bit: %d \n", rbsp_alignment_zero_bit);
     }
 }
 
@@ -2183,4 +2183,5 @@ void printSH(h265_stream_t* h)
             printf("short_term_ref_pic_set_sps_flag:%d\n", ssh->short_term_ref_pic_set_sps_flag);
         }
     }
-}#endif
+}
+#endif

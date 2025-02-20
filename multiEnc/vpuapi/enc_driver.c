@@ -495,7 +495,7 @@ RetCode Vp5VpuReInit(Uint32 coreIdx, void* firmware, Uint32 size)
         regVal |= (1<<INT_VP5_ENC_SRC_RELEASE);
 #endif
         // decoder
-        regVal  = (1<<INT_VP5_INIT_SEQ);
+        regVal |= (1<<INT_VP5_INIT_SEQ); /*regVal = (1<<INT_VP5_INIT_SEQ);*/
         regVal |= (1<<INT_VP5_DEC_PIC);
         regVal |= (1<<INT_VP5_BSBUF_EMPTY);
 
@@ -544,7 +544,7 @@ RetCode Vp5VpuSleepWake(Uint32 coreIdx, int iSleepWake, const Uint16* code, Uint
     Uint32          codeSize, tempSize;
     Uint32          remapSize;
 
-    VLOG(INFO, "Vp5VpuSleepWake iSleepWake %d, code %p, size %d, reset %d \n",
+    VLOG(INFO, "Vp5VpuSleepWake iSleepWake %d, code %p, size %d\n",
                 iSleepWake, code, size);
 
     if(iSleepWake==1)  //saves
@@ -899,19 +899,19 @@ RetCode Vp5VpuGetBwReport(CodecInst* instance, VPUBWData* bwMon)
             return RETCODE_QUERY_FAILURE;
     }
 
-    bwMon->prpBwRead    = VpuReadReg(coreIdx, RET_QUERY_BW_PRP_AXI_READ)    * 16;
-    bwMon->prpBwWrite   = VpuReadReg(coreIdx, RET_QUERY_BW_PRP_AXI_WRITE)   * 16;
-    bwMon->fbdYRead     = VpuReadReg(coreIdx, RET_QUERY_BW_FBD_Y_AXI_READ)  * 16;
-    bwMon->fbcYWrite    = VpuReadReg(coreIdx, RET_QUERY_BW_FBC_Y_AXI_WRITE) * 16;
-    bwMon->fbdCRead     = VpuReadReg(coreIdx, RET_QUERY_BW_FBD_C_AXI_READ)  * 16;
-    bwMon->fbcCWrite    = VpuReadReg(coreIdx, RET_QUERY_BW_FBC_C_AXI_WRITE) * 16;
-    bwMon->priBwRead    = VpuReadReg(coreIdx, RET_QUERY_BW_PRI_AXI_READ)    * 16;
-    bwMon->priBwWrite   = VpuReadReg(coreIdx, RET_QUERY_BW_PRI_AXI_WRITE)   * 16;
-    bwMon->secBwRead    = VpuReadReg(coreIdx, RET_QUERY_BW_SEC_AXI_READ)    * 16;
-    bwMon->secBwWrite   = VpuReadReg(coreIdx, RET_QUERY_BW_SEC_AXI_WRITE)   * 16;
-    bwMon->procBwRead   = VpuReadReg(coreIdx, RET_QUERY_BW_PROC_AXI_READ)   * 16;
-    bwMon->procBwWrite  = VpuReadReg(coreIdx, RET_QUERY_BW_PROC_AXI_WRITE)  * 16;
-    bwMon->bwbBwWrite   = VpuReadReg(coreIdx, RET_QUERY_BW_BWB_AXI_WRITE)   * 16;
+    bwMon->prpBwRead    = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PRP_AXI_READ)    * 16;
+    bwMon->prpBwWrite   = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PRP_AXI_WRITE)   * 16;
+    bwMon->fbdYRead     = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_FBD_Y_AXI_READ)  * 16;
+    bwMon->fbcYWrite    = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_FBC_Y_AXI_WRITE) * 16;
+    bwMon->fbdCRead     = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_FBD_C_AXI_READ)  * 16;
+    bwMon->fbcCWrite    = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_FBC_C_AXI_WRITE) * 16;
+    bwMon->priBwRead    = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PRI_AXI_READ)    * 16;
+    bwMon->priBwWrite   = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PRI_AXI_WRITE)   * 16;
+    bwMon->secBwRead    = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_SEC_AXI_READ)    * 16;
+    bwMon->secBwWrite   = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_SEC_AXI_WRITE)   * 16;
+    bwMon->procBwRead   = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PROC_AXI_READ)   * 16;
+    bwMon->procBwWrite  = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_PROC_AXI_WRITE)  * 16;
+    bwMon->bwbBwWrite   = (Uint32)VpuReadReg(coreIdx, RET_QUERY_BW_BWB_AXI_WRITE)   * 16;
 
     return RETCODE_SUCCESS;
 }
@@ -1695,7 +1695,7 @@ RetCode Vp5VpuEncRegisterFramebuffer(CodecInst* inst, FrameBuffer* fbArr, TiledM
     q      = (remain+7)/8;
     idx    = 0;
     for (j=0; j<q; j++) {
-        regVal = (endian<<16) | (j==q-1)<<4 | ((j==0)<<3);//lint !e514
+        regVal = ((endian&0xffff)<<16) | (j==q-1)<<4 | ((j==0)<<3);//lint !e514
         regVal |= (pOpenParam->EncStdParam.vpParam.svcEnable == TRUE) ? (mapType == COMPRESSED_FRAME_MAP_SVAC_SVC_BL ? 0 : 1 << 27) : 0;   // 0 = BL, 1 = EL
         regVal |= (pOpenParam->enableNonRefFbcWrite<< 26);
         VpuWriteReg(coreIdx, VP5_SFB_OPTION, regVal);
@@ -2070,15 +2070,15 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
     result->picDistortionHigh   = VpuReadReg(coreIdx, VP5_RET_ENC_PIC_DIST_HIGH);
 
     result->bitstreamBuffer = VpuReadReg(coreIdx, pEncInfo->streamRdPtrRegAddr);
-    result->rdPtr = pEncInfo->streamRdPtr;
-    result->wrPtr = pEncInfo->streamWrPtr;
+    result->rdPtr = (int)pEncInfo->streamRdPtr;
+    result->wrPtr = (int)pEncInfo->streamWrPtr;
 
     if (result->reconFrameIndex == RECON_IDX_FLAG_HEADER_ONLY) //result for header only(no vcl) encoding
-        result->bitstreamSize   = result->encPicByte;
+        result->bitstreamSize   = (Uint32)result->encPicByte;
     else if (result->reconFrameIndex < 0)
         result->bitstreamSize   = 0;
     else
-        result->bitstreamSize   = result->encPicByte;
+        result->bitstreamSize   = (Uint32)result->encPicByte;
 
     result->encHostCmdTick             = VpuReadReg(coreIdx, VP5_RET_ENC_HOST_CMD_TICK);
     result->encPrepareStartTick        = VpuReadReg(coreIdx, VP5_RET_ENC_PREPARE_START_TICK);
@@ -2094,11 +2094,14 @@ RetCode Vp5VpuEncGetResult(CodecInst* instance, EncOutputInfo* result)
         pEncInfo->firstCycleCheck = TRUE;
     }
     else {
-        result->frameCycle   = (result->encEncodeEndTick - instancePool->lastPerformanceCycles) * pEncInfo->cyclePerTick;
-        if (instancePool->lastPerformanceCycles < result->encHostCmdTick)
-            result->frameCycle   = (result->encEncodeEndTick - result->encHostCmdTick) * pEncInfo->cyclePerTick;
-    }
-    instancePool->lastPerformanceCycles = result->encEncodeEndTick;
+        if (instancePool) {
+            result->frameCycle   = (result->encEncodeEndTick - instancePool->lastPerformanceCycles) * pEncInfo->cyclePerTick;
+            if (instancePool->lastPerformanceCycles < result->encHostCmdTick)
+                result->frameCycle   = (result->encEncodeEndTick - result->encHostCmdTick) * pEncInfo->cyclePerTick;
+            }
+        }
+    if (instancePool)
+        instancePool->lastPerformanceCycles = result->encEncodeEndTick;
     result->prepareCycle = (result->encPrepareEndTick    - result->encPrepareStartTick) * pEncInfo->cyclePerTick;
     result->processing   = (result->encProcessingEndTick - result->encProcessingStartTick) * pEncInfo->cyclePerTick;
     result->EncodedCycle = (result->encEncodeEndTick     - result->encEncodeStartTick) * pEncInfo->cyclePerTick;

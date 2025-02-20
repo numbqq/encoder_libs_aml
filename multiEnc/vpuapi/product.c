@@ -103,8 +103,15 @@ RetCode ProductVpuGetProductInfo(
     VpuAttr* attr
     )
 {
-    Int32   productId = s_ProductIds[coreIdx];
+    Int32   productId;
     RetCode ret = RETCODE_SUCCESS;
+
+    if (coreIdx >= MAX_NUM_VPU_CORE)
+        return RETCODE_INVALID_PARAM;
+    if (attr == NULL)
+        return RETCODE_INVALID_PARAM;
+
+    productId = s_ProductIds[coreIdx];
 
     switch (productId) {
     case PRODUCT_ID_512:
@@ -425,8 +432,8 @@ RetCode ProductVpuAllocateFramebuffer(
     case LINEAR_FIELD_MAP:
     case COMPRESSED_FRAME_MAP:
         ret = UpdateFrameBufferAddr(mapType, fbArr, num, sizeLuma, sizeChroma);
-        if (ret != RETCODE_SUCCESS)
-            break;
+        //if (ret != RETCODE_SUCCESS)
+            //break;
         break;
 
     default:
@@ -462,6 +469,8 @@ RetCode ProductVpuRegisterFramebuffer(CodecInst* instance)
             if (instance->codecMode == W_SVAC_ENC && pEncInfo->openParam.EncStdParam.vpParam.svcEnable == TRUE) {  // for BL
                 gdiIndex = pEncInfo->numFrameBuffers;
                 ret = Vp5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP_SVAC_SVC_BL, pEncInfo->numFrameBuffers);
+                if (ret != RETCODE_SUCCESS)
+                    break;
             }
             gdiIndex = 0;   // for EL
             ret = Vp5VpuEncRegisterFramebuffer(instance, &fb[gdiIndex], COMPRESSED_FRAME_MAP, pEncInfo->numFrameBuffers);
@@ -573,7 +582,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
     if (pop == 0)
         return RETCODE_INVALID_PARAM;
 
-    if (pop->coreIdx > MAX_NUM_VPU_CORE)
+    if (pop->coreIdx >= MAX_NUM_VPU_CORE)
         return RETCODE_INVALID_PARAM;
 
     coreIdx   = pop->coreIdx;
@@ -805,7 +814,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
             }
         }
 
-        if (param->useRecommendEncParam < 0 && param->useRecommendEncParam > 3)
+        if (param->useRecommendEncParam < 0 || param->useRecommendEncParam > 3)
             return RETCODE_INVALID_PARAM;
 
         if (param->useRecommendEncParam == 0 || param->useRecommendEncParam == 2 || param->useRecommendEncParam == 3) {
@@ -906,7 +915,7 @@ RetCode ProductCheckEncOpenParam(EncOpenParam* pop)
                     return RETCODE_INVALID_PARAM;
             }
 
-            if (param->bitAllocMode < 0 && param->bitAllocMode > 2)
+            if (param->bitAllocMode < 0 || param->bitAllocMode > 2)
                 return RETCODE_INVALID_PARAM;
 
             if (pop->vbvBufferSize < 10 || pop->vbvBufferSize > 3000 )

@@ -118,6 +118,10 @@ RetCode PrintVpuProductInfo(
         VLOG(INFO, "productId       : %08x\n", productInfo->productId);
         VLOG(INFO, "fwVersion       : %08x(r%d)\n", productInfo->fwVersion, productInfo->fwVersion);
         VLOG(INFO, "productName     : %s%4x\n", productInfo->productName, productInfo->productVersion);
+        /*
+         * for debug.
+         */
+        /* coverity[dead_error_condition] */
         if ( verbose == TRUE )
         {
             Uint32 stdDef0          = productInfo->hwConfigDef0;
@@ -566,7 +570,7 @@ void print_busy_timeout_status(Uint32 coreIdx, Uint32 product_code, Uint32 pc)
     } else {
         Uint32 idx;
         for (idx=0; idx<20; idx++) {
-            VLOG(ERR, "[VDI] vdi_wait_vpu_busy timeout, PC=0x%lx\n", vdi_read_register(coreIdx, pc));
+            VLOG(ERR, "[VDI] vdi_wait_vpu_busy timeout, PC=0x%x\n", vdi_read_register(coreIdx, pc));
         }
     }
 }
@@ -631,7 +635,7 @@ void vp5xx_bpu_status(
 
     for (i=0; i < 8; i += 4 ) {
         temp = vdi_fio_read_register(coreIdx, (VP5_REG_BASE + 0x8000 + 0x80 + i));
-        VLOG(ERR,"stack[%d] Core0=0x%08x\n", temp);
+        VLOG(ERR,"stack[%d] Core0=0x%08x\n", i, temp);
     }
 
 
@@ -811,9 +815,10 @@ void vdi_print_vpu_status(unsigned long coreIdx)
 void ChekcAndPrintDebugInfo(VpuHandle handle, BOOL isEnc, RetCode result)
 {
     if ( result == RETCODE_VPU_RESPONSE_TIMEOUT || result == RETCODE_ERROR_FW_FATAL ) {
-        VPUDebugInfo* DebugInfo;
+        VPUDebugInfo DebugInfo;
+        memset(&DebugInfo, 0, sizeof(DebugInfo));
         if ( isEnc == TRUE )
             VPU_EncGiveCommand(handle, GET_DEBUG_INFORM, &DebugInfo);
-        VLOG(ERR, "result=%x, priReason:%d \n", result, DebugInfo->priReason);
+        VLOG(ERR, "result=%x, priReason:%d \n", result, DebugInfo.priReason);
     }
 }

@@ -203,6 +203,7 @@ int osal_getch()
 {
 	int val;
 	char ch;
+	int bytesRead;
 
     if(peek_character != -1)
     {
@@ -210,7 +211,12 @@ int osal_getch()
         peek_character = -1;
         return val;
     }
-    read(0,&ch,1);
+    bytesRead = read(0,&ch,1);
+    if (bytesRead <= 0)
+    {
+        return -1;
+    }
+
     return ch;
 }
 

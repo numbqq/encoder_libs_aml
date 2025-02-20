@@ -740,18 +740,23 @@ void vl_multi_encoder_adjust_h264_header(VPMultiEncHandle* handle,char *header,i
     int pps_nalu_size;
     int new_pps_size;
     int new_sps_size;
-    int pps_start = -1;
-    int sps_start = -1;
+    int pps_start = 0;
+    int sps_start = 0;
     //VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
 
     VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
     if (handle->mEncParams.stream_type != AMV_AVC)
         return;
     uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
-    uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    if (sps_nalu == NULL) {
+        VLOG(ERR,"malloc for sps failed");
+        return;
+    }
 
-    if (sps_nalu == NULL || pps_nalu == NULL) {
+    uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    if (pps_nalu == NULL) {
         VLOG(ERR,"malloc for sps or pps failed");
+        free(sps_nalu);
         return;
     }
 
@@ -825,9 +830,9 @@ void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,i
     int pps_nalu_size = 0;
     int new_sps_size = 0;
     int new_vps_size = 0;
-    int vps_start = -1;
-    int sps_start = -1;
-    int pps_start = -1;
+    int vps_start = 0;
+    int sps_start = 0;
+    int pps_start = 0;
     int ret = 0;
     h265_stream_t *pstream_handle = NULL;
     VLOG(INFO,"vl_multi_encoder_adjust_header,stream_type:%d",handle->mEncParams.stream_type);
@@ -835,10 +840,21 @@ void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,i
         return;
 
     uint8_t *vps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    if (vps_nalu == NULL) {
+        VLOG(ERR,"hack_sps malloc for vps failed");
+        return;
+    }
     uint8_t *sps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
+    if (sps_nalu == NULL) {
+        VLOG(ERR,"hack_sps malloc for sps failed");
+        free(vps_nalu);
+        return;
+    }
     uint8_t *pps_nalu = (uint8_t *) malloc(sizeof(uint8_t) * (*dataLength));
-    if (sps_nalu == NULL || pps_nalu == NULL || vps_nalu == NULL) {
-        VLOG(ERR,"hack_sps malloc for sps or pps failed");
+    if (pps_nalu == NULL) {
+        VLOG(ERR,"hack_sps malloc for pps failed");
+        free(vps_nalu);
+        free(sps_nalu);
         return;
     }
 
@@ -879,6 +895,14 @@ void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,i
     }
     VLOG(ERR,"old header data:%s",tmp);
 #endif
+    if (sps_nalu_size <= H265_HEADER_LEN || vps_nalu_size <= H265_HEADER_LEN) {
+        VLOG(ERR,"Invalid sps_nalu_size or vps_nalu_size: %d,%d", sps_nalu_size, vps_nalu_size);
+        free(vps_nalu);
+        free(sps_nalu);
+        free(pps_nalu);
+        return;
+    }
+
     sps_nalu_size = EBSPtoRBSP(sps_nalu,H265_HEADER_LEN,sps_nalu_size);
     vps_nalu_size = EBSPtoRBSP(vps_nalu,H265_HEADER_LEN,vps_nalu_size);
 
@@ -995,7 +1019,7 @@ encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_han
                                                               unsigned char *pHeader,
                                                               unsigned int *pLength)
 {
-  int ret;
+  int ret = AMVENC_FAIL;
   //uint32_t dataLength = 0;
   VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
   encoding_metadata_t result;
@@ -1028,13 +1052,10 @@ encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_han
       result.err_cod = AMVENC_SUCCESS;
     } else {
       *pLength = 0;
-      VLOG(ERR, "Encode SPS and PPS error, encoderStatus = %d. handle: %p\n",
-           ret, (void*)handle);
+      VLOG(ERR, "Encode SPS and PPS error, mSpsPpsHeaderReceived = %d. handle: %p\n",
+           handle->mSpsPpsHeaderReceived, (void*)handle);
       result.is_valid = false;
-      if (ret == AMVENC_FAIL)
-         result.err_cod = AMVENC_INVALID_PARAM;
-      else
-         result.err_cod = ret;
+      result.err_cod = AMVENC_INVALID_PARAM;
       return result;
     }
     return result;
@@ -1599,6 +1620,8 @@ int vl_video_encoder_change_strict_rc(vl_codec_handle_t codec_handle,
 
 int vl_multi_encoder_destroy(vl_codec_handle_t codec_handle) {
     VPMultiEncHandle *handle = (VPMultiEncHandle *)codec_handle;
+    if (handle == NULL)
+        return -1;
     AML_MultiEncRelease(handle->am_enc_handle);
 #if ENCODE_TIME_OUTER
     printf("%p#Total encode time : %llu, Total encode frames : %llu\n",

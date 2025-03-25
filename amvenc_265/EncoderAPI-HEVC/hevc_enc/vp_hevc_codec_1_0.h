@@ -253,6 +253,10 @@ int vl_video_encoder_change_framerate_hevc(vl_codec_handle_hevc_t codec_handle,
                             int frameRate,int bitRate);
 int vl_video_encoder_getavgqp(vl_codec_handle_hevc_t handle, int *avg_qp);
 
+int vl_video_encoder_change_matrix_hevc(vl_codec_handle_hevc_t codec_handle,
+                            bool vui_info_present,
+                            bool video_signal_type, bool color_description, int primaries,
+                            int transfer, int matrix, bool range);
 
 /**
  * destroy encoder

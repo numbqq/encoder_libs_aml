@@ -372,6 +372,27 @@ void vl_encoder_adjust_h265_header(vl_codec_handle_hevc_t handle,char *header,in
                                                                     pstream_handle->sps->conformance_window_flag);
     }
 
+    VLOG(INFO,"read back vui info %d %d %d %d",pstream_handle->vui->colour_primaries,
+                                           pstream_handle->vui->transfer_characteristics,
+                                           pstream_handle->vui->matrix_coeffs,
+                                           pstream_handle->vui->video_full_range_flag);
+    if (pstream_handle->vui->colour_primaries != codec_handle->mEncParams.primaries ||
+        pstream_handle->vui->transfer_characteristics != codec_handle->mEncParams.transfer ||
+        pstream_handle->vui->matrix_coeffs != codec_handle->mEncParams.matrix ||
+        pstream_handle->vui->video_full_range_flag != codec_handle->mEncParams.range) {
+        VLOG(INFO,"dynamic setting vui info %d %d %d %d",codec_handle->mEncParams.primaries,
+                                                     codec_handle->mEncParams.transfer,
+                                                     codec_handle->mEncParams.matrix,
+                                                     codec_handle->mEncParams.range);
+        pstream_handle->sps->vui_parameters_present_flag = codec_handle->mEncParams.vui_info_present;
+        pstream_handle->vui->video_signal_type_present_flag = codec_handle->mEncParams.video_signal_type;
+        pstream_handle->vui->colour_description_present_flag = codec_handle->mEncParams.color_description;
+        pstream_handle->vui->colour_primaries = codec_handle->mEncParams.primaries;
+        pstream_handle->vui->transfer_characteristics = codec_handle->mEncParams.transfer;
+        pstream_handle->vui->matrix_coeffs = codec_handle->mEncParams.matrix;
+        pstream_handle->vui->video_full_range_flag = codec_handle->mEncParams.range;
+    }
+
     memset(sps_nalu + H265_HEADER_LEN, 0, *dataLength - H265_HEADER_LEN);
 
     bs_init(&bs, sps_nalu + H265_HEADER_LEN, *dataLength - H265_HEADER_LEN);
@@ -701,6 +722,27 @@ int vl_video_encoder_change_bitrate_hevc(vl_codec_handle_hevc_t codec_handle,
         return -3;
     //hist_reset(handle); //bitrate target change reset the hist
     handle->mEncParams.bitrate = bitRate;
+    return 0;
+}
+
+int vl_video_encoder_change_matrix_hevc(vl_codec_handle_hevc_t codec_handle,
+                            bool vui_info_present,bool video_signal_type, bool color_description, int primaries,
+                            int transfer, int matrix, bool range)
+{
+    int ret;
+    VLOG(ERR,"vl_video_encoder_change_matrix_hevc enter");
+    AMVHEVCEncHandle *handle = (AMVHEVCEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    handle->mEncParams.vui_info_present = vui_info_present;
+    handle->mEncParams.video_signal_type = video_signal_type;
+    handle->mEncParams.color_description = color_description;
+    handle->mEncParams.primaries = primaries;
+    handle->mEncParams.transfer = transfer;
+    handle->mEncParams.matrix = matrix;
+    handle->mEncParams.range = range;
+    VLOG(ERR,"vl_video_encoder_change_matrix_hevc leave");
     return 0;
 }
 

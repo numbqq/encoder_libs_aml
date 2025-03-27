@@ -475,17 +475,21 @@ static BOOL SetupEncoderOpenParam(EncOpenParam *pEncOP, AMVHEVCEncParams* InitPa
     return 1;
 }
 
-static ENC_INT_STATUS HandlingInterruptFlag(AMVHEVCCtx *ctx)
+static ENC_INT_STATUS HandlingInterruptFlag(AMVHEVCCtx *ctx,bool useLock = false)
 {
     EncHandle handle = ctx->enchandle;
     Int32 interruptFlag = 0;
     Uint32 interruptWaitTime = VPU_WAIT_TIME_OUT_CQ;
     Uint32 interruptTimeout = VPU_ENC_TIMEOUT;
     ENC_INT_STATUS status = ENC_INT_STATUS_NONE;
+    Uint32 coreIdx = ctx->encOpenParam.coreIdx;
 
     if (ctx->startTimeout == 0ULL) {
         ctx->startTimeout = osal_gettime();
     }
+    if (useLock)
+        EnterLock(coreIdx);
+
     do {
         interruptFlag = VPU_WaitInterruptEx(handle, interruptWaitTime);
         if (INTERRUPT_TIMEOUT_VALUE == interruptFlag) {
@@ -517,6 +521,8 @@ static ENC_INT_STATUS HandlingInterruptFlag(AMVHEVCCtx *ctx)
         }
     } while (FALSE);
 
+    if (useLock)
+        LeaveLock(coreIdx);
     return status;
 }
 
@@ -1415,6 +1421,7 @@ AMVEnc_Status AML_HEVCRelease(amv_enc_handle_hevc_t ctx_handle)
     ENC_INT_STATUS intStatus;
     Uint32 coreIdx = ctx->encOpenParam.coreIdx;
     int idx;
+    bool useLock = false;
 
     if (ctx == NULL)
         return AMVENC_FAIL;
@@ -1433,12 +1440,15 @@ AMVEnc_Status AML_HEVCRelease(amv_enc_handle_hevc_t ctx_handle)
             //return AMVENC_FAIL;
         }
     }
-    if ((intStatus=HandlingInterruptFlag(ctx)) == ENC_INT_STATUS_TIMEOUT) {
+    else {
+        useLock = true;
+    }
+
+    if ((intStatus=HandlingInterruptFlag(ctx,useLock)) == ENC_INT_STATUS_TIMEOUT) {
         VPU_SWReset(ctx->encOpenParam.coreIdx, SW_RESET_SAFETY, ctx->enchandle);
         VLOG(ERR, "Timeout of encoder interrupt reset \n");
         return AMVENC_FAIL;
-    }
-    else if (intStatus == ENC_INT_STATUS_DONE) {
+    }else if (intStatus == ENC_INT_STATUS_DONE) {
         EncOutputInfo   outputInfo;
         VPU_EncGetOutputInfo(ctx->enchandle, &outputInfo);
     }

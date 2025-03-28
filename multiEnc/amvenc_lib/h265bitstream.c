@@ -538,6 +538,35 @@ static void read_vui(h265_stream_t* h, bs_t* b)
     }
 }
 
+void write_sei_userdataunreg(bs_t* b, unsigned char *seiUserData)
+{
+    int i, cnt;
+    unsigned char sei_uuid[16] = {0x65, 0x77, 0x45, 0x84, 0x80, 0x45, 0x70, 0x83,
+                                  0x45, 0x66, 0x84, 0x45, 0x77, 0x65, 0x77, 0x73};
+
+    bs_write_u(b, 1, 0);
+    bs_write_u(b, 6, 0x27); //PREFIX_SEI_NUT
+    bs_write_u(b, 6, 0);
+    bs_write_u(b, 3, 1);
+    bs_write_u(b, 8, 0x05); //SEI_USER_DATA_UNREGISTERED
+    cnt = strlen(seiUserData);
+
+    while (cnt >= 255) {
+        bs_write_u(b, 0xFF, 0x8);
+        cnt -= 255;
+    }
+
+    bs_write_u(b, 8, cnt + sizeof(sei_uuid));
+    /* Write uuid */
+    for (i = 0; i < sizeof(sei_uuid); i++) {
+        bs_write_u(b, 8, sei_uuid[i]);
+    }
+    /* Write payload */
+    for (i = 0; i < cnt; i++) {
+        bs_write_u(b, 8, seiUserData[i]);
+    }
+}
+
 void read_sps_range_extension(h265_stream_t* h, bs_t* b)
 {
     sps_h265_t *sps = h->sps;

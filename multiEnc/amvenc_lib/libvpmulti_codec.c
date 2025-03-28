@@ -145,6 +145,8 @@ typedef struct vp_multi_s {
   int hist_win_len;
   int hist_skip_thresh;
   VPMultiVuiInfo vui_info;
+  int mSEIDataSize;
+  char *mSEIData;
 } VPMultiEncHandle;
 
 static int64_t GetNowUs() {
@@ -483,6 +485,34 @@ exit:
   if (mHandle != NULL)
     free(mHandle);
   return (vl_codec_handle_t)NULL;
+}
+
+void vl_multi_encoder_adjust_h265_sei(VPMultiEncHandle* handle, uint32 op_flag)
+{
+    int ret;
+    bs_t bs = {0};
+    int sei_nalu_size = handle->mSPSPPSDataSize;
+    char *sei_nalu = handle->mSEIData;
+    char seiUserData[35] = {0};
+    char startCodePrefix[] = {0, 0, 0, 1};
+
+    if (handle->mEncParams.stream_type == AMV_AVC) {
+        handle->mSEIDataSize = 0;
+        return;
+    }
+    if (op_flag & AMVEncFrameIO_FORCE_IDR_FLAG)
+        ret = snprintf(seiUserData, sizeof(seiUserData), "WVIF%dB%dX%dI%d", handle->mEncParams.frame_rate / 5, handle->mEncParams.bitrate / 1000, handle->mEncParams.maxQP, handle->mEncParams.minQP);
+    else
+        ret = snprintf(seiUserData, sizeof(seiUserData), "WVF%dB%dX%dI%d", handle->mEncParams.frame_rate / 5, handle->mEncParams.bitrate / 1000, handle->mEncParams.maxQP, handle->mEncParams.minQP);
+    if (ret >= sizeof(seiUserData))
+        VLOG(ERR, "sei info exceeds the userdatasize.\n");
+
+    memcpy(sei_nalu, startCodePrefix, sizeof(startCodePrefix));
+    bs_init(&bs, sei_nalu + sizeof(startCodePrefix), sei_nalu_size - sizeof(startCodePrefix));
+    write_sei_userdataunreg(&bs, seiUserData);
+    write_rbsp_trailing_bits(&bs);
+    handle->mSEIDataSize = bs.p - bs.start + sizeof(startCodePrefix);
+    return;
 }
 
 int vl_multi_encoder_adjust_h264_sps(VPMultiEncHandle* handle,char *sps_nalu,int sps_nalu_size,int buffer_len,VPMultiVuiInfo vui_info)
@@ -882,6 +912,7 @@ encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_han
         VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
                handle->mSPSPPSDataSize, __LINE__);
       }
+      handle->mSEIData = (char *)malloc(*pLength);
       handle->mNumInputFrames = 0;
       handle->mSpsPpsHeaderReceived = true;
       }
@@ -960,6 +991,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
              handle->mSPSPPSDataSize, __LINE__);
       }
+      handle->mSEIData = (char *)malloc(dataLength);
       handle->mNumInputFrames = 0;
       handle->mSpsPpsHeaderReceived = true;
     } else {
@@ -1170,10 +1202,17 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         if ((handle->mPrependSPSPPSToIDRFrames ||
              handle->mNumInputFrames == 1) &&
             (handle->mSPSPPSData)) {
-          memmove(out + handle->mSPSPPSDataSize, out, dataLength);
+          vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          memmove(out + handle->mSPSPPSDataSize + handle->mSEIDataSize, out, dataLength);
           memcpy(out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
-          dataLength += handle->mSPSPPSDataSize;
+          memcpy(out + handle->mSPSPPSDataSize, handle->mSEIData, handle->mSEIDataSize);
+          dataLength += (handle->mSPSPPSDataSize + handle->mSEIDataSize);
           VLOG(DEBUG, "copy mSPSPPSData to buffer size= %d\n",handle->mSPSPPSDataSize);
+        } else {
+          vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          memmove(out + handle->mSEIDataSize, out, dataLength);
+          memcpy(out, handle->mSEIData, handle->mSEIDataSize);
+          dataLength += handle->mSEIDataSize;
         }
         result.is_key_frame = true;
       }
@@ -1455,6 +1494,8 @@ int vl_multi_encoder_destroy(vl_codec_handle_t codec_handle) {
 #endif
     if (handle->mSPSPPSData)
         free(handle->mSPSPPSData);
+    if (handle->mSEIData)
+        free(handle->mSEIData);
     if (handle)
         free(handle);
 

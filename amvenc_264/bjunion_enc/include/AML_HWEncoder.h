@@ -159,6 +159,21 @@ typedef struct {
     int ucode_mode;//add ucode mode
 } amvenc_info_t;
 
+typedef struct {
+  unsigned char *pUserData;
+  int userDataSize;
+  int fps;
+  int bitrate;
+  int frame_num;
+  int maxQp_I;
+  int minQp_I;
+  int maxQp_P;
+  int minQp_P;
+  int gop;
+  int Force_I;
+}sei_s;
+
+
 typedef struct AMVEncHandle_s {
     void *object;
     void *userData;
@@ -170,7 +185,7 @@ typedef struct AMVEncHandle_s {
     uint8_t *mSPSPPSData;
     int64_t mNumInputFrames;
     bool mKeyFrameRequested;
-
+    sei_s sei;
     int fd_in;
     int fd_out;
 

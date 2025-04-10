@@ -42,11 +42,19 @@
 #define amv_enc_handle_t long
 #define NUM_CUSTOM_LAMBDA   (2*52)
 
+typedef struct vl_sei_payload_t
+{
+    int payload_size;
+    int payload_type;
+    unsigned char *payload;
+} vl_sei_payload_t;
+
 typedef struct FrameIO_s {
   ulong YCbCr[3];
   // long long YCbCr[3];
   AMVEncBufferType type;
   AMVEncFrameFmt fmt;
+  vl_sei_payload_t sei_payload;
   int pitch;
   int height;
   uint32 disp_order;

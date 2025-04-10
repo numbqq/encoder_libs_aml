@@ -263,6 +263,20 @@ void read_vui_parameters(sps_t* sps, bs_t* b)
         sps->vui.max_dec_frame_buffering = bs_read_ue(b);
     }
 }
+void write_sei_rbsp(bs_t *s, unsigned char *payload, int payload_size)
+{
+    int i;
+    bs_write_u(s, 1, 0);//forbidden_zero_bit
+    bs_write_u(s, 2, 0);//nal_ref_idc
+    bs_write_u(s, 5, 6);//nal_type
+    bs_write_u(s, 8, 5);//user_sei
+    bs_write_u(s,8,payload_size);
+    for (i = 0; i < 16; i++)
+        bs_write_u(s,8,payload[i]);
+    for (i = 16; i < payload_size; i++)
+        bs_write_u(s, 8, payload[i]);
+}
+
 
 //7.3.2.1 Sequence parameter set RBSP syntax
 void read_seq_parameter_set_rbsp(sps_t* sps, bs_t* b)

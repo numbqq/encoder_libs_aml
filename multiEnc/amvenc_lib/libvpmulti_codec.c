@@ -112,6 +112,21 @@ const char* vl_get_version() {
   return version;
 }
 
+typedef struct {
+  int userDataEnabled;
+  const unsigned char *pUserData;
+  int userDataSize;
+  int activated_sps;
+  int fps;
+  int bitrate;
+  int frame_num;
+  int maxQp_I;
+  int minQp_I;
+  int maxQp_P;
+  int minQp_P;
+  int gop;
+}sei_s;
+
 typedef struct vp_multi_vui_info_s {
   uint8_t vui_parameters_present_flag;
   uint8_t video_full_range_flag;
@@ -124,6 +139,7 @@ typedef struct vp_multi_vui_info_s {
 
 typedef struct vp_multi_s {
   AMVEncInitParams mEncParams;
+  sei_s sei;
 
   AMVEncBufferType bufType;
   bool mPrependSPSPPSToIDRFrames;
@@ -353,6 +369,13 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.crop_right = encode_info.crop.right;
         handle->mEncParams.crop_bottom = encode_info.crop.bottom;
     }
+    handle->sei.fps = handle->mEncParams.frame_rate;
+    handle->sei.bitrate = handle->mEncParams.bitrate;
+    handle->sei.gop = handle->mEncParams.idr_period;
+    handle->sei.maxQp_I = handle->mEncParams.maxQP;
+    handle->sei.minQp_I = handle->mEncParams.minQP;
+    handle->sei.maxQp_P = handle->mEncParams.maxQP_P;
+    handle->sei.minQp_P = handle->mEncParams.minQP_P;
     return AMVENC_SUCCESS;
 }
 
@@ -486,6 +509,87 @@ exit:
     free(mHandle);
   return (vl_codec_handle_t)NULL;
 }
+
+int int_to_ascii(int value, unsigned char *userData, int index) {
+    int num_digits = 0, temp_value = value;
+
+    do {
+        num_digits++;
+        temp_value /= 10;
+    } while (temp_value > 0);
+
+    temp_value = value;
+    for (int i = index + num_digits - 1; i >= index; i--) {
+        userData[i] = (temp_value % 10) + '0';
+        temp_value /= 10;
+    }
+    return num_digits;
+}
+
+void InitUserSei(sei_s *sei,uint32 op_flag) {
+    static unsigned char userData[44];
+    int userDataIndex = 16;
+    int fps,bitrate;
+    unsigned char payLoadType[11] = {0x57, 0x41, 0x56, 0x45, 0x46, 0x49,0x4E,0x49, 0x49, 0x2D, 0x50};
+
+    const unsigned char uuid[16] = {
+        0x41, 0xFE, 0x3D, 0xAF, 0x9D, 0x22, 0x4C, 0xD7,
+        0x8F, 0x10, 0x79, 0x9F, 0x3F, 0x39, 0x9F, 0xEF
+    };
+    for (int i = 0; i < 16; i++) {
+        userData[i] = uuid[i];
+    }
+    fps = sei->fps / 5;
+    bitrate = sei->bitrate / 100000;
+    // fps
+    userDataIndex += int_to_ascii(fps, userData, userDataIndex);
+    for (int i = 0; i < 4; i++) {
+        userData[userDataIndex++] = payLoadType[i];
+    }
+    // force I
+    if (op_flag & AMVEncFrameIO_FORCE_IDR_FLAG) {
+        userData[userDataIndex++] = payLoadType[4];
+        userData[userDataIndex++] = payLoadType[5];
+    }
+    else {
+        userData[userDataIndex++] = payLoadType[6];
+        userData[userDataIndex++] = payLoadType[7];
+    }
+    // bitrate
+    userDataIndex += int_to_ascii(bitrate, userData, userDataIndex);
+    // I minQP
+    userData[userDataIndex++] = payLoadType[8];
+    userDataIndex += int_to_ascii(sei->minQp_I, userData, userDataIndex);
+    // I maxQP
+    userData[userDataIndex++] = payLoadType[9];
+    userDataIndex += int_to_ascii(sei->maxQp_I, userData, userDataIndex);
+    // P minQP
+    userData[userDataIndex++] = payLoadType[10];
+    userDataIndex += int_to_ascii(sei->minQp_P, userData, userDataIndex);
+    // P maxQP
+    userData[userDataIndex++] = payLoadType[9];
+    userDataIndex += int_to_ascii(sei->maxQp_P, userData, userDataIndex);
+    sei->userDataSize = userDataIndex;
+    sei->pUserData = userData;
+}
+
+
+void vl_multi_encoder_adjust_h264_sei(VPMultiEncHandle* handle, uint32 op_flag) {
+    int ret;
+    bs_t bs = {0};
+    int sei_nalu_size = handle->mSPSPPSDataSize;
+    char *sei_nalu = handle->mSEIData;
+    char startCodePrefix[] = {0, 0, 0, 1};
+    InitUserSei(&handle->sei,op_flag);
+
+    memcpy(sei_nalu, startCodePrefix, sizeof(startCodePrefix));
+    bs_init(&bs, sei_nalu + sizeof(startCodePrefix), sei_nalu_size + sizeof(startCodePrefix));
+    write_sei_rbsp(&bs,handle->sei.pUserData,handle->sei.userDataSize);
+    write_rbsp_trailing_bits(&bs);
+    handle->mSEIDataSize = bs.p - bs.start + sizeof(startCodePrefix);
+    return;
+}
+
 
 void vl_multi_encoder_adjust_h265_sei(VPMultiEncHandle* handle, uint32 op_flag)
 {
@@ -1202,14 +1306,20 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         if ((handle->mPrependSPSPPSToIDRFrames ||
              handle->mNumInputFrames == 1) &&
             (handle->mSPSPPSData)) {
-          vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          if (handle->mEncParams.stream_type == AMV_HEVC)
+             vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          else if (handle->mEncParams.stream_type == AMV_AVC)
+             vl_multi_encoder_adjust_h264_sei(handle, videoInput.op_flag);
           memmove(out + handle->mSPSPPSDataSize + handle->mSEIDataSize, out, dataLength);
           memcpy(out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
           memcpy(out + handle->mSPSPPSDataSize, handle->mSEIData, handle->mSEIDataSize);
           dataLength += (handle->mSPSPPSDataSize + handle->mSEIDataSize);
           VLOG(DEBUG, "copy mSPSPPSData to buffer size= %d\n",handle->mSPSPPSDataSize);
         } else {
-          vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          if (handle->mEncParams.stream_type == AMV_HEVC)
+            vl_multi_encoder_adjust_h265_sei(handle, videoInput.op_flag);
+          else if (handle->mEncParams.stream_type == AMV_AVC)
+            vl_multi_encoder_adjust_h264_sei(handle, videoInput.op_flag);
           memmove(out + handle->mSEIDataSize, out, dataLength);
           memcpy(out, handle->mSEIData, handle->mSEIDataSize);
           dataLength += handle->mSEIDataSize;

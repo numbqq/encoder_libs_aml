@@ -188,7 +188,7 @@ void write_vui_parameters(sps_t* sps, bs_t* b);
 void write_seq_parameter_set_rbsp(sps_t* sps, bs_t* b);
 void read_pic_parameter_set_rbsp(pps_t* pps, bs_t* b);
 void write_pic_parameter_set_rbsp(pps_t* pps, bs_t* b);
-
+void write_sei_rbsp(bs_t *s, unsigned char *payload, int payload_size);
 
 #ifdef __cplusplus
 }

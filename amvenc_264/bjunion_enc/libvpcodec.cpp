@@ -197,6 +197,13 @@ int initEncParams(AMVEncHandle *handle, vl_init_params_t init_param)
     if (init_param.width * init_param.height > 1280 * 720) {
         handle->mEncParams.encode_once = 1; //fix me!is this right???
     }
+    handle->sei.fps = init_param.frame_rate;
+    handle->sei.bitrate = handle->mEncParams.bitrate;
+    handle->sei.gop = handle->mEncParams.idr_period;
+    handle->sei.maxQp_I = handle->mEncParams.i_qp_max;
+    handle->sei.minQp_I = handle->mEncParams.i_qp_min;
+    handle->sei.maxQp_P = handle->mEncParams.p_qp_max;
+    handle->sei.minQp_P = handle->mEncParams.p_qp_min;
     return 0;
 }
 
@@ -544,7 +551,7 @@ int vl_video_encode_sei(vl_sei_payload_t sei_payload, int *in_size, unsigned cha
     int rbsp_size = 0;
     unsigned char start_code[] = {0x00, 0x00, 0x00, 0x01};
 
-    rbsp_size = sei_payload.payload_size + 4 + 16; /*+4 for start code*/
+    rbsp_size = sei_payload.payload_size + 4; /*+4 for start code*/
     uint8_t* rbsp_buf = (uint8_t*)calloc(1, rbsp_size);
 
     if (rbsp_buf == NULL) {
@@ -933,6 +940,78 @@ int vl_video_encoder_encode(vl_codec_handle_t codec_handle, vl_frame_type_t fram
     return dataLength;
 }
 
+int int_to_ascii(int value, unsigned char *userData, int index) {
+    int num_digits = 0, temp_value = value;
+
+    do {
+        num_digits++;
+        temp_value /= 10;
+    } while (temp_value > 0);
+
+    temp_value = value;
+    for (int i = index + num_digits - 1; i >= index; i--) {
+        userData[i] = (temp_value % 10) + '0';
+        temp_value /= 10;
+    }
+    return num_digits;
+}
+
+void InitUserSei(sei_s *sei) {
+    static unsigned char userData[44];
+    int userDataIndex = 16;
+    int fps,bitrate;
+    unsigned char payLoadType[10] = {0x41, 0x56, 0x43, 0x46, 0x49,0x4E,0x49, 0x49, 0x2D, 0x50};
+
+    const unsigned char uuid[16] = {
+        0x41, 0xFE, 0x3D, 0xAF, 0x9D, 0x22, 0x4C, 0xD7,
+        0x8F, 0x10, 0x79, 0x9F, 0x3F, 0x39, 0x9F, 0xEF
+    };
+
+    for (int i = 0; i < 16; i++) {
+        userData[i] = uuid[i];
+    }
+    fps = sei->fps / 5;
+    bitrate = sei->bitrate / 100000;
+    // fps
+    userDataIndex += int_to_ascii(fps, userData, userDataIndex);
+
+    for (int i = 0; i < 3; i++) {
+        userData[userDataIndex++] = payLoadType[i];
+    }
+    // force I
+    if (sei->Force_I == 1) {
+        userData[userDataIndex++] = payLoadType[3];
+        userData[userDataIndex++] = payLoadType[4];
+    }
+    else {
+        userData[userDataIndex++] = payLoadType[5];
+        userData[userDataIndex++] = payLoadType[6];
+    }
+
+    // bitrate
+    userDataIndex += int_to_ascii(bitrate, userData, userDataIndex);
+
+    // I minQP
+    userData[userDataIndex++] = payLoadType[7];
+    userDataIndex += int_to_ascii(sei->minQp_I, userData, userDataIndex);
+
+    // I maxQP
+    userData[userDataIndex++] = payLoadType[8];
+    userDataIndex += int_to_ascii(sei->maxQp_I, userData, userDataIndex);
+
+    // P minQP
+    userData[userDataIndex++] = payLoadType[9];
+    userDataIndex += int_to_ascii(sei->minQp_P, userData, userDataIndex);
+
+    // P maxQP
+    userData[userDataIndex++] = payLoadType[8];
+    userDataIndex += int_to_ascii(sei->maxQp_P, userData, userDataIndex);
+
+    sei->userDataSize = userDataIndex;
+    sei->pUserData = userData;
+}
+
+
 vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl_frame_info_t frame_info, unsigned char *out,int *out_size,vl_frame_type_t *frame_type)
 {
     int ret;
@@ -1095,8 +1174,8 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
             videoInput.shared_fd[2] = frame_info.YCbCr[2];
             VLOG(INFO,"num_planes:%d,fd:%d",videoInput.num_planes,videoInput.shared_fd[0]);
         }
-
         videoInput.op_flag = 0;
+        handle->sei.Force_I = 0;
         if (frame_info.frame_type == FRAME_TYPE_IDR) //response omx's IDR request
         {
             handle->mKeyFrameRequested = true;
@@ -1105,6 +1184,7 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
         if (handle->mKeyFrameRequested == true)
         {
             videoInput.op_flag = AMVEncFrameIO_FORCE_IDR_FLAG;
+            handle->sei.Force_I = 1;
             handle->mKeyFrameRequested = false;
         }
         VLOG(DEBUG,"before AML_HWSetInput");
@@ -1139,17 +1219,22 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
             VLOG(ERR,"encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             return ENC_FAILED;
         }
-
-        if ((frame_info.sei_payload.payload_size > 0) && (NULL  != frame_info.sei_payload.payload))
-        {
-            sei_data = outPtr;
-            ret = vl_video_encode_sei(frame_info.sei_payload, &sei_size, sei_data);
-            if (ret > 0) {
-                outPtr = (uint8_t *)sei_data + sei_size;
-                VLOG(DEBUG,"sei_size: %d\n", sei_size);
+        handle->sei.frame_num = handle->mNumInputFrames;
+        if (ret == AMVENC_NEW_IDR) {
+            InitUserSei(&handle->sei);
+            frame_info.sei_payload.payload_size = handle->sei.userDataSize;
+            frame_info.sei_payload.payload = handle->sei.pUserData;
+            if ((frame_info.sei_payload.payload_size > 0) && (NULL  != frame_info.sei_payload.payload))
+            {
+                sei_data = outPtr;
+                frame_info.sei_payload.payload_type = 5;
+                ret = vl_video_encode_sei(frame_info.sei_payload, &sei_size, sei_data);
+                if (ret > 0) {
+                    outPtr = (uint8_t *)sei_data + sei_size;
+                    VLOG(DEBUG,"sei_size: %d\n", sei_size);
+                }
             }
         }
-
         VLOG(DEBUG,"before AML_HWEncNAL");
         ret = AML_HWEncNAL(handle, (unsigned char *)outPtr, (unsigned int *)&dataLength, &type);
         VLOG(DEBUG,"after AML_HWEncNAL");

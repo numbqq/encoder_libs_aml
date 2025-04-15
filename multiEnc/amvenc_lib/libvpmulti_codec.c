@@ -125,6 +125,7 @@ typedef struct {
   int maxQp_P;
   int minQp_P;
   int gop;
+  int SeiDataSize;
 }sei_s;
 
 typedef struct vp_multi_vui_info_s {
@@ -369,6 +370,7 @@ AMVEnc_Status initEncParams(VPMultiEncHandle *handle,
         handle->mEncParams.crop_right = encode_info.crop.right;
         handle->mEncParams.crop_bottom = encode_info.crop.bottom;
     }
+    handle->sei.SeiDataSize = 100;
     handle->sei.fps = handle->mEncParams.frame_rate;
     handle->sei.bitrate = handle->mEncParams.bitrate;
     handle->sei.gop = handle->mEncParams.idr_period;
@@ -577,13 +579,13 @@ void InitUserSei(sei_s *sei,uint32 op_flag) {
 void vl_multi_encoder_adjust_h264_sei(VPMultiEncHandle* handle, uint32 op_flag) {
     int ret;
     bs_t bs = {0};
-    int sei_nalu_size = handle->mSPSPPSDataSize;
+    int sei_nalu_size = handle->sei.SeiDataSize;
     char *sei_nalu = handle->mSEIData;
     char startCodePrefix[] = {0, 0, 0, 1};
     InitUserSei(&handle->sei,op_flag);
 
     memcpy(sei_nalu, startCodePrefix, sizeof(startCodePrefix));
-    bs_init(&bs, sei_nalu + sizeof(startCodePrefix), sei_nalu_size + sizeof(startCodePrefix));
+    bs_init(&bs, sei_nalu + sizeof(startCodePrefix), sei_nalu_size - sizeof(startCodePrefix));
     write_sei_rbsp(&bs,handle->sei.pUserData,handle->sei.userDataSize);
     write_rbsp_trailing_bits(&bs);
     handle->mSEIDataSize = bs.p - bs.start + sizeof(startCodePrefix);
@@ -595,7 +597,7 @@ void vl_multi_encoder_adjust_h265_sei(VPMultiEncHandle* handle, uint32 op_flag)
 {
     int ret;
     bs_t bs = {0};
-    int sei_nalu_size = handle->mSPSPPSDataSize;
+    int sei_nalu_size = handle->sei.SeiDataSize;
     char *sei_nalu = handle->mSEIData;
     char seiUserData[35] = {0};
     char startCodePrefix[] = {0, 0, 0, 1};
@@ -1016,7 +1018,7 @@ encoding_metadata_t vl_multi_encoder_generate_header(vl_codec_handle_t codec_han
         VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
                handle->mSPSPPSDataSize, __LINE__);
       }
-      handle->mSEIData = (char *)malloc(*pLength);
+      handle->mSEIData = (char *)malloc(handle->sei.SeiDataSize);
       handle->mNumInputFrames = 0;
       handle->mSpsPpsHeaderReceived = true;
       }
@@ -1095,7 +1097,7 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
         VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
              handle->mSPSPPSDataSize, __LINE__);
       }
-      handle->mSEIData = (char *)malloc(dataLength);
+      handle->mSEIData = (char *)malloc(handle->sei.SeiDataSize);
       handle->mNumInputFrames = 0;
       handle->mSpsPpsHeaderReceived = true;
     } else {

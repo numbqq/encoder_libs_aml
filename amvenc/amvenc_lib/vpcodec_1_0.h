@@ -142,6 +142,7 @@ typedef struct vl_frame_info
     unsigned int plane_num;
     unsigned int frame_rate;
     vl_sei_payload_t sei_payload;
+    vl_sei_payload_t sei_userdata;
 } vl_frame_info_t;
 
 typedef struct vl_dma_info {

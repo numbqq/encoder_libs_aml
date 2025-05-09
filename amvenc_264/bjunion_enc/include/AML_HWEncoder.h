@@ -164,7 +164,6 @@ typedef struct {
   int userDataSize;
   int fps;
   int bitrate;
-  int frame_num;
   int maxQp_I;
   int minQp_I;
   int maxQp_P;

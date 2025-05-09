@@ -22,6 +22,7 @@ const char version[] = "Amlogic libvpcodec version 1.0";
 #define GE2D_FORMAT_BT601               (0 << 28)
 #define GE2D_FORMAT_BT709               (1 << 28)
 
+#define user_sei 1
 #define ZEROBYTES_SHORTSTARTCODE 2 //indicates the number of zero bytes in the short start-code prefix
 debug_log_level_t g_amvenc_log_level = ERR;
 
@@ -551,7 +552,7 @@ int vl_video_encode_sei(vl_sei_payload_t sei_payload, int *in_size, unsigned cha
     int rbsp_size = 0;
     unsigned char start_code[] = {0x00, 0x00, 0x00, 0x01};
 
-    rbsp_size = sei_payload.payload_size + 4; /*+4 for start code*/
+    rbsp_size = sei_payload.payload_size + 4 + (sei_payload.payload_type == 5 ? 0 : 16); /*+4 for start code*/
     uint8_t* rbsp_buf = (uint8_t*)calloc(1, rbsp_size);
 
     if (rbsp_buf == NULL) {
@@ -1219,22 +1220,32 @@ vl_enc_result_e vl_video_encoder_encode_frame(vl_codec_handle_t codec_handle, vl
             VLOG(ERR,"encoderStatus = %d at line %d, handle: %p", ret, __LINE__, (void *)handle);
             return ENC_FAILED;
         }
-        handle->sei.frame_num = handle->mNumInputFrames;
+        if ((frame_info.sei_payload.payload_size > 0) && (NULL  != frame_info.sei_payload.payload))
+        {
+            sei_data = outPtr;
+            ret = vl_video_encode_sei(frame_info.sei_payload, &sei_size, sei_data);
+            if (ret > 0) {
+                outPtr = (uint8_t *)sei_data + sei_size;
+                VLOG(DEBUG,"sei_size: %d\n", sei_size);
+            }
+        }
+#if user_sei
         if (ret == AMVENC_NEW_IDR) {
             InitUserSei(&handle->sei);
-            frame_info.sei_payload.payload_size = handle->sei.userDataSize;
-            frame_info.sei_payload.payload = handle->sei.pUserData;
-            if ((frame_info.sei_payload.payload_size > 0) && (NULL  != frame_info.sei_payload.payload))
+            frame_info.sei_userdata.payload_size = handle->sei.userDataSize;
+            frame_info.sei_userdata.payload = handle->sei.pUserData;
+            if ((frame_info.sei_userdata.payload_size > 0) && (NULL  != frame_info.sei_userdata.payload))
             {
                 sei_data = outPtr;
-                frame_info.sei_payload.payload_type = 5;
-                ret = vl_video_encode_sei(frame_info.sei_payload, &sei_size, sei_data);
+                frame_info.sei_userdata.payload_type = 5;
+                ret = vl_video_encode_sei(frame_info.sei_userdata, &sei_size, sei_data);
                 if (ret > 0) {
                     outPtr = (uint8_t *)sei_data + sei_size;
-                    VLOG(DEBUG,"sei_size: %d\n", sei_size);
+                    VLOG(DEBUG,"unregister user sei_size: %d\n", sei_size);
                 }
             }
         }
+#endif
         VLOG(DEBUG,"before AML_HWEncNAL");
         ret = AML_HWEncNAL(handle, (unsigned char *)outPtr, (unsigned int *)&dataLength, &type);
         VLOG(DEBUG,"after AML_HWEncNAL");

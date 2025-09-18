@@ -775,15 +775,15 @@ void write_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
     bs_write_u1(b, vps->vps_temporal_id_nesting_flag);
     bs_write_u(b, 16, vps->vps_reserved_0xffff_16bits);
     write_profile_tier_level(h,b,1,vps->vps_max_sub_layers_minus1);
-   /* bs_write_u1(b, vps->vps_sub_layer_ordering_info_present_flag);
+    bs_write_u1(b, vps->vps_sub_layer_ordering_info_present_flag);
     for (i = (vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1);i <= vps->vps_max_sub_layers_minus1;i++)
     {
-        bs_write_u1(b, vps->vps_max_dec_pic_buffering_minus1[i]);
-        bs_write_u1(b, vps->vps_max_num_reorder_pics[i]);
-        bs_write_u1(b, vps->vps_max_latency_increase_plus1[i]);
+        bs_write_ue(b, vps->vps_max_dec_pic_buffering_minus1[i]);
+        bs_write_ue(b, vps->vps_max_num_reorder_pics[i]);
+        bs_write_ue(b, vps->vps_max_latency_increase_plus1[i]);
     }
     bs_write_u(b, 6, vps->vps_max_layer_id);
-    bs_write_u1(b, vps->vps_num_layer_sets_minus1);
+    bs_write_ue(b, vps->vps_num_layer_sets_minus1);
     for (i=1;i<= vps->vps_num_layer_sets_minus1;i++)
         for (j = 0;j <= vps->vps_max_layer_id;j++)
         {
@@ -810,7 +810,6 @@ void write_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
             //TODO: hrd-parameters()
         }
         bs_write_u1(b, vps->vps_extension_flag);
-        vps->vps_extension_flag = bs_read_u1(b);
         if (vps->vps_extension_flag)
         {
             while (more_rbsp_trailing_data(h, b))
@@ -818,7 +817,7 @@ void write_debug_video_parameter_set_rbsp(h265_stream_t* h, bs_t* b)
                 bs_write_u1(b, vps->vps_extension_data_flag);
             }
         }
-    }*/
+    }
 
 #if 0
     vps->vps_video_parameter_set_id = bs_write_u(b, 4);

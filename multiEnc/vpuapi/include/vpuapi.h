@@ -2891,7 +2891,7 @@ For H.265/HEVC decoder, each bit has a different meaning as follows.
     int errorReason;    /**< This variable reports the error reason that occurs while decoding. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. */
     Uint32 errorReasonExt; /**< This variable reports the specific reason of error. For error description, please find the 'Appendix: Error Definition' in the Programmer's Guide. (VPU only) */
     int warnInfo;       /**< This variable reports the warning information that occurs while decoding. For warning description, please find the 'Appendix: Error Definition' in the Programmer's Guide. */
-    Uint32 sequenceNo;  /**< This variable increases by 1 whenever sequence changes. If it happens, HOST should call VPU_DecFrameBufferFlush() to get the decoded result that remains in the buffer in the form of DecOutputInfo array. HOST can recognize with this variable whether this frame is in the current sequence or in the previous sequence when it is displayed. (VPU only) */ 
+    Uint32 sequenceNo;  /**< This variable increases by 1 whenever sequence changes. If it happens, HOST should call VPU_DecFrameBufferFlush() to get the decoded result that remains in the buffer in the form of DecOutputInfo array. HOST can recognize with this variable whether this frame is in the current sequence or in the previous sequence when it is displayed. (VPU only) */
     int rvTr;           /**< This variable reports RV timestamp for Ref frame. */
     int rvTrB;          /**< This variable reports RV timestamp for B frame. */
 
@@ -3499,6 +3499,8 @@ A slice mode for independent slice
     // ENC_SET_CHANGE_PARAM_RC_TARGET_RATE
     int bitRate;                        /**< A target bitrate when separateBitrateEnable is 0 */
 
+    // ENC_FRAME_RATE_CHANGE
+    int frameRate;                      /**< A frame rate indicator ( x 1024) */
 
     // ENC_SET_CHANGE_PARAM_RC
     // (rcEnable, cuLevelRc, bitAllocMode, RoiEnable, RcInitQp can't be changed while encoding)

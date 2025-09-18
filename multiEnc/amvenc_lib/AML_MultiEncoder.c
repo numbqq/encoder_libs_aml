@@ -1991,6 +1991,30 @@ AMVEnc_Status AML_MultiEncChangeBitRate(amv_enc_handle_t ctx_handle,
   return AMVENC_SUCCESS;
 }
 
+AMVEnc_Status AML_MultiEncChangeFrameRate(amv_enc_handle_t ctx_handle,
+                                int FrameRate,int BitRate)
+{
+  AMVMultiCtx * ctx = (AMVMultiCtx* ) ctx_handle;
+  EncChangeParam *ChgParam;
+
+  if (ctx == NULL) return AMVENC_FAIL;
+  if (ctx->magic_num != MULTI_ENC_MAGIC)
+    return AMVENC_FAIL;
+  if (ctx->mInitParams.param_change_enable == 0)
+    return AMVENC_FAIL;
+  VLOG(INFO, "Change frame rate to %d Count %d\n", FrameRate, ctx->changedCount);
+
+  ChgParam = &ctx->changeParam;
+
+  ChgParam->frameRate = FrameRate;
+  ChgParam->bitRate = BitRate * ctx->encOpenParam.frameRateInfo / FrameRate;
+
+  ChgParam->enable_option |= ENC_SET_CHANGE_PARAM_RC_TARGET_RATE;
+  ctx->param_change_flag ++;
+
+  return AMVENC_SUCCESS;
+}
+
 AMVEnc_Status AML_MultiEncChangeQPMinMax(amv_enc_handle_t ctx_handle,
                                 int minQpI, int maxQpI, int maxDeltaQp,
                                 int minQpP, int maxQpP,

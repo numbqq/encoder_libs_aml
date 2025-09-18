@@ -136,6 +136,9 @@ typedef struct vp_multi_vui_info_s {
   uint8_t colour_primaries;
   uint8_t transfer_characteristics;
   uint8_t matrix_coefficients;
+  int vui_timing_info_present_flag;
+  int vui_num_units_in_tick;
+  int vui_time_scale;
 }VPMultiVuiInfo;
 
 typedef struct vp_multi_s {
@@ -671,6 +674,13 @@ int vl_multi_encoder_adjust_h264_sps(VPMultiEncHandle* handle,char *sps_nalu,int
         VLOG(INFO,"new header range =%d,primaries = %d,transfer:%d,matrix:%d ", sps.vui.video_full_range_flag,sps.vui.colour_primaries,sps.vui.transfer_characteristics,sps.vui.matrix_coefficients);
     }
 
+    if (handle->vui_info.vui_timing_info_present_flag) {
+        sps.vui.timing_info_present_flag = 1;
+        sps.vui.num_units_in_tick = 1000;
+        sps.vui.time_scale = handle->mEncParams.frame_rate * 2000;
+        VLOG(INFO,"new header num_units_in_tick =%d,time_scale = %d ", sps.vui.num_units_in_tick, sps.vui.time_scale);
+    }
+
     if (AVC_LEVEL_AUTO != handle->mEncParams.level) {
         sps.level_idc = handle->mEncParams.level;
     }
@@ -917,6 +927,13 @@ void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,i
         VLOG(INFO,"write level:%d",pstream_handle->ptl->general_level_idc);
     }
 
+    if (handle->vui_info.vui_timing_info_present_flag) {
+        pstream_handle->vps->vps_timing_info_present_flag = 1;
+        pstream_handle->vps->vps_num_units_in_tick = 1000;
+        pstream_handle->vps->vps_time_scale = handle->mEncParams.frame_rate * 1000;
+        VLOG(INFO,"new header vps num_units_in_tick =%d,time_scale = %d ", pstream_handle->vps->vps_num_units_in_tick, pstream_handle->vps->vps_time_scale);
+    }
+
     bs_init(&bs_v,vps_nalu + H265_HEADER_LEN, vps_nalu_size - H265_HEADER_LEN);
     write_debug_video_parameter_set_rbsp(pstream_handle, &bs_v);
     new_vps_size = vps_nalu_size;
@@ -938,6 +955,14 @@ void vl_multi_encoder_adjust_h265_header(VPMultiEncHandle* handle,char *header,i
         pstream_handle->vui->transfer_characteristics = handle->vui_info.transfer_characteristics;
         pstream_handle->vui->matrix_coeffs = handle->vui_info.matrix_coefficients;
     }
+
+    if (handle->vui_info.vui_timing_info_present_flag) {
+        pstream_handle->vui->vui_timing_info_present_flag = 1;
+        pstream_handle->vui->vui_num_units_in_tick = 1000;
+        pstream_handle->vui->vui_time_scale = handle->mEncParams.frame_rate * 1000;
+        VLOG(INFO,"new header vui num_units_in_tick =%d,time_scale = %d ", pstream_handle->vui->vui_num_units_in_tick, pstream_handle->vui->vui_time_scale);
+    }
+
     if (HEVC_LEVEL_NONE != handle->mEncParams.level) {//level is valid
         pstream_handle->ptl->general_level_idc = handle->mEncParams.level; //level_idc xts csd check!!
     }
@@ -1071,6 +1096,8 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
   int ret;
   int i;
   uint32_t dataLength = 0;
+  unsigned int uHeaderLength = 0;
+  unsigned char header[128] = {0};
   VPMultiEncHandle* handle = (VPMultiEncHandle *)codec_handle;
 
   encoding_metadata_t result;
@@ -1346,6 +1373,29 @@ encoding_metadata_t vl_multi_encoder_encode(vl_codec_handle_t codec_handle,
           memmove(out + handle->mSEIDataSize, out, dataLength);
           memcpy(out, handle->mSEIData, handle->mSEIDataSize);
           dataLength += handle->mSEIDataSize;
+          if ((videoInput.op_flag & AMVEncFrameIO_FORCE_IDR_FLAG) && handle->vui_info.vui_timing_info_present_flag) {
+              ret = AML_MultiEncHeader(handle->am_enc_handle, (unsigned char*)header,
+                                      (unsigned int *)&uHeaderLength);
+              VLOG(DEBUG, "ret = %d", ret);
+              if (ret == AMVENC_SUCCESS) {
+                  vl_multi_encoder_adjust_header(handle, (char *)header,(int *)&uHeaderLength);
+                  if (handle->mSPSPPSData)
+                    free(handle->mSPSPPSData);
+                  handle->mSPSPPSDataSize = 0;
+                  handle->mSPSPPSData = (char *)malloc(uHeaderLength);
+                  if (handle->mSPSPPSData) {
+                    handle->mSPSPPSDataSize = uHeaderLength;
+                    VLOG(DEBUG, "begin memcpy");
+                    memcpy(handle->mSPSPPSData, (unsigned char*)header,
+                           handle->mSPSPPSDataSize);
+                    VLOG(DEBUG, "get mSPSPPSData size= %d at line %d \n",
+                           handle->mSPSPPSDataSize, __LINE__);
+                 }
+              }
+              memmove(out + handle->mSPSPPSDataSize, out, dataLength);
+              memcpy(out, handle->mSPSPPSData, handle->mSPSPPSDataSize);
+              dataLength += handle->mSPSPPSDataSize;
+          }
         }
         result.is_key_frame = true;
       }
@@ -1478,6 +1528,28 @@ int vl_video_encoder_change_bitrate(vl_codec_handle_t codec_handle,
         return -3;
     hist_reset(handle); //bitrate target change reset the hist
     handle->mEncParams.bitrate = bitRate;
+    return 0;
+}
+
+int vl_video_encoder_change_framerate(vl_codec_handle_t codec_handle,
+                                                    int frameRate,int bitRate)
+{
+    int ret;
+    VPMultiEncHandle *handle = (VPMultiEncHandle *)codec_handle;
+
+    if (handle->am_enc_handle == 0) //not init the encoder yet
+        return -1;
+    if (handle->mEncParams.param_change_enable == 0) //no change enabled
+        return -2;
+    ret = AML_MultiEncChangeFrameRate(handle->am_enc_handle, frameRate, bitRate);
+    if (ret != AMVENC_SUCCESS)
+        return -3;
+    //hist_reset(handle); //bitrate target change reset the hist
+    handle->mEncParams.frame_rate = frameRate;
+    handle->mKeyFrameRequested = true;
+    handle->vui_info.vui_parameters_present_flag = 1;
+    handle->vui_info.vui_timing_info_present_flag = 1;
+    //handle->mEncParams.bitrate = bitRate;
     return 0;
 }
 

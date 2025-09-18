@@ -65,6 +65,7 @@
 #define CHANGE_MULTI_SLICE	0x80
 #define FORCE_PICTURE_SKIP	0x100
 #define CHANGE_STRICT_RC	0x200
+#define CHANGE_FRAME_RATE	0x400
 #define ENCODER_STRING_LEN_MAX	256
 
 // GOP mode strings
@@ -114,6 +115,8 @@ typedef struct {
 	// Change strict bitrate control
 	int bitrate_window;  //bitrate cal window
 	int pskip_threshold;  //threshold for pskip
+	//CHANGE_FRAME_RATE
+	int frameRate;
 } CfgChangeParam;
 
 typedef struct {
@@ -1328,6 +1331,15 @@ retry:
 					       cfgChange.bitrate_window,
 					       cfgChange.pskip_threshold);
 				}
+				if (cfgChange.enable_option
+					& CHANGE_FRAME_RATE)
+				{
+					vl_video_encoder_change_framerate(
+						handle_enc,
+						cfgChange.frameRate, encode_info.bit_rate);
+					printf("Change frameRate to %d on %d \n",
+						cfgChange.frameRate, frame_num);
+				}
 			}
 			if (cfgChange.FrameNum <= frame_num) {
 				has_cfg_update =
@@ -1950,6 +1962,17 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
 				if (parsed_num == 2)
 					cfg_update->enable_option |=
 					    CHANGE_STRICT_RC;
+			}
+		} else if (strcasecmp("ChangeFrameRate",token) == 0) {
+			token = strtok(NULL, ":\r\n");
+			while ( token && strlen(token) == 1
+				&& strncmp(token, " ", 1) == 0)
+				token = strtok(NULL, ":\r\n"); //check space
+			if (token) {
+				while ( *token == ' ' ) token++;//skip spaces;
+				cfg_update->frameRate = atoi(token);
+				cfg_update->enable_option |=
+					CHANGE_FRAME_RATE;
 			}
 		}
 		lineStr[0] = 0x0;

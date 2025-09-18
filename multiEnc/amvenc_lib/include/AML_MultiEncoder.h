@@ -202,6 +202,8 @@ extern AMVEnc_Status AML_MultiEncUpdateRoi(amv_enc_handle_t handle,
                                 int size);
 extern AMVEnc_Status AML_MultiEncChangeBitRate(amv_enc_handle_t ctx_handle,
                                 int BitRate);
+extern AMVEnc_Status AML_MultiEncChangeFrameRate(amv_enc_handle_t ctx_handle,
+                                int FrameRate,int BitRate);
 extern AMVEnc_Status AML_MultiEncChangeQPMinMax(amv_enc_handle_t ctx_handle,
                                 int minQpI, int maxQpI, int maxDeltaQp,
                                 int minQpP, int maxQpP,

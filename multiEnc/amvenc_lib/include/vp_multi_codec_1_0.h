@@ -376,6 +376,10 @@ int vl_video_encoder_update_qp_hint(vl_codec_handle_t handle,
 int vl_video_encoder_change_bitrate(vl_codec_handle_t handle,
                             int bitRate);
 
+
+int vl_video_encoder_change_framerate(vl_codec_handle_t codec_handle,
+                                                    int frameRate,int bitRate);
+
 /**
  *
  * vl_video_encoder_change_qp

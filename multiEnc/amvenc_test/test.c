@@ -165,8 +165,6 @@ typedef struct {
 	int   cust_qp_delta; 			 	// optional, cust_qp_delta apply to P frames value >0 lower; <0 increase the quality
 	int   strict_rate_control_parmeter;	// optional, High 16 bit bitrate window (frames max 120). low 16 bit bitrate threshold (percent)
 	int   forcePicQpIPB;
-	int   srcBitDepth;
-	int   internalBitDepth;
 } encodecCfgParam;
 
 typedef struct {
@@ -240,8 +238,6 @@ int main(int argc, const char *argv[])
 		printf("  buf_type \t: 0:vmalloc, 3:dma buffer\n");
 		printf("  num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 		printf("  codec_id \t: 4 : h.264, 5 : h.265\n");
-		printf("  srcBitDepth \t: src yuv BitDepth, src yuv is 8bit,set 8,10bit set 10\n");
-		printf("  interBitDepth : internal BitDepth,internal encode is 8 bit,set 8,10bit set 10\n");
 		printf("  cfg_opt  \t: optional, flags to control the encode feature settings\n");
 		printf("            \t\t  bit 0:roi control. 0: disabled (default) 1: enabled\n");
 		printf("            \t\t  bit 1: update control. 0: disabled (default) 1: enabled\n");
@@ -262,6 +258,9 @@ int main(int argc, const char *argv[])
 		printf("            \t\t  bit 21 cust_qp_delta_en \n");
 		printf("            \t\t  bit 22 strict_rate_ctrl_en (skipP allowed to limit bitrate) default 0 \n");
 		printf("            \t\t  bit 23 forcePicQpEnable default 0 \n");
+		printf("            \t\t  bit 24 ~ 26：SrcBitDepth setting/internal setting as following\n");
+		printf("            \t\t                   1:src yuv is 8bit,internal encode 8bit ;  2：src yuv is 8bit,internal encode 10bit \n");
+		printf("            \t\t                   3:internal encode 10bit,internal encode 8bit ; 4：internal encode 10bit,internal encode 10bit \n");
 		printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
 		printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
 		printf("  src_buf_stride \t: optional, source buffer stride\n");
@@ -315,13 +314,11 @@ int main(int argc, const char *argv[])
 		cfg_encode[0].buf_type = atoi(argv[10]);
 		cfg_encode[0].num_planes = atoi(argv[11]);
 		cfg_encode[0].codec_id = atoi(argv[12]);
-		cfg_encode[0].srcBitDepth = atoi(argv[13]);
-		cfg_encode[0].internalBitDepth = atoi(argv[14]);
-		if (argc > 15) {
-			cfg_encode[0].cfg_opt = atoi(argv[15]);
+		if (argc > 13) {
+			cfg_encode[0].cfg_opt = atoi(argv[13]);
 		}
-		if (argc > 16) {
-			arg_count = 16;
+		if (argc > 14) {
+			arg_count = 14;
 			if ((cfg_encode[0].cfg_opt & 0x1) == 0x1 && argc > arg_count) {
 				if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
 					printf("Warning: roi filename too long (max length: %d), will be truncated\n",
@@ -408,7 +405,7 @@ int main(int argc, const char *argv[])
 
 static void *encode_thread(void *param)
 {
-	int width, height, gop, framerate, bitrate, num, my_qp,srcBitDepth,internalBitDepth;
+	int width, height, gop, framerate, bitrate, num, my_qp;
 	int ret = 0;
 	int outfd = -1;
 	FILE *fp = NULL;
@@ -426,6 +423,8 @@ static void *encode_thread(void *param)
 	int cust_qp_delta = 0, cust_qp_delta_en = 0;
 	int arg_count = 0, arg_roi = 0, arg_upd = 0;
 	int strict_rate_ctrl_en = 0, bitrate_window = 0, skip_threshold = 0;
+	int srcBitDepth = 8,internalBitDepth = 8;
+	int BitDepthParam = 0;
 	vl_img_format_t fmt = IMG_FMT_NONE;
 	CfgChangeParam cfgChange;
 	vl_frame_type_t enc_frame_type;
@@ -503,8 +502,6 @@ static void *encode_thread(void *param)
 	fmt = cfg_encode->fmt;
 	buf_type = cfg_encode->buf_type;
 	num_planes = cfg_encode->num_planes;
-	srcBitDepth = cfg_encode->srcBitDepth;
-	internalBitDepth = cfg_encode->internalBitDepth;
 	switch (cfg_encode->codec_id)
 	{
 	case 0:
@@ -675,8 +672,31 @@ static void *encode_thread(void *param)
 			printf("forcePicQpIPB %d \n",
 				forcePicQpIPB);
 		}
+	BitDepthParam = (cfg_option >> 24) & 0xf;
+	switch (BitDepthParam) {
+	case 1:
+		srcBitDepth = 8;
+		internalBitDepth = 8;
+		break;
+	case 2:
+		srcBitDepth = 8;
+		internalBitDepth = 10;
+		break;
+	case 3:
+		srcBitDepth = 10;
+		internalBitDepth = 8;
+		break;
+	case 4:
+		srcBitDepth = 10;
+		internalBitDepth = 10;
+		break;
+	default:
+		break;
+	}
 	}
 
+	printf("srcBitDepth = %d\n",srcBitDepth);
+	printf("internalBitDepth = %d\n",internalBitDepth);
 	if (src_buf_stride && src_buf_stride < width) {
 		printf("incorrect cust source stride %d width %d",
 			src_buf_stride, width);

@@ -55,6 +55,8 @@ cc_library_shared {
         "-Wno-enum-conversion",
     ],
 
-    ldflags: ["-Wl,-Bsymbolic"],
+
+    ldflags: ["-Wl,-Bsymbolic",
+              "-Wl,-z,max-page-size=16384"],
 
 }

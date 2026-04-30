@@ -42,6 +42,7 @@
 #include <sys/poll.h>
 #include <pthread.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include "vdi.h"
 #include "tahoe.h"
@@ -227,6 +228,16 @@ static int ParseCropCfgFile(FILE *fp, cropCfgParam *cfg_crop);
 static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode);
 static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update);
 
+static unsigned int uTimeDiff(struct timeval end, struct timeval start)
+{
+    return (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+}
+
+//return timeDiff in u64
+static unsigned long long uTimeDiffLL(struct timeval end, struct timeval start)
+{
+    return (unsigned long long )(end.tv_sec - start.tv_sec) * 1000000 + (unsigned long long )(end.tv_usec - start.tv_usec);
+}
 
 static char*mystrncpy(char* dest, const char* src, int len)
 {
@@ -240,14 +251,14 @@ static char*mystrncpy(char* dest, const char* src, int len)
     return dest;
 }
 
-int update_cfg(FILE *fp_cfg, int frame_num, handle_t *encode_info, encodecCfgParam *cfg_encode, CfgChangeParam cfgChange) {
+int update_cfg(FILE *fp_cfg, int frame_num, handle_t *encode_info, encodecCfgParam *cfg_encode, CfgChangeParam *cfgChange) {
 
-    if (cfgChange.FrameNum == frame_num) { // apply updates
-        if (cfgChange.enable_option
+    if (cfgChange->FrameNum == frame_num) { // apply updates
+        if (cfgChange->enable_option
             & FORCE_PICTURE_TYPE)
         {
-            if (cfgChange.picType == FRAME_TYPE_IDR
-                || cfgChange.picType
+            if (cfgChange->picType == FRAME_TYPE_IDR
+                || cfgChange->picType
                 == FRAME_TYPE_I)
             {
                 encode_info->enc_frame_type = FRAME_TYPE_I;
@@ -262,14 +273,14 @@ int update_cfg(FILE *fp_cfg, int frame_num, handle_t *encode_info, encodecCfgPar
 //            printf("force skip frame on %d \n",
 //                    frame_num);
 //        }
-        if (cfgChange.enable_option
+        if (cfgChange->enable_option
             & CHANGE_TARGET_RATE)
         {
             vl_video_encoder_change_bitrate(
                 encode_info,
-                cfgChange.bitRate);
+                cfgChange->bitRate);
             printf("Change bitrate to %d on %d \n",
-                cfgChange.bitRate, frame_num);
+                cfgChange->bitRate, frame_num);
         }
 //        if (cfgChange.enable_option
 //            & CHANGE_MIN_MAX_QP)
@@ -296,16 +307,16 @@ int update_cfg(FILE *fp_cfg, int frame_num, handle_t *encode_info, encodecCfgPar
 //            playStat.minQpB_base = cfgChange.minQpB;
 //            playStat.maxQpB_base = cfgChange.maxQpB;
 //        }
-        if (cfgChange.enable_option
+        if (cfgChange->enable_option
             & CHANGE_GOP_PERIOD)
         {
             vl_video_encoder_change_gop(
                 encode_info,
-                cfgChange.intraQP,
-                cfgChange.GOPPeriod);
+                cfgChange->intraQP,
+                cfgChange->GOPPeriod);
             printf("Change gop on %d QP %d %d\n",
-                frame_num, cfgChange.intraQP,
-                cfgChange.GOPPeriod);
+                frame_num, cfgChange->intraQP,
+                cfgChange->GOPPeriod);
 //            playStat.CurGOPSize =  cfgChange.GOPPeriod;
 //            if (playStat.CurGOPCounter >= playStat.CurGOPSize)
 //                playStat.CurGOPCounter = 0;
@@ -403,21 +414,22 @@ int update_cfg(FILE *fp_cfg, int frame_num, handle_t *encode_info, encodecCfgPar
 //                   cfgChange.Slice_Mode,
 //                   cfgChange.Slice_Para);
 //        }
-        if (cfgChange.enable_option
+        if (cfgChange->enable_option
             & CHANGE_STRICT_RC)
         {
             vl_video_encoder_change_strict_rc(
                 encode_info,
-                cfgChange.bitrate_window,
-                cfgChange.pskip_threshold);
+                cfgChange->bitrate_window,
+                cfgChange->pskip_threshold);
             printf("Change strict rate control on %d window %d threshold %d\n",
                    frame_num,
-                   cfgChange.bitrate_window,
-                   cfgChange.pskip_threshold);
+                   cfgChange->bitrate_window,
+                   cfgChange->pskip_threshold);
         }
     }
-    if (cfgChange.FrameNum <= frame_num) {
-        cfg_encode->has_cfg_update = ParseCfgUpdateFile(fp_cfg, &cfgChange);
+
+    if (cfgChange->FrameNum <= frame_num) {
+        cfg_encode->has_cfg_update = ParseCfgUpdateFile(fp_cfg, cfgChange);
     }
     return 0;
 }
@@ -459,10 +471,16 @@ static void *encode_thread(void *param)
     //vl_codec_handle_t handle_enc = 0;
     handle_t encode_info;
     signed char frame_type = -1;
+    unsigned int frameWriteTime = 0;
+    unsigned long long totalTime = 0, ioTime = 0, encodeoneTime = 0;
+    struct timeval timeStart, timeEnd, readStart, readEnd, writeStart, writeEnd;
+    int frame_num;
+    int End_status = 0;
 
     if (NULL != param)
         cfg_encode = (encodecCfgParam *)param;
     else {
+        End_status = -1;
         goto end;
     }
 
@@ -481,18 +499,21 @@ static void *encode_thread(void *param)
     if ((cfg_encode->framerate < 0) || (cfg_encode->framerate > FRAMERATE))
     {
         printf("invalid framerate %d \n", cfg_encode->framerate);
+        End_status = -1;
         goto end;
     }
 
     if (cfg_encode->bitrate <= 0)
     {
         printf("invalid bitrate \n");
+        End_status = -1;
         goto end;
     }
 
     if (cfg_encode->num < 0)
     {
         printf("invalid num \n");
+        End_status = -1;
         goto end;
     }
 
@@ -500,12 +521,14 @@ static void *encode_thread(void *param)
     if (cfg_encode->buf_type == 3 && (cfg_encode->num_planes < 1 || cfg_encode->num_planes > 3))
     {
         printf("invalid num_planes \n");
+        End_status = -1;
         goto end;
     }
 
     if (cfg_encode->src_buf_stride && cfg_encode->src_buf_stride < cfg_encode->width) {
         printf("incorrect cust source stride %d width %d",
             cfg_encode->src_buf_stride, cfg_encode->width);
+        End_status = -1;
         goto end;
     }
 
@@ -531,6 +554,7 @@ static void *encode_thread(void *param)
     outbuffer = (unsigned char *) malloc(outbuffer_len);
     if (outbuffer == NULL) {
         printf("Can not malloc outbuffer\n");
+        End_status = -1;
         goto end;
     }
     if (cfg_encode->src_buf_stride) {
@@ -572,12 +596,14 @@ static void *encode_thread(void *param)
     inputBuffer = (unsigned char *) malloc(framesize);
     if (inputBuffer == NULL) {
         printf("Can not allocat inputBuffer\n");
+        End_status = -1;
         goto exit;
     }
     fp = fopen((const char*)cfg_encode->srcfile, "rb");
     if (fp == NULL)
     {
         printf("open src file error!\n");
+        End_status = -1;
         goto exit;
     }
 
@@ -586,6 +612,7 @@ static void *encode_thread(void *param)
         if (fp_cfg == NULL)
         {
             printf("open cfg file error!\n");
+            End_status = -1;
             goto exit;
         }
         cfg_encode->has_cfg_update = ParseCfgUpdateFile(fp_cfg, &cfgChange);
@@ -600,6 +627,7 @@ static void *encode_thread(void *param)
         if (fp_osdcfg == NULL)
         {
             printf("open osd config file error!\n");
+            End_status = -1;
             goto exit;
         }
         memset(cfg_osd, 0, MAX_OSD_NUM * sizeof(osdCfgParam));
@@ -611,6 +639,7 @@ static void *encode_thread(void *param)
         if (fp_ds == NULL)
         {
              printf("open ds config file error!\n");
+             End_status = -1;
              goto exit;
         }
         memset(&cfg_ds, 0, sizeof(dsCfgParam));
@@ -623,6 +652,7 @@ static void *encode_thread(void *param)
         if (fp_crop == NULL)
         {
              printf("open crop config file error!\n");
+             End_status = -1;
              goto exit;
         }
         memset(&cfg_crop, 0, sizeof(cropCfgParam));
@@ -633,6 +663,7 @@ static void *encode_thread(void *param)
     if (outfd < 0)
     {
         printf("open dest file error!\n");
+        End_status = -1;
         goto exit;
     }
 
@@ -757,17 +788,20 @@ static void *encode_thread(void *param)
             posdMem[i].cached = 1;
             if (vdi_allocate_dma_memory(&posdMem[i]) < 0) {
                 printf("Can not allocat dma Buffer\n");
+                End_status = -1;
                 goto end;
             }
             fp_osd[i] = fopen((const char*)cfg_osd[i].osdfile, "rb");
             if (fp_osd[i] == NULL)
             {
                 printf("open osd file %d error!\n", i);
+                End_status = -1;
                 goto exit;
             }
             osd_buffer[i] = (unsigned char *) malloc(osdsize);
             if (osd_buffer[i] == NULL) {
                 printf("Can not allocat roi_buffer\n");
+                End_status = -1;
                 goto end;
             }
         }
@@ -782,6 +816,7 @@ static void *encode_thread(void *param)
         if (dsfd < 0)
         {
             printf("open ds file error!\n");
+            End_status = -1;
             goto end;
         }
     }
@@ -815,6 +850,7 @@ static void *encode_thread(void *param)
 
     if (vdi_allocate_dma_memory(&pFbSrcMem) < 0) {
         printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+        End_status = -1;
         goto end;
     }
     //for vps/sps/pps
@@ -823,6 +859,7 @@ static void *encode_thread(void *param)
         bsBuffer[i].size = ENC_STREAM_BUF_SIZE;
         if (vdi_allocate_dma_memory(&bsBuffer[i]) < 0) {
             printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+            End_status = -1;
             goto end;
         }
         printf("[%s][%d]bsBuffer[%d].phys_addr:0x%x\n", \
@@ -853,17 +890,21 @@ static void *encode_thread(void *param)
 
     if (vl_tahoe_encoder_init(encode_info.enc_fmt, encode_info) < 0) {
         printf("vl_tahoe_encoder_init failed chnid %d\n", encode_info.chn_id);
+        End_status = -1;
         goto exit;
     }
 
+    gettimeofday(&timeStart, NULL);
     for (i = 0; i < cfg_encode->num; i++) {
         //for (int chn_id = 0; chn_id < MAX_CHANNEL; chn_id++) {
+        gettimeofday(&readStart, NULL);
         if (fread(inputBuffer, 1, framesize, fp) != framesize)
         {
             rewind(fp);
             clearerr(fp);
             if (fread(inputBuffer, 1, framesize, fp) != framesize) {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
         }
@@ -890,9 +931,12 @@ static void *encode_thread(void *param)
             }
         }
 
+        gettimeofday(&readEnd, NULL);
+        ioTime += uTimeDiff(readEnd, readStart);
+        gettimeofday(&cfg_encode->timeFrameStart, NULL);
         encode_info.enc_frame_type = FRAME_TYPE_AUTO;
         if (cfg_encode->cfg_upd_enabled && cfg_encode->has_cfg_update) {
-            update_cfg(fp_cfg, i, &encode_info, cfg_encode, cfgChange);
+            update_cfg(fp_cfg, i, &encode_info, cfg_encode, &cfgChange);
         }
         if (encode_info.poc == 0 || encode_info.poc % encode_info.enc_gop == 0)
             encode_info.enc_frame_type = FRAME_TYPE_IDR;
@@ -909,6 +953,7 @@ static void *encode_thread(void *param)
 
         vl_tahoe_encoder_encode(&encode_info);
         ret = get_bsbframe(&encode_info, outbuffer, (unsigned int *)&dataLength, &frame_type);
+        gettimeofday(&writeStart, NULL);
         if (ret == 0) {
             write(outfd, (unsigned char *) outbuffer,
                   dataLength);
@@ -920,10 +965,23 @@ static void *encode_thread(void *param)
                       dataLength);
             }
         }
+        gettimeofday(&writeEnd, NULL);
+        frameWriteTime = uTimeDiff(writeEnd, writeStart);
+        ioTime += frameWriteTime;
+        gettimeofday(&cfg_encode->timeFrameEnd, NULL);
         encode_info.poc++;
-        printf("==%s, %d, chn_id:%d num %d\n", __func__, __LINE__, encode_info.chn_id, i);
+        encodeoneTime = uTimeDiff(writeStart, readEnd);
+        printf("==%s, %d, chn_id:%d num %d, Encode one frame time %llu us\n", __func__, __LINE__, encode_info.chn_id, i, encodeoneTime);
+        frame_num = i;
     }
 
+    gettimeofday(&timeEnd, NULL);
+    totalTime = uTimeDiffLL(timeEnd, timeStart);
+    printf("[Total time: %llu us], [IO time: %llu us]\n", totalTime, ioTime);
+    if (frame_num > 1) {
+        printf("[Encode Total time: %llu us], [avgTime: %llu us], [avgfps: %d]\n", totalTime - ioTime,
+               (totalTime - ioTime) / frame_num, 1*1000*1000/((totalTime - ioTime) / frame_num));
+    }
 exit:
 
     vl_tahoe_encoder_destroy(encode_info);
@@ -951,7 +1009,13 @@ exit:
 
     if (dsfd >= 0)
         close(dsfd);
-    printf("Encode End! width:%d\n", cfg_encode->width);
+
+    if (End_status == 0)
+        printf("Encode End Succeeded! width:%d\n", cfg_encode->width);
+    else if (End_status == -1)
+        printf("Encode Failed! width:%d\n", cfg_encode->width);
+    else
+        printf("Encode End with unknown status:%d\n", End_status);
 
 end:
     cfg_encode->encodeEnd  = 1;
@@ -1237,7 +1301,7 @@ static int ParseOsdCfgFile(FILE *fp, osdCfgParam *cfg_osd)
 
         printf("[%s][%d]:%s\n",__func__,__LINE__,lineStr);
         // keep the original
-        memcpy(valueStr, lineStr, strlen(lineStr));
+        snprintf(valueStr, sizeof(valueStr), "%s", lineStr);
         //param is separated by ' '
         token = strtok(valueStr, delim);
         if (token == NULL) {
@@ -1796,7 +1860,7 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
             has_update = 0;
             continue;
 
-        } else if (has_update ==0) {// clear the options
+        } else if (has_update == 0) {// clear the options
             cfg_update->FrameNum = frameIdx;
             cfg_update->enable_option = 0;
             has_update = 1;
@@ -1813,7 +1877,6 @@ static int ParseCfgUpdateFile(FILE *fp, CfgChangeParam *cfg_update)
         if (strcasecmp("ForceType",token) == 0) {
             // force picture type
             token = strtok(NULL, ":\r\n");
-            printf("===========%s, %d, frameIdx %d\n", __func__, __LINE__, frameIdx);
             while (token && strlen(token) == 1
                 && strncmp(token, " ", 1) == 0)
             token = strtok(NULL, ":\r\n"); //check space

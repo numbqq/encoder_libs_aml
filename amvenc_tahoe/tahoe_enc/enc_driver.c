@@ -501,6 +501,7 @@ void encode_one_frame(handle_t *handle)
 
     if (handle->enc_frame_type == FRAME_TYPE_I) {
         venc_write_register(ENC_PARA_FRAME_TYPE, FORCE_IDR_TYPE);
+        VLOG(INFO,"[%s][%d]encode_one_frame force idr %d \n", __func__, __LINE__, handle->poc);
     }
 
     if (handle->poc_init <= 1) {

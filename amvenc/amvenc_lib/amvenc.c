@@ -9,12 +9,14 @@
 #include "amvenc_264.h"
 #include "amvenc_265.h"
 #include "amvenc_vers.h"
+#include "amvenc_tahoe.h"
 
 
 #define AMVENC_MULTI_DEVICE "/dev/amvenc_multi"
 #define AMVENC_264_DEVICE   "/dev/amvenc_avc"
 #define AMVENC_265_DEVICE   "/dev/HevcEnc"
 #define AMVENC_VERS_DEVICE   "/dev/vc8000"
+#define AMVENC_TAHOE_DEVICE  "/dev/tahoe"
 
 typedef enum amvenc_hw_e {
     AMVENC_UNKNOWN,
@@ -22,6 +24,7 @@ typedef enum amvenc_hw_e {
     AMVENC_264,
     AMVENC_265,
     AMVENC_VERS,
+    AMVENC_TAHOE,
     AMVENC_MAX,
 } amvenc_hw_t;
 
@@ -84,12 +87,23 @@ static const struct amvenc_manager_s amvenc_vers_data = {
     .unloadModule = amvenc_vers_unload_Module,
 };
 
+static const struct amvenc_manager_s amvenc_tahoe_data = {
+    .loadModule = amvenc_tahoe_load_Module,
+    .init = amvenc_tahoe_init,
+    .generate_header = amvenc_tahoe_generate_header,
+    .encode = amvenc_tahoe_encode,
+    .change_bitrate = amvenc_tahoe_change_bitrate,
+    .destroy = amvenc_tahoe_destroy,
+    .unloadModule = amvenc_tahoe_unload_Module,
+};
+
 const static struct amvenc_manager_s *amvenc_manager[] = {
     NULL,
     &amvenc_multi_data,
     &amvenc_264_data,
     &amvenc_265_data,
     &amvenc_vers_data,
+    &amvenc_tahoe_data,
     NULL,
 };
 
@@ -119,6 +133,11 @@ int selectHW(amvenc_codec_id_t codec_id, int *hw_type)
             VLOG(DEBUG, "amvenc_vers present");
             ret = 0;
         }
+        else if (access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) {
+            *hw_type = AMVENC_TAHOE;
+            VLOG(DEBUG, "amvenc_tahoe present");
+            ret = 0;
+        }
         else {
             VLOG(ERR, "can not find available h.264 driver!!!,please check!");
         }
@@ -137,6 +156,11 @@ int selectHW(amvenc_codec_id_t codec_id, int *hw_type)
         else if (access(AMVENC_VERS_DEVICE, F_OK ) != -1) {
             *hw_type = AMVENC_VERS;
             VLOG(DEBUG, "amvenc_vers present");
+            ret = 0;
+        }
+        else if (access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) {
+            *hw_type = AMVENC_TAHOE;
+            VLOG(DEBUG, "amvenc_tahoe present");
             ret = 0;
         }
         else {

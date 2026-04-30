@@ -41,6 +41,7 @@ SOURCES = amvenc.c  \
 		  amvenc_264.c \
 		  amvenc_265.c \
 		  amvenc_vers.c \
+		  amvenc_tahoe.c
 
 OBJECTNAMES=$(patsubst %.c,%.o, $(SOURCES))
 OBJECTPATHS=$(addprefix $(OUT_DIR)/$(OBJDIR)/,$(notdir $(OBJECTNAMES)))

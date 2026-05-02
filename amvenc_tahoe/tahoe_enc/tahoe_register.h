@@ -257,17 +257,20 @@ typedef union TAHOE_VRISC_MISC_FIELD {
 
 #define TAHOE_CFG                       TAHOE_VCE_SCRATCH_15
 #define TAHOE_EC_DMA0                   (TAHOE_VRISC_BASE + 0x1c08)
+#define TAHOE_EC_DMA6                   (TAHOE_VRISC_BASE + 0x1c20)
 #define TAHOE_EC_LENGTH                 (TAHOE_VRISC_BASE + 0x1c78)
 #define TAHOE_RDO_PREMD_PARA            (TAHOE_VRISC_BASE + 0x1424)
 #define TAHOE_DQME_SEARCH_CFG           (TAHOE_VRISC_BASE + 0x1018)
 #define PRP_MFDI_STRIDE_0               TAHOE_VRISC_SCRATCH_25
 #define PRP_MFDI_STRIDE_1               TAHOE_VRISC_SCRATCH_26
 #define PRP_MFDI_STRIDE_2               TAHOE_VRISC_SCRATCH_27
+#define INPUT_BUF_ADDR_MSB              TAHOE_VRISC_SCRATCH_3 //bit 0~1:y 2~3:cb 4~5:cr
 
 #define HEADER_VPS_ADDR               TAHOE_VCE_SCRATCH_9
 #define HEADER_SPS_ADDR               TAHOE_VCE_SCRATCH_10
 #define HEADER_PPS_ADDR               TAHOE_VCE_SCRATCH_11
 #define HEADER_SIZE                   TAHOE_VCE_SCRATCH_12
+#define HEADER_ADDR_HIGHER            TAHOE_VCE_SCRATCH_13 //bit 0~1:sps 2~3:pps 4~5:vps
 #define ENC_PARA_FRAME_TYPE           TAHOE_VRISC_SCRATCH_15 //force frame type I/IDR
 
 

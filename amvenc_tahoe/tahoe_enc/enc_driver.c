@@ -129,6 +129,8 @@ void firmware_boot()
     int data = 0;
     venc_info_t *venc = &s_venc_info;
     venc_write_register(TAHOE_VRISC_MBASE, venc->fw_buffer.phys_addr);
+    venc_write_register(TAHOE_VRISC_MISC, ((venc->fw_buffer.phys_addr >> 32 & 0x03) << 16));
+    VLOG(INFO,"TAHOE MBASE:%x,MISC:%x\n",venc_read_register(TAHOE_VRISC_MBASE),venc_read_register(TAHOE_VRISC_MISC));
 
     venc_write_register(TAHOE_VRISC_MPRELOAD,
         (PRELOAD_SIZE << 0) |    // mpreload_size_m1
@@ -162,6 +164,7 @@ void create_channel(handle_t handle)
     int data = 0;
     VLOG(INFO,"[%s][%d]create_channel start\n", __func__, __LINE__);
     venc_info_t *venc = &s_venc_info;
+    ulong fw_addr = 0;
     disable_host_scrw_irq();
 
     venc_write_register(CHN_ID, handle.chn_id);
@@ -170,8 +173,10 @@ void create_channel(handle_t handle)
     venc_write_register(ENC_PIC_W, handle.enc_width);
     venc_write_register(ENC_PIC_H, handle.enc_height);
 
-    venc_write_register(MEM_POOL_ADDR_MSB, 0); //addr bit num flag: tahoe:1, c4:0
-    venc_write_register(MEM_POOL_ADDR_LSB, venc->common_buffer.phys_addr + (handle.chn_id * 0x2000000)); //fw memory pool
+    fw_addr = venc->common_buffer.phys_addr + (handle.chn_id * 0x2000000);
+    venc_write_register(MEM_POOL_ADDR_MSB, fw_addr >> 32 & 0x03);
+    venc_write_register(MEM_POOL_ADDR_LSB, fw_addr); //fw memory pool
+    VLOG(ERR,"msb:%x,lsb:%x\n",venc_read_register(MEM_POOL_ADDR_MSB),venc_read_register(MEM_POOL_ADDR_LSB));
 
     venc_write_register(ENC_FPS, handle.enc_fps);
     venc_write_register(ENC_GOP, handle.enc_gop);
@@ -228,14 +233,20 @@ void encode_header(handle_t *handle)
     venc_write_register(CHN_ID, handle->chn_id);
 
 //for vps/sps/pps
-    venc_write_register(HEADER_VPS_ADDR, handle->header_buf_addr_lsb[0]);
-    venc_write_register(HEADER_SPS_ADDR, handle->header_buf_addr_lsb[1]);
-    venc_write_register(HEADER_PPS_ADDR, handle->header_buf_addr_lsb[2]);
-    printf("[%s][%d]handle->header_buff 0:0x%x, 1:0x%x, 2:0x%x\n", \
+    venc_write_register(HEADER_VPS_ADDR, handle->header_buf_addr[0]);
+    venc_write_register(HEADER_SPS_ADDR, handle->header_buf_addr[1]);
+    venc_write_register(HEADER_PPS_ADDR, handle->header_buf_addr[2]);
+    venc_write_register(HEADER_ADDR_HIGHER, (((handle->header_buf_addr[1] >> 32) & 0x3) | \
+                                            (((handle->header_buf_addr[2] >> 32) & 0x03) << 2) | \
+                                            (((handle->header_buf_addr[0] >> 32) & 0x03) << 4)));
+
+    VLOG(INFO,"msb: %x %x %x\n",((handle->header_buf_addr[1] >> 32) & 0x3),(((handle->header_buf_addr[2] >> 32) & 0x03) << 2),(((handle->header_buf_addr[0] >> 32) & 0x03) << 4));
+    VLOG(INFO,"[%s][%d]handle->header_buff 0:0x%lx, 1:0x%lx, 2:0x%lx msb:%x\n", \
         __func__,__LINE__,
-        handle->header_buf_addr_lsb[0], \
-        handle->header_buf_addr_lsb[1], \
-        handle->header_buf_addr_lsb[2]);
+        handle->header_buf_addr[0], \
+        handle->header_buf_addr[1], \
+        handle->header_buf_addr[2], \
+        venc_read_register(HEADER_ADDR_HIGHER));
 
     enable_vrisc_scrw_irq();
     venc_write_register(CMD_OPT_CODE, CMD_GET_ENC_PARAMETERS);
@@ -267,6 +278,9 @@ void osd_config(handle_t *handle)
     if (handle->tahoe_enc_pic.osd_enable) {
         for (i = 0; i < MAX_OSD_NUM; i++) {
             if (handle->tahoe_enc_pic.osd_config[i].enable == 1) {
+                handle->tahoe_enc_pic.osd_config[i].y_baseaddr_h2bit = ((handle->tahoe_enc_pic.osd_config[i].y_baseaddr >> 32) & 0x03);
+                handle->tahoe_enc_pic.osd_config[i].c_baseaddr_h2bit = handle->tahoe_enc_pic.osd_config[i].y_baseaddr_h2bit;
+                VLOG(INFO,"osd [%d] y_addr:%lx,h2bit:%x\n",i,handle->tahoe_enc_pic.osd_config[i].y_baseaddr,handle->tahoe_enc_pic.osd_config[i].y_baseaddr_h2bit);
                 handle->tahoe_enc_pic.osd[i].prp_osd_common = (handle->tahoe_enc_pic.osd_config[i].enable << 0) |\
                     (handle->tahoe_enc_pic.osd_config[i].format << 1) |\
                     (handle->tahoe_enc_pic.osd_config[i].alpha_mode << 4) |\
@@ -500,19 +514,23 @@ void encode_one_frame(handle_t *handle)
     }
     VLOG(INFO,"buf_stride:%d,fmt:%d",handle->buf_stride,handle->mfdin_input_fmt);
     //printf("buf_stride:%d,fmt:%d",handle->buf_stride,handle->mfdin_input_fmt);
-    venc_write_register(TAHOE_VRISC_SCRATCH_29, handle->tahoe_enc_pic.inpt_buf_addr_lsb[0]);//传yuv的地址；
-    venc_write_register(TAHOE_VRISC_SCRATCH_30, handle->tahoe_enc_pic.inpt_buf_addr_lsb[1]);
-    venc_write_register(TAHOE_VRISC_SCRATCH_31, handle->tahoe_enc_pic.inpt_buf_addr_lsb[2]);
+    venc_write_register(TAHOE_VRISC_SCRATCH_29, handle->tahoe_enc_pic.inpt_buf_addr[0]);//传yuv的地址；
+    venc_write_register(TAHOE_VRISC_SCRATCH_30, handle->tahoe_enc_pic.inpt_buf_addr[1]);
+    venc_write_register(TAHOE_VRISC_SCRATCH_31, handle->tahoe_enc_pic.inpt_buf_addr[2]);
+    venc_write_register(INPUT_BUF_ADDR_MSB, ((handle->tahoe_enc_pic.inpt_buf_addr[0] >> 32) & 0x03) | \
+                                            (((handle->tahoe_enc_pic.inpt_buf_addr[0] >> 32) & 0x03) << 2) | \
+                                            (((handle->tahoe_enc_pic.inpt_buf_addr[0] >> 32) & 0x03) << 4));
     //printf("[%s][%d]y:0x%x, u:0x%x, v:0x%x\n", \
     //    __func__,__LINE__,
     //    handle->tahoe_enc_pic.inpt_buf_addr_lsb[0], \
     //    handle->tahoe_enc_pic.inpt_buf_addr_lsb[1], \
     //    handle->tahoe_enc_pic.inpt_buf_addr_lsb[2]);
-    VLOG(INFO,"[%s][%d]y:0x%x, u:0x%x, v:0x%x\n", \
+    VLOG(INFO,"[%s][%d]y:0x%lx, u:0x%lx, v:0x%lx,msb:%x\n", \
         __func__,__LINE__,
-        handle->tahoe_enc_pic.inpt_buf_addr_lsb[0], \
-        handle->tahoe_enc_pic.inpt_buf_addr_lsb[1], \
-        handle->tahoe_enc_pic.inpt_buf_addr_lsb[2]);
+        handle->tahoe_enc_pic.inpt_buf_addr[0], \
+        handle->tahoe_enc_pic.inpt_buf_addr[1], \
+        handle->tahoe_enc_pic.inpt_buf_addr[2], \
+        venc_read_register(INPUT_BUF_ADDR_MSB));
 
     //venc_write_register(MFDI_ROTATION_MODE, (handle->rotation_mode & 0x3) << 1 |
     //                                        (handle->mirror_mode & 0x3) << 3);

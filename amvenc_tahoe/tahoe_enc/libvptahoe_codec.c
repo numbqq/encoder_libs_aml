@@ -336,10 +336,12 @@ int vl_tahoe_encoder_generate_header(handle_t *encode_info)
 
     venc_lock();
     encode_header(encode_info);
-    encode_info->enc_header.vpsPhyAddr = venc_read_register(HEADER_VPS_ADDR);
-    encode_info->enc_header.spsPhyAddr = venc_read_register(HEADER_SPS_ADDR);
-    encode_info->enc_header.ppsPhyAddr = venc_read_register(HEADER_PPS_ADDR);
+    encode_info->enc_header.vpsPhyAddr = ((((ulong)(venc_read_register(HEADER_ADDR_HIGHER) >> 4) & 0x03)) << 32) | venc_read_register(HEADER_VPS_ADDR);
+    encode_info->enc_header.spsPhyAddr = (((ulong)(venc_read_register(HEADER_ADDR_HIGHER) & 0x03)) << 32) | venc_read_register(HEADER_SPS_ADDR);
+    encode_info->enc_header.ppsPhyAddr = ((((ulong)(venc_read_register(HEADER_ADDR_HIGHER) >> 2) & 0x03)) << 32) | venc_read_register(HEADER_PPS_ADDR);
     encode_info->enc_header.headerLength = venc_read_register(HEADER_SIZE);
+
+    VLOG(INFO,"header addr %lx %lx %lx\n",encode_info->enc_header.vpsPhyAddr,encode_info->enc_header.spsPhyAddr,encode_info->enc_header.ppsPhyAddr);
     venc_unlock();
 
     return ret;
@@ -371,8 +373,11 @@ int vl_tahoe_encoder_encode(handle_t *encode_info)
     }
     encode_info->enc_es.slice_header_length = venc_read_register(TAHOE_EC_DMA0) & 0x3F;
     encode_info->enc_es.esPhyAddr = venc_read_register(TAHOE_EC_DMA0) - encode_info->enc_es.slice_header_length;
+    encode_info->enc_es.esPhyAddr |= (((ulong)(venc_read_register(TAHOE_EC_DMA6) & 0x03)) << 32);
     encode_info->enc_es.eslength = venc_read_register(TAHOE_EC_LENGTH);
     encode_info->enc_es.frame_type = venc_read_register(OUTPUT_FRAME_TYPE);
+
+    VLOG(INFO,"es buffer phyaddr:%lx,lsb:%x",encode_info->enc_es.esPhyAddr,(venc_read_register(TAHOE_EC_DMA0) - encode_info->enc_es.slice_header_length));
 
     venc_unlock();
     return ret;

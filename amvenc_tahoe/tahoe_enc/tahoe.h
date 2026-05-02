@@ -127,8 +127,8 @@ typedef struct {
     s32 bitmap_y;
     s32 bitmap_u;
     s32 bitmap_v;
-    s32 y_baseaddr;
-    s32 c_baseaddr;
+    ulong y_baseaddr;
+    ulong c_baseaddr;
     s32 stride;
 } osd_config_t;
 
@@ -143,8 +143,7 @@ typedef struct {
 } venc_osd_element_t;
 
 typedef struct {
-    s32 inpt_buf_addr_lsb[3];
-    s32 inpt_buff_addr_msb;
+    ulong inpt_buf_addr[3];
     s32 input_stride[3];
     s32 inpt_buff_pts;
     s32 osd_enable;
@@ -210,7 +209,7 @@ typedef struct {
     s32 mfdin_input_stride;
     s32 mfdin_input_stride1;
     s32 mfdin_input_stride2;
-    s32 header_buf_addr_lsb[3]; //vps/sps/pps
+    ulong header_buf_addr[3]; //vps/sps/pps
 
     u32 ds_w;
     u32 ds_h;

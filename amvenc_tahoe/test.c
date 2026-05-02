@@ -73,6 +73,12 @@
 #define ENC_STREAM_BUF_SIZE  0x100000
 #define CFG_ENCODE_NUM_MAX 6
 
+#if VENDOR_FW
+#define FW_PATH  "/vendor/lib/firmware/video/fw.bin"
+#else
+#define FW_PATH  "/lib/firmware/video/fw.bin"
+#endif
+
 typedef struct {
     int osdNum;
     //int enable;
@@ -829,20 +835,21 @@ static void *encode_thread(void *param)
     }
     printf("handle[chn_id].buf_stride is: %d \n", encode_info.buf_stride);
 
-    encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[0] = pFbSrcMem.phys_addr;
+    encode_info.tahoe_enc_pic.inpt_buf_addr[0] = pFbSrcMem.phys_addr;
     if ((cfg_encode->fmt == IMG_FMT_NV12) || (cfg_encode->fmt == IMG_FMT_NV21)) {
-        encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
-        encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[2] = encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[1];
+        encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
+        encode_info.tahoe_enc_pic.inpt_buf_addr[2] = encode_info.tahoe_enc_pic.inpt_buf_addr[1];
     } else if (cfg_encode->fmt == IMG_FMT_YUV420P) {
-        encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
-        encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[2] = pFbSrcMem.phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
+        encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
+        encode_info.tahoe_enc_pic.inpt_buf_addr[2] = pFbSrcMem.phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
     }
-    encode_info.header_buf_addr_lsb[0] = bsBuffer[0].phys_addr;
-    encode_info.header_buf_addr_lsb[1] = bsBuffer[1].phys_addr;
-    encode_info.header_buf_addr_lsb[2] = bsBuffer[2].phys_addr;
+    encode_info.header_buf_addr[0] = bsBuffer[0].phys_addr;
+    encode_info.header_buf_addr[1] = bsBuffer[1].phys_addr;
+    encode_info.header_buf_addr[2] = bsBuffer[2].phys_addr;
 
+    printf("header buf addr:%lx %lx %lx\n",encode_info.header_buf_addr[0],encode_info.header_buf_addr[1],encode_info.header_buf_addr[2]);
     printf("New allocate frame address y:0x%x cb:0x%x cr:0x%x\n",
-               encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[0], encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[1], encode_info.tahoe_enc_pic.inpt_buf_addr_lsb[2]);
+               encode_info.tahoe_enc_pic.inpt_buf_addr[0], encode_info.tahoe_enc_pic.inpt_buf_addr[1], encode_info.tahoe_enc_pic.inpt_buf_addr[2]);
 
     if (vl_tahoe_encoder_init(encode_info.enc_fmt, encode_info) < 0) {
         printf("vl_tahoe_encoder_init failed chnid %d\n", encode_info.chn_id);
@@ -959,6 +966,8 @@ int main(int argc, char **argv)
     int len = 0;
     FILE *fp_cfg_encode = NULL;
     encodecCfgParam cfg_encode[CFG_ENCODE_NUM_MAX];
+
+    tahoe_set_log_level(NONE);
 
     if ((argc != 2) && (argc < 13)) {
         printf("Amlogic Encoder API \n");
@@ -1177,7 +1186,7 @@ int main(int argc, char **argv)
         cfg_encode[0].seqNum = 1;
     }
 
-    encoder_open("fw.bin");
+    encoder_open(/*"fw.bin"*/FW_PATH);
     printf("===========%s, %d, cfg_encode[0].seqNum:%d\n", __func__, __LINE__, cfg_encode[0].seqNum);
 
     pthread_t tid[CFG_ENCODE_NUM_MAX];

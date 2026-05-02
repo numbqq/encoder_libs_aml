@@ -11,6 +11,10 @@ LOCAL_SRC_FILES += tahoe_enc/vdi.c \
 
 LOCAL_SHARED_LIBRARIES :=  libion \
                            libstagefright_foundation
+LOCAL_SHARED_LIBRARIES +=  libcutils \
+                           libutils  \
+                           libion \
+                           liblog
 
 LOCAL_C_INCLUDES := $(TOP)/frameworks/av/media/libstagefright/foundation/include \
                     $(TOP)/system/memory/libion \
@@ -19,7 +23,7 @@ LOCAL_C_INCLUDES := $(TOP)/frameworks/av/media/libstagefright/foundation/include
                     $(TOP)/system/memory/include/ion \
                     $(LOCAL_PATH)/tahoe_enc/include \
 		    $(LOCAL_PATH)/tahoe_enc
-LOCAL_CFLAGS += -Wno-multichar -Wno-unused
+LOCAL_CFLAGS += -Wno-multichar -Wno-unused -DVENDOR_FW
 
 
 LOCAL_MODULE_TAGS := optional

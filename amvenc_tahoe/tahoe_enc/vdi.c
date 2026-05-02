@@ -33,7 +33,9 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -152,7 +154,6 @@ void safe_memcpy(void *dst, const void *src, size_t n) {
     }
 }
 
-
 int vdi_read_memory(ulong addr, unsigned char *data, int len)
 {
     venc_info_t *venc;
@@ -188,6 +189,7 @@ int vdi_read_memory(ulong addr, unsigned char *data, int len)
 
     vdi_invalidate_memory(&vdb);
     safe_memcpy(data, (const void *)((ulong)vdb.virt_addr+offset), len);
+    //memcpy(data, (const void *)((ulong)vdb.virt_addr+offset), len);
     VLOG(INFO,"memcpy over\n");
 
     return len;

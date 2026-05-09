@@ -65,6 +65,7 @@
 #define FORCE_PICTURE_SKIP	0x100
 #define CHANGE_STRICT_RC	0x200
 #define ENCODER_STRING_LEN_MAX	256
+#define POWER_TEST_NUM_MAX 7
 
 
 #define WIDTH 3840
@@ -171,7 +172,7 @@ typedef struct {
     int   buf_type;        // 0:vmalloc, 3:dma buffer
     int   num_planes;      // used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)
     int   codec_id;        // 4 : h.264, 5 : h.265
-    int   cfg_opt;         /* optional, flags to control the encode feature settings
+    unsigned int   cfg_opt;         /* optional, flags to control the encode feature settings
                             bit 0:roi control. 0: disabled (default) 1: enabled
                             bit 1: update control. 0: disabled (default) 1: enabled
                             bit 2 ~ bit 6 encode GOP pattern options:
@@ -217,6 +218,7 @@ typedef struct {
     int   rc_mode;
     unsigned int frame_rotation;
     unsigned int frame_mirroring;
+    int power_test_enabled;
 } encodecCfgParam;
 
 
@@ -453,6 +455,7 @@ static void *encode_thread(void *param)
     unsigned int dataLength = 0;
     unsigned char *inputBuffer = NULL;
     unsigned char *osd_buffer[MAX_OSD_NUM];
+    venc_buffer_t pFbPwSrcMem[POWER_TEST_NUM_MAX];
     venc_buffer_t pFbSrcMem;
     venc_buffer_t posdMem[MAX_OSD_NUM];
     venc_buffer_t bsBuffer[3];
@@ -476,6 +479,7 @@ static void *encode_thread(void *param)
     struct timeval timeStart, timeEnd, readStart, readEnd, writeStart, writeEnd;
     int frame_num;
     int End_status = 0;
+    int pw = 0;
 
     if (NULL != param)
         cfg_encode = (encodecCfgParam *)param;
@@ -844,15 +848,29 @@ static void *encode_thread(void *param)
         encode_info.mfdin_input_fmt = MFDI_INPUT_FMT_RGBA8888;
     }
 
-    memset(&pFbSrcMem, 0, sizeof(pFbSrcMem));
-    pFbSrcMem.size = framesize;
-    pFbSrcMem.cached = 1;
+    if (cfg_encode->power_test_enabled) {
+        memset(pFbPwSrcMem, 0, sizeof(pFbPwSrcMem));
+        for (pw = 0; pw < POWER_TEST_NUM_MAX; pw++) {
+            pFbPwSrcMem[pw].size = framesize;
+            pFbPwSrcMem[pw].cached = 1;
 
-    if (vdi_allocate_dma_memory(&pFbSrcMem) < 0) {
-        printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
-        End_status = -1;
-        goto end;
+            if (vdi_allocate_dma_memory(&pFbPwSrcMem[pw]) < 0) {
+                printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+                goto end;
+            }
+        }
+    } else {
+        memset(&pFbSrcMem, 0, sizeof(pFbSrcMem));
+        pFbSrcMem.size = framesize;
+        pFbSrcMem.cached = 1;
+
+        if (vdi_allocate_dma_memory(&pFbSrcMem) < 0) {
+            printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+            End_status = -1;
+            goto end;
+        }
     }
+
     //for vps/sps/pps
     for (i = 0; i < 3; i++) {
         memset(&bsBuffer[i], 0, sizeof(bsBuffer[i]));
@@ -872,14 +890,17 @@ static void *encode_thread(void *param)
     }
     printf("handle[chn_id].buf_stride is: %d \n", encode_info.buf_stride);
 
-    encode_info.tahoe_enc_pic.inpt_buf_addr[0] = pFbSrcMem.phys_addr;
-    if ((cfg_encode->fmt == IMG_FMT_NV12) || (cfg_encode->fmt == IMG_FMT_NV21)) {
-        encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
-        encode_info.tahoe_enc_pic.inpt_buf_addr[2] = encode_info.tahoe_enc_pic.inpt_buf_addr[1];
-    } else if (cfg_encode->fmt == IMG_FMT_YUV420P) {
-        encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
-        encode_info.tahoe_enc_pic.inpt_buf_addr[2] = pFbSrcMem.phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
+    if (!cfg_encode->power_test_enabled) {
+        encode_info.tahoe_enc_pic.inpt_buf_addr[0] = pFbSrcMem.phys_addr;
+        if ((cfg_encode->fmt == IMG_FMT_NV12) || (cfg_encode->fmt == IMG_FMT_NV21)) {
+            encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
+            encode_info.tahoe_enc_pic.inpt_buf_addr[2] = encode_info.tahoe_enc_pic.inpt_buf_addr[1];
+        } else if (cfg_encode->fmt == IMG_FMT_YUV420P) {
+            encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbSrcMem.phys_addr + encode_info.buf_stride * encode_info.enc_height;
+            encode_info.tahoe_enc_pic.inpt_buf_addr[2] = pFbSrcMem.phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
+        }
     }
+
     encode_info.header_buf_addr[0] = bsBuffer[0].phys_addr;
     encode_info.header_buf_addr[1] = bsBuffer[1].phys_addr;
     encode_info.header_buf_addr[2] = bsBuffer[2].phys_addr;
@@ -894,21 +915,49 @@ static void *encode_thread(void *param)
         goto exit;
     }
 
+    if (cfg_encode->power_test_enabled) {
+        for (pw = 0; pw < POWER_TEST_NUM_MAX; pw++) {
+            if (fread(inputBuffer, 1, framesize, fp) != framesize)
+            {
+                rewind(fp);
+                clearerr(fp);
+                if (fread(inputBuffer, 1, framesize, fp) != framesize) {
+                    printf("read input file error!\n");
+                    End_status = -1;
+                    goto exit;
+                }
+            }
+            memcpy((void *)((unsigned long)pFbPwSrcMem[pw].virt_addr), inputBuffer, framesize);
+        }
+    }
+
     gettimeofday(&timeStart, NULL);
     for (i = 0; i < cfg_encode->num; i++) {
         //for (int chn_id = 0; chn_id < MAX_CHANNEL; chn_id++) {
         gettimeofday(&readStart, NULL);
-        if (fread(inputBuffer, 1, framesize, fp) != framesize)
-        {
-            rewind(fp);
-            clearerr(fp);
-            if (fread(inputBuffer, 1, framesize, fp) != framesize) {
-                printf("read input file error!\n");
-                End_status = -1;
-                goto exit;
+        if (cfg_encode->power_test_enabled) {
+            pw = i % POWER_TEST_NUM_MAX;
+            encode_info.tahoe_enc_pic.inpt_buf_addr[0] = pFbPwSrcMem[pw].phys_addr;
+            if ((cfg_encode->fmt == IMG_FMT_NV12) || (cfg_encode->fmt == IMG_FMT_NV21)) {
+                encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbPwSrcMem[pw].phys_addr + encode_info.buf_stride * encode_info.enc_height;
+                encode_info.tahoe_enc_pic.inpt_buf_addr[2] = encode_info.tahoe_enc_pic.inpt_buf_addr[1];
+            } else if (cfg_encode->fmt == IMG_FMT_YUV420P) {
+                encode_info.tahoe_enc_pic.inpt_buf_addr[1] = pFbPwSrcMem[pw].phys_addr + encode_info.buf_stride * encode_info.enc_height;
+                encode_info.tahoe_enc_pic.inpt_buf_addr[2] = pFbPwSrcMem[pw].phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
             }
+        } else {
+            if (fread(inputBuffer, 1, framesize, fp) != framesize)
+            {
+                rewind(fp);
+                clearerr(fp);
+                if (fread(inputBuffer, 1, framesize, fp) != framesize) {
+                    printf("read input file error!\n");
+                    End_status = -1;
+                    goto exit;
+                }
+            }
+            memcpy((void *)((unsigned long)pFbSrcMem.virt_addr), inputBuffer, framesize);
         }
-        memcpy((void *)((unsigned long)pFbSrcMem.virt_addr), inputBuffer, framesize);
 
         if (cfg_encode->osd_enabled) {
             for (k = 0; k < cfg_osd[0].osdNum; k++) {
@@ -1066,6 +1115,7 @@ int main(int argc, char **argv)
         printf("            \t\t  bit 24: osd control. 0: disabled (default) 1: enabled\n");
         printf("            \t\t  bit 25: ds control. 0: disabled (default) 1: enabled\n");
         printf("            \t\t  bit 26: crop control. 0: disabled (default) 1: enabled\n");
+        printf("            \t\t  bit 31: power test control. 0: disabled (default) 1: enabled\n");
         printf("  roifile  \t: optional, roi info url in root fs, no present if roi is disabled\n");
         printf("  cfg_file \t: optional, cfg update info url. no present if update is disabled\n");
         printf("  src_buf_stride \t: optional, source buffer stride\n");
@@ -1236,14 +1286,15 @@ int main(int argc, char **argv)
         if (cfg_encode[0].cfg_opt > 0) {
             cfg_encode[0].frame_rotation = (cfg_encode[0].cfg_opt >> 14) & 0x03;
             cfg_encode[0].frame_mirroring = (cfg_encode[0].cfg_opt >> 16) & 0x03;
-            printf("frame_rotation=%d, frame_mirroring=%d\n",
-                   cfg_encode[0].frame_rotation, cfg_encode[0].frame_mirroring);
+            cfg_encode[0].power_test_enabled = (cfg_encode[0].cfg_opt >> 31) & 0x1;
+            printf("frame_rotation=%d, frame_mirroring=%d, power_test=%d\n",
+                   cfg_encode[0].frame_rotation, cfg_encode[0].frame_mirroring, cfg_encode[0].power_test_enabled);
         }
         cfg_encode[0].seqNum = 1;
     }
 
     encoder_open(/*"fw.bin"*/FW_PATH);
-    printf("===========%s, %d, cfg_encode[0].seqNum:%d\n", __func__, __LINE__, cfg_encode[0].seqNum);
+    printf("==%s, %d, cfg_encode[0].seqNum:%d\n", __func__, __LINE__, cfg_encode[0].seqNum);
 
     pthread_t tid[CFG_ENCODE_NUM_MAX];
     for (i = 0; i < cfg_encode[0].seqNum; i ++) {

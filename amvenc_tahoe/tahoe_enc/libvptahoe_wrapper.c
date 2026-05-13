@@ -49,7 +49,7 @@
 int input_fd_dump = -1;
 int output_fd_dump = -1;
 
-#define DUMP_FILE_ENABLE  0
+#define DUMP_FILE_ENABLE 0
 
 
 #if VENDOR_FW
@@ -64,8 +64,9 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     char fwfile[FW_STRING_LEN_MAX] = {0};
     int ret = 0;
     int i = 0;
+    //venc_buffer_t input_buf = {0};
 
-    tahoe_set_log_level(NONE);
+    tahoe_set_log_level(ERR);
 
     handle_t *encode_info = (handle_t *)malloc(sizeof(handle_t));
     if (!encode_info) {
@@ -134,6 +135,23 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     if (ret < 0) {
         VLOG(ERR,"init encode failed!,ret:%d\n",ret);
         return 0;
+    }
+
+    encode_info->input_buf[0].cached = 1;
+    if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV12 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV21 ||
+        encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_YUV420_PLANAR) {
+        encode_info->input_buf[0].size = encode_info->enc_width * encode_info->enc_height * 3 / 2;//fix me!!!
+    }
+    else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGB888) {
+        encode_info->input_buf[0].size = encode_info->enc_width * encode_info->enc_height * 3;//fix me!!!
+    }
+    else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGBA8888) {
+        encode_info->input_buf[0].size = encode_info->enc_width * encode_info->enc_height * 4;//fix me!!!
+    }
+
+    if (vdi_allocate_dma_memory(&encode_info->input_buf[0]) < 0) {
+        VLOG(ERR,"Can not allocat input Buffer in vmalloc mode!\n");
+        return -1;
     }
 
     for (i = 0; i < 3; i++) {
@@ -258,7 +276,7 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     signed char frame_type = -1;
     vt_encoding_metadata_t result;
     handle_t *encode_info = 0;
-    venc_buffer_t input_buf = {0};
+    //venc_buffer_t input_buf = {0};
     int header_length = 0;
     int i = 0;
     tahoe_dma_buf_info_t dma_info_map;
@@ -273,23 +291,30 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     }
 
     if (VMALLOC_TYPE == in_buffer_info->buf_type) {
-        memset(&input_buf, 0, sizeof(venc_buffer_t));
-        input_buf.size = encode_info->enc_width * encode_info->enc_height * 3 / 2;//fix me!!!
-        input_buf.cached = 1;
-        if (vdi_allocate_dma_memory(&input_buf) < 0) {
-            VLOG(ERR,"Can not allocat input Buffer in vmalloc mode!\n");
-            result.is_valid = 0;
-            result.err_cod = -1;
-            return result;
+        //memset(&input_buf, 0, sizeof(venc_buffer_t));
+        if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV12 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV21 ||
+            encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_YUV420_PLANAR) {
+            //need fix
+            memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
+            //vdi_flush_memory(&input_buf);
+
+            encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
+            encode_info->tahoe_enc_pic.inpt_buf_addr[1] = encode_info->input_buf[0].phys_addr + encode_info->enc_width * encode_info->enc_height;
+            encode_info->tahoe_enc_pic.inpt_buf_addr[2] = encode_info->tahoe_enc_pic.inpt_buf_addr[1];
+        }
+        else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGB888) {
+            //need fix
+            memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
+            //vdi_flush_memory(&input_buf);
+            encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
+        }
+        else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGBA8888) {
+            //need fix
+            memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
+            //vdi_flush_memory(&input_buf);
+            encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
         }
 
-        //need fix
-        memcpy((char *)input_buf.virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],input_buf.size);
-
-        vdi_flush_memory(&input_buf);
-        encode_info->tahoe_enc_pic.inpt_buf_addr[0] = input_buf.phys_addr;
-        encode_info->tahoe_enc_pic.inpt_buf_addr[1] = input_buf.phys_addr + encode_info->enc_width * encode_info->enc_height;
-        encode_info->tahoe_enc_pic.inpt_buf_addr[2] = encode_info->tahoe_enc_pic.inpt_buf_addr[1];
         encode_info->buf_stride = encode_info->enc_width; //fix me!!!
         VLOG(INFO,"vmalloc mode,input data addr:%x %x %x\n",encode_info->tahoe_enc_pic.inpt_buf_addr[0],encode_info->tahoe_enc_pic.inpt_buf_addr[1],encode_info->tahoe_enc_pic.inpt_buf_addr[2]);
     }
@@ -312,10 +337,10 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
                 result.err_cod = -1;
                 return result;
             }
-        } else if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGBA8888) {
+        } else if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGBA8888 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGB888) {
 
             if (dma_info->num_planes != 1) {
-                VLOG(ERR,"RGBA invalid num_planes %d\n", dma_info->num_planes);
+                VLOG(ERR,"RGBA/RGB invalid num_planes %d\n", dma_info->num_planes);
                 result.is_valid = false;
                 result.err_cod = -1;
                 return result;
@@ -386,8 +411,8 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     result.encoded_data_length_in_bytes = length + header_length;
 #if DUMP_FILE_ENABLE
     if (input_fd_dump != -1) {
-        write(input_fd_dump, (char *)input_buf.virt_addr, input_buf.size);
-        VLOG(INFO,"dump tahoe input file,%d",input_buf.size);
+        write(input_fd_dump, (char *)encode_info->input_buf[0].virt_addr, encode_info->input_buf[0].size);
+        VLOG(INFO,"dump tahoe input file,%d",encode_info->input_buf[0].size);
     }
 
     if (output_fd_dump != -1) {

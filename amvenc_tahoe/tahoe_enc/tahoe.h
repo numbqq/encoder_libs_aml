@@ -232,6 +232,7 @@ typedef struct {
     u32 tier;
     u8 cfg_update;
     u8 golden_match_flag;
+    venc_buffer_t input_buf[3];
 } handle_t;
 
 #define TAHOE_REG_BASE_ADDR 0xFE370000

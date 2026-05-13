@@ -187,7 +187,7 @@ int vdi_read_memory(ulong addr, unsigned char *data, int len)
     vdb.phys_addr = addr;
     vdb.size = len;
 
-    vdi_invalidate_memory(&vdb);
+//    vdi_invalidate_memory(&vdb);
     safe_memcpy(data, (const void *)((ulong)vdb.virt_addr+offset), len);
     //memcpy(data, (const void *)((ulong)vdb.virt_addr+offset), len);
     VLOG(INFO,"memcpy over\n");

@@ -909,13 +909,6 @@ static void *encode_thread(void *param)
             }
         }
         memcpy((void *)((unsigned long)pFbSrcMem.virt_addr), inputBuffer, framesize);
-        /*venc_buffer_t vdb;
-        memset(&vdb, 0x00, sizeof(venc_buffer_t));
-        vdb.phys_addr = pFbSrcMem.phys_addr;
-        vdb.size = framesize;
-        printf("[%s][%d]vdb.phys_addr:0x%lx\n", __func__, __LINE__, vdb.phys_addr);
-        printf("[%s][%d]vdb.size:%d\n", __func__, __LINE__, vdb.size);*/
-        vdi_flush_memory(&pFbSrcMem);
 
         if (cfg_encode->osd_enabled) {
             for (k = 0; k < cfg_osd[0].osdNum; k++) {
@@ -926,7 +919,6 @@ static void *encode_thread(void *param)
                     fread(osd_buffer[k] + n, 1, posdMem[k].size - n, fp_osd[k]);
                 }
                 memcpy((void *)((unsigned long)posdMem[k].virt_addr), osd_buffer[k], posdMem[k].size);
-                vdi_flush_memory(&posdMem[k]);
                 encode_info.tahoe_enc_pic.osd_config[k].y_baseaddr = posdMem[k].phys_addr;
             }
         }

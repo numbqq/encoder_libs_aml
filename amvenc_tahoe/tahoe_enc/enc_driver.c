@@ -114,7 +114,7 @@ void firmware_load(char *filename)
 
     int ret = fread(ptr, 1, file_size, file);
     memcpy((void*)venc->fw_buffer.virt_addr, ptr, file_size);
-    vdi_flush_memory(&venc->fw_buffer);
+//    vdi_flush_memory(&venc->fw_buffer);
 
     free(ptr);
 

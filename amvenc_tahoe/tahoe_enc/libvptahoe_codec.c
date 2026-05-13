@@ -62,10 +62,10 @@ int get_header(handle_t *handle, unsigned char *pHeader, unsigned int *pLength)
     spsPhyAddr = handle->enc_header.spsPhyAddr;
     ppsPhyAddr = handle->enc_header.ppsPhyAddr;
     headerLength = handle->enc_header.headerLength;
-    printf("[%s][%d]vpsPhyAddr:0x%lx\n", __func__, __LINE__,vpsPhyAddr);
-    printf("[%s][%d]spsPhyAddr:0x%lx\n", __func__, __LINE__,spsPhyAddr);
-    printf("[%s][%d]ppsPhyAddr:0x%lx\n", __func__, __LINE__,ppsPhyAddr);
-    printf("[%s][%d]headerLength:0x%lx\n", __func__, __LINE__,headerLength);
+    VLOG(INFO,"[%s][%d]vpsPhyAddr:0x%lx\n", __func__, __LINE__,vpsPhyAddr);
+    VLOG(INFO,"[%s][%d]spsPhyAddr:0x%lx\n", __func__, __LINE__,spsPhyAddr);
+    VLOG(INFO,"[%s][%d]ppsPhyAddr:0x%lx\n", __func__, __LINE__,ppsPhyAddr);
+    VLOG(INFO,"[%s][%d]headerLength:0x%lx\n", __func__, __LINE__,headerLength);
 
 //00 vps sps pps，各占一个字节，最高8位没有
     vpsLength = (headerLength & 0xff0000) >> 16;
@@ -95,8 +95,6 @@ int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_
     int eslength;
     unsigned long espVirAddr = 0;
     unsigned long slice_header_length = 0;
-    venc_buffer_t vdb;
-    memset(&vdb, 0x00, sizeof(venc_buffer_t));
 
     slice_header_length = handle->enc_es.slice_header_length;
     esPhyAddr = handle->enc_es.esPhyAddr;
@@ -108,9 +106,7 @@ int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_
     VLOG(INFO,"[%s][%d]esaddr_offset:0x%lx\n", __func__, __LINE__, esaddr_offset);
     VLOG(INFO,"[%s][%d]espVirAddr:0x%lx\n", __func__, __LINE__, espVirAddr);
     VLOG(INFO,"[%s][%d]eslength:%d\n", __func__, __LINE__, eslength);
-    vdb.phys_addr = esPhyAddr;
-    vdb.size = eslength;
-    vdi_invalidate_memory(&vdb);
+
     //memcpy(buffer, (const void *)((ulong)espVirAddr), eslength);
     safe_memcpy(buffer, (const void *)((ulong)espVirAddr), eslength);
     *buf_nal_size = eslength;
@@ -125,10 +121,8 @@ int get_dsframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_s
     unsigned long dsPhyAddr;
     int dslength;
     unsigned long dsVirAddr = 0;
-    venc_buffer_t vdb;
     if (!handle)
         return -1;
-    memset(&vdb, 0x00, sizeof(venc_buffer_t));
 
     dsPhyAddr = venc->common_buffer.phys_addr;
     dsVirAddr = venc->common_buffer.virt_addr;
@@ -144,9 +138,7 @@ int get_dsframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_s
     VLOG(INFO,"[%s][%d]dsPhyAddr:0x%lx\n", __func__, __LINE__, dsPhyAddr);
     VLOG(INFO,"[%s][%d]dsVirAddr:0x%lx\n", __func__, __LINE__, dsVirAddr);
     VLOG(INFO,"[%s][%d]dslength:%d\n", __func__, __LINE__, dslength);
-    vdb.phys_addr = dsPhyAddr;
-    vdb.size = dslength;
-    vdi_invalidate_memory(&vdb);
+
     memcpy(buffer, (const void *)((ulong)dsVirAddr), dslength);
     *buf_nal_size = dslength;
     VLOG(INFO,"[%s][%d]buf_nal_size:%d\n", __func__, __LINE__,*buf_nal_size);

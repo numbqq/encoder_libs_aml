@@ -88,8 +88,6 @@ void venc_unlock(void);
 int venc_init(void);
 void safe_memcpy(void *dst, const void *src, size_t n);
 int vdi_debug(unsigned int data);
-int vdi_flush_memory(venc_buffer_t* vb);
-int vdi_invalidate_memory(venc_buffer_t *vb);
 int vdi_read_memory(ulong addr, unsigned char *data, int len);
 int vdi_allocate_dma_memory(venc_buffer_t *vb);
 int venc_destroy(void);

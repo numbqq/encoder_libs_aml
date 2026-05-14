@@ -291,12 +291,10 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     }
 
     if (VMALLOC_TYPE == in_buffer_info->buf_type) {
-        //memset(&input_buf, 0, sizeof(venc_buffer_t));
         if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV12 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV21 ||
             encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_YUV420_PLANAR) {
             //need fix
             memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
-            //vdi_flush_memory(&input_buf);
 
             encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
             encode_info->tahoe_enc_pic.inpt_buf_addr[1] = encode_info->input_buf[0].phys_addr + encode_info->enc_width * encode_info->enc_height;
@@ -305,13 +303,11 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
         else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGB888) {
             //need fix
             memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
-            //vdi_flush_memory(&input_buf);
             encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
         }
         else if(encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_RGBA8888) {
             //need fix
             memcpy((char *)encode_info->input_buf[0].virt_addr,(char *)in_buffer_info->buf_info.in_ptr[0],encode_info->input_buf[0].size);
-            //vdi_flush_memory(&input_buf);
             encode_info->tahoe_enc_pic.inpt_buf_addr[0] = encode_info->input_buf[0].phys_addr;
         }
 
@@ -369,15 +365,16 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
         vdi_config_dma(&dma_info_map);
         VLOG(INFO,"dma map num_planes:%d\n",dma_info_map.num_planes);
 
+        encode_info->buf_stride = ((encode_info->enc_width + 15) >> 4) << 4;
         encode_info->tahoe_enc_pic.inpt_buf_addr[0] = dma_info_map.phys_addr[0];
         if (dma_info_map.num_planes == 1)
         {
             if (MFDI_INPUT_FMT_NV21 == encode_info->mfdin_input_fmt || MFDI_INPUT_FMT_NV12 == encode_info->mfdin_input_fmt ||
                 MFDI_INPUT_FMT_YUV420_PLANAR == encode_info->mfdin_input_fmt) {
-                encode_info->tahoe_enc_pic.inpt_buf_addr[1] = dma_info_map.phys_addr[0] + encode_info->enc_width * encode_info->enc_height;
+                encode_info->tahoe_enc_pic.inpt_buf_addr[1] = dma_info_map.phys_addr[0] + encode_info->buf_stride * encode_info->enc_height;
                 if (MFDI_INPUT_FMT_YUV420_PLANAR == encode_info->mfdin_input_fmt) {
                   encode_info->tahoe_enc_pic.inpt_buf_addr[2] = encode_info->tahoe_enc_pic.inpt_buf_addr[1] +
-                                                                    encode_info->enc_width * encode_info->enc_height / 4;
+                                                                    encode_info->buf_stride * encode_info->enc_height / 4;
               }
             }
         }

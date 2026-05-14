@@ -51,6 +51,9 @@ int get_header(handle_t *handle, unsigned char *pHeader, unsigned int *pLength)
     int headerLength, vpsLength, spsLength, ppsLength;
     unsigned int headeroffset = 0;
     unsigned long headerVirAddr = 0;
+    unsigned int des_offset = 0;
+    char header_tmp[128];
+
 
     venc_buffer_t vdb;
 
@@ -72,17 +75,42 @@ int get_header(handle_t *handle, unsigned char *pHeader, unsigned int *pLength)
     spsLength = (headerLength & 0xff00) >> 8;
     ppsLength = (headerLength & 0xff);
 
+    VLOG(INFO,"header origin addr:%lx %lx %lx\n",handle->header_buf_addr[0],handle->header_buf_addr[1],handle->header_buf_addr[2]);
+
     if (handle->enc_fmt == CODEC_ID_H265) {
-        vdi_read_memory(vpsPhyAddr, pHeader, vpsLength);
-        vdi_read_memory(spsPhyAddr, pHeader+vpsLength, spsLength);
-        vdi_read_memory(ppsPhyAddr, pHeader+vpsLength+spsLength, ppsLength);
+        headeroffset = vpsPhyAddr - handle->header_buf_addr[0];
+        vdi_read_memory(/*vpsPhyAddr*/handle->header_buf_addr[0], /*pHeader*/header_tmp, headeroffset + vpsLength);
+        memcpy(pHeader,(header_tmp + headeroffset),vpsLength);
+        des_offset = vpsLength;
+    }
+    headeroffset = spsPhyAddr - handle->header_buf_addr[1];
+    vdi_read_memory(/*spsPhyAddr*/handle->header_buf_addr[1], /*pHeader+vpsLength*/header_tmp, headeroffset + spsLength);
+    memcpy((pHeader + des_offset),(header_tmp  + headeroffset),spsLength);
+    des_offset += spsLength;
+
+    headeroffset = ppsPhyAddr - handle->header_buf_addr[2];
+    vdi_read_memory(/*ppsPhyAddr*/handle->header_buf_addr[2], /*pHeader+vpsLength+spsLength*/header_tmp, headeroffset + ppsLength);
+    memcpy((pHeader + des_offset),(header_tmp + headeroffset),ppsLength);
+    *pLength = vpsLength + spsLength + ppsLength;
+
+#if 0
+    if (handle->enc_fmt == CODEC_ID_H265) {
+        headeroffset = vpsPhyAddr - handle->header_buf_addr[0];
+        vdi_read_memory(/*vpsPhyAddr*/handle->header_buf_addr[0], /*pHeader*/header_tmp, headeroffset + vpsLength);
+        memcpy(pHeader,header_tmp + headeroffset,vpsLength);
+        headeroffset = vpsPhyAddr - handle->header_buf_addr[1];
+        vdi_read_memory(/*spsPhyAddr*/handle->header_buf_addr[1], /*pHeader+vpsLength*/header_tmp, headeroffset + spsLength);
+        memcpy(pHeader,header_tmp + vpsLength + headeroffset,spsLength);
+        headeroffset = vpsPhyAddr - handle->header_buf_addr[2];
+        vdi_read_memory(/*ppsPhyAddr*/handle->header_buf_addr[0], /*pHeader+vpsLength+spsLength*/header_tmp, headeroffset + ppsLength);
+        memcpy(pHeader,header_tmp + vpsLength + spsLength + headeroffset,ppsLength);
         *pLength = vpsLength + spsLength + ppsLength;
     } else if (handle->enc_fmt == CODEC_ID_H264) {
         vdi_read_memory(spsPhyAddr, pHeader, spsLength);
         vdi_read_memory(ppsPhyAddr, pHeader+spsLength, ppsLength);
         *pLength = spsLength + ppsLength;
     }
-
+#endif
     VLOG(INFO,"[%s][%d]headerLength:%d\n", __func__, __LINE__,*pLength);
     return 0;
 }
@@ -95,6 +123,7 @@ int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_
     int eslength;
     unsigned long espVirAddr = 0;
     unsigned long slice_header_length = 0;
+    int length_cp = 0;
 
     slice_header_length = handle->enc_es.slice_header_length;
     esPhyAddr = handle->enc_es.esPhyAddr;
@@ -107,8 +136,8 @@ int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_
     VLOG(INFO,"[%s][%d]espVirAddr:0x%lx\n", __func__, __LINE__, espVirAddr);
     VLOG(INFO,"[%s][%d]eslength:%d\n", __func__, __LINE__, eslength);
 
-    //memcpy(buffer, (const void *)((ulong)espVirAddr), eslength);
-    safe_memcpy(buffer, (const void *)((ulong)espVirAddr), eslength);
+    length_cp = ((eslength + 15) >> 4) << 4;
+    memcpy(buffer, (const void *)((ulong)espVirAddr), length_cp);
     *buf_nal_size = eslength;
     (*frame_type) = handle->enc_es.frame_type;
     VLOG(INFO,"[%s][%d]buf_nal_size:%d,frame_type:%d\n", __func__, __LINE__,*buf_nal_size,(*frame_type));

@@ -232,6 +232,7 @@ void encode_header(handle_t *handle)
     disable_host_scrw_irq();
     venc_write_register(CHN_ID, handle->chn_id);
 
+    VLOG(INFO,"header_buf_addr %lx %lx %lx\n",handle->header_buf_addr[0],handle->header_buf_addr[1],handle->header_buf_addr[2]);
 //for vps/sps/pps
     venc_write_register(HEADER_VPS_ADDR, handle->header_buf_addr[0]);
     venc_write_register(HEADER_SPS_ADDR, handle->header_buf_addr[1]);

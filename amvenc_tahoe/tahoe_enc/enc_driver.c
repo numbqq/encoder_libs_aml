@@ -446,6 +446,78 @@ void ds_config(handle_t *handle)
     }
 }
 
+void roi_config(handle_t *handle)
+{
+    int data = 0;
+    int i = 0;
+
+    disable_host_scrw_irq();
+    venc_write_register(CHN_ID, handle->chn_id);
+    venc_write_register(ROI_CTRL, 0);
+
+    if (handle->tahoe_enc_pic.prp_roi_map_enable) {
+        venc_write_register(ROI_CTRL, (handle->tahoe_enc_pic.prp_roi_map_enable << 0));
+        venc_write_register(ROI_MAP_ADDRL, (handle->tahoe_enc_pic.prp_roi_map_addr << 0));
+        venc_write_register(ROI_CTRL, (venc_read_register(ROI_CTRL)|(((handle->tahoe_enc_pic.prp_roi_map_addr >> 32) & 0x03) << 6)));
+        VLOG(INFO,"%s, %d, handle->tahoe_enc_pic.prp_roi_map_enable:%d, handle->chn_id %d\n", __func__, __LINE__, handle->tahoe_enc_pic.prp_roi_map_enable, handle->chn_id);
+    }
+
+    if (handle->tahoe_enc_pic.roi_enable) {
+        for (i = 0; i < MAX_ROI_NUM; i++) {
+            handle->tahoe_enc_pic.roi[i].prp_roi_region_start = (handle->tahoe_enc_pic.roi_config[i].region_x << 0) |\
+                (handle->tahoe_enc_pic.roi_config[i].region_y << 16);
+            handle->tahoe_enc_pic.roi[i].prp_roi_region_size = (handle->tahoe_enc_pic.roi_config[i].region_w << 0) |\
+                (handle->tahoe_enc_pic.roi_config[i].region_h << 16);
+            handle->tahoe_enc_pic.roi[i].prp_roi_region_param = (handle->tahoe_enc_pic.roi_config[i].region_inv << 0) |\
+                (handle->tahoe_enc_pic.roi_config[i].QpMode << 1) |\
+                (handle->tahoe_enc_pic.roi_config[i].roiQp << 2) |\
+                (handle->tahoe_enc_pic.roi_config[i].lossless << 8) |\
+                (handle->tahoe_enc_pic.roi_config[i].EncBiasMode << 9) |\
+                (handle->tahoe_enc_pic.roi_config[i].minQp << 14) |\
+                (handle->tahoe_enc_pic.roi_config[i].maxQp << 20);
+
+            if (handle->tahoe_enc_pic.roi_config[i].enable && i == 0) {
+                venc_write_register(ROI_CTRL, (venc_read_register(ROI_CTRL)|(1<<2)));
+                venc_write_register(ROI_REGION_START_0, handle->tahoe_enc_pic.roi[i].prp_roi_region_start);
+                venc_write_register(ROI_REGION_SIZE_0, handle->tahoe_enc_pic.roi[i].prp_roi_region_size);
+                venc_write_register(ROI_REGION_PARAM_0, handle->tahoe_enc_pic.roi[i].prp_roi_region_param);
+                VLOG(INFO,"i %d, ROI_REGION_PARAM_0 == 0x%x\n", i, venc_read_register(ROI_REGION_PARAM_0));
+            }
+
+            if (handle->tahoe_enc_pic.roi_config[i].enable && i == 1) {
+                venc_write_register(ROI_CTRL,(venc_read_register(ROI_CTRL)|(1<<3)));
+                venc_write_register(ROI_REGION_START_1, handle->tahoe_enc_pic.roi[i].prp_roi_region_start);
+                venc_write_register(ROI_REGION_SIZE_1, handle->tahoe_enc_pic.roi[i].prp_roi_region_size);
+                venc_write_register(ROI_REGION_PARAM_1, handle->tahoe_enc_pic.roi[i].prp_roi_region_param);
+                VLOG(INFO,"i %d, ROI_REGION_PARAM_1 == 0x%x\n", i, venc_read_register(ROI_REGION_PARAM_1));
+            }
+
+            if (handle->tahoe_enc_pic.roi_config[i].enable && i == 2) {
+                venc_write_register(ROI_CTRL,(venc_read_register(ROI_CTRL)|(1<<4)));
+                venc_write_register(ROI_REGION_START_2, handle->tahoe_enc_pic.roi[i].prp_roi_region_start);
+                venc_write_register(ROI_REGION_SIZE_2, handle->tahoe_enc_pic.roi[i].prp_roi_region_size);
+                venc_write_register(ROI_REGION_PARAM_2, handle->tahoe_enc_pic.roi[i].prp_roi_region_param);
+                VLOG(INFO,"i %d, ROI_REGION_PARAM_2 == 0x%x\n", i, venc_read_register(ROI_REGION_PARAM_2));
+            }
+
+            if (handle->tahoe_enc_pic.roi_config[i].enable && i == 3) {
+                venc_write_register(ROI_CTRL,(venc_read_register(ROI_CTRL)|(1<<5)));
+                venc_write_register(ROI_REGION_START_3, handle->tahoe_enc_pic.roi[i].prp_roi_region_start);
+                venc_write_register(ROI_REGION_SIZE_3, handle->tahoe_enc_pic.roi[i].prp_roi_region_size);
+                venc_write_register(ROI_REGION_PARAM_3, handle->tahoe_enc_pic.roi[i].prp_roi_region_param);
+                VLOG(INFO,"i %d, ROI_REGION_PARAM_3 == 0x%x\n", i, venc_read_register(ROI_REGION_PARAM_3));
+            }
+        }
+    }
+    enable_vrisc_scrw_irq();
+    venc_write_register(CMD_OPT_CODE, CMD_SET_ENC_PRP);
+
+    while (venc_read_register(CMD_OPT_CODE) != CMD_DONE)
+    ;
+    data = venc_read_register(TAHOE_DEBUG_3);
+    VLOG(INFO,"==FW cmd ROS qq OUT, TAHOE_DEBUG_3 qq = 0x%x\n", data);
+}
+
 void dynamic_parameter_set(handle_t *handle)
 {
     int data = 0;

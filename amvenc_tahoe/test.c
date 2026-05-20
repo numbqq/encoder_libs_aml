@@ -120,6 +120,22 @@ typedef struct {
 }cropCfgParam;
 
 typedef struct {
+    int roiNum;
+    int enable;
+    int x;
+    int y;
+    int w;
+    int h;
+    int region_inv;
+    int QpMode;
+    int roiQp;
+    int lossless;
+    int EncBiasMode;
+    int maxQp;
+    int minQp;
+}roiCfgParam;
+
+typedef struct {
     int FrameNum; //change frame number
     int enable_option;
     //FORCE_PICTURE_TYPE
@@ -192,6 +208,8 @@ typedef struct {
                             bit 22 strict_rate_ctrl_en (skipP allowed to limit bitrate) default 0
                             bit 23 forcePicQpEnable default 0
                             */
+    int   roi_enabled;
+    int   roi_map_enabled;
     char  roifile[ENCODER_STRING_LEN_MAX];      // optional, roi info url in root fs, no present if roi is disabled
     int   cfg_upd_enabled;
     int   has_cfg_update;
@@ -222,7 +240,7 @@ typedef struct {
 
 
 //int venc_init_flag = 0;
-
+static int ParseRoiCfgFile(FILE *fp, roiCfgParam *cfg_roi);
 static int ParseOsdCfgFile(FILE *fp, osdCfgParam *cfg_osd);
 static int ParseDsCfgFile(FILE *fp, dsCfgParam *cfg_ds);
 static int ParseCropCfgFile(FILE *fp, cropCfgParam *cfg_crop);
@@ -448,6 +466,8 @@ static void *encode_thread(void *param)
     FILE *fp_ds = NULL;
     FILE *fp_crop = NULL;
     FILE *fp_cfg = NULL;
+    FILE *fp_roicfg = NULL;
+    FILE *fp_roimap = NULL;
     int dsfd = -1;
     unsigned char *outbuffer = NULL;
     unsigned int outbuffer_len = 0;
@@ -465,6 +485,7 @@ static void *encode_thread(void *param)
     unsigned vsize;
     unsigned uvsize;
     int intraRefresh;
+    roiCfgParam cfg_roi[MAX_ROI_NUM];
     osdCfgParam cfg_osd[MAX_OSD_NUM];
     dsCfgParam cfg_ds;
     cropCfgParam cfg_crop;
@@ -473,6 +494,10 @@ static void *encode_thread(void *param)
     //vl_codec_handle_t handle_enc = 0;
     handle_t encode_info;
     signed char frame_type = -1;
+    unsigned char *roimap_buffer = NULL;
+    int roimap_macroblock;
+    venc_buffer_t proiMem;
+    unsigned int roimapsize;
     unsigned int frameWriteTime = 0;
     unsigned long long totalTime = 0, ioTime = 0, encodeoneTime = 0;
     struct timeval timeStart, timeEnd, readStart, readEnd, writeStart, writeEnd;
@@ -625,6 +650,19 @@ static void *encode_thread(void *param)
         printf("==%s, %d, cfgChange.GOPPeriod:%d\n", __func__, __LINE__, cfgChange.GOPPeriod);
         printf("==%s, %d, cfgChange.bitrate_window:%d\n", __func__, __LINE__, cfgChange.bitrate_window);
     }
+
+    if (cfg_encode->roi_enabled) {
+        fp_roicfg = fopen((const char*)cfg_encode->roifile, "r");
+        if (fp_roicfg == NULL)
+        {
+            printf("open osd config file error!\n");
+            goto exit;
+        }
+        memset(cfg_roi, 0, MAX_ROI_NUM * sizeof(roiCfgParam));
+        ParseRoiCfgFile(fp_roicfg, cfg_roi);
+        fclose(fp_roicfg);
+    }
+
     if (cfg_encode->osd_enabled) {
         fp_osdcfg = fopen((const char*)cfg_encode->osdfile, "r");
         if (fp_osdcfg == NULL)
@@ -726,6 +764,46 @@ static void *encode_thread(void *param)
         encode_info.mirror_mode = cfg_encode->frame_mirroring;
     else
         encode_info.mirror_mode = 0;
+
+    if (cfg_encode->roi_map_enabled) {
+        if (cfg_encode->codec_id == CODEC_ID_H264)
+            roimap_macroblock = 16;
+        else if (cfg_encode->codec_id == CODEC_ID_H265)
+            roimap_macroblock = 32;
+        roimapsize = ((cfg_encode->width + roimap_macroblock - 1) / roimap_macroblock) *
+                    ((cfg_encode->height + roimap_macroblock - 1 ) / roimap_macroblock);
+
+        memset(&proiMem, 0, sizeof(venc_buffer_t));
+        proiMem.size = roimapsize;
+        proiMem.cached = 1;
+
+        if (vdi_allocate_dma_memory(&proiMem) < 0) {
+            printf("Can not allocat dma Buffer\n");
+            goto end;
+        }
+
+        fp_roimap = fopen((const char*)cfg_encode->roifile, "rb");
+        if (fp_roimap == NULL)
+        {
+            printf("open roi map file error!\n");
+            goto exit;
+        }
+
+        roimap_buffer = (unsigned char *) malloc(roimapsize);
+        if (roimap_buffer == NULL) {
+            printf("Can not allocat roi map buffer\n");
+            goto end;
+        }
+        if (fread(roimap_buffer, 1, roimapsize, fp_roimap) != roimapsize)
+        {
+            printf("read roi_map file error!\n");
+        }
+
+        safe_memcpy((void *)((unsigned long)proiMem.virt_addr), roimap_buffer, roimapsize);
+        encode_info.tahoe_enc_pic.prp_roi_map_enable = cfg_encode->roi_map_enabled;
+        encode_info.tahoe_enc_pic.prp_roi_map_addr = proiMem.phys_addr;
+    }
+
     if (cfg_encode->osd_enabled) {
         encode_info.tahoe_enc_pic.osd_enable = 1;
         printf("[%s][%d]cfg_osd[0].osdNum:%d\n",__func__,__LINE__, cfg_osd[0].osdNum);
@@ -830,6 +908,29 @@ static void *encode_thread(void *param)
         encode_info.crop_w = cfg_crop.w;
         encode_info.crop_h = cfg_crop.h;
     }
+
+    if (cfg_encode->roi_enabled) {
+        encode_info.tahoe_enc_pic.roi_enable = cfg_encode->roi_enabled;
+        for (i = 0; i < cfg_roi[0].roiNum; i++) {
+            if (i >= MAX_ROI_NUM)
+                break;
+            if (cfg_roi[i].enable) {
+                encode_info.tahoe_enc_pic.roi_config[i].enable = cfg_roi[i].enable;
+                encode_info.tahoe_enc_pic.roi_config[i].region_x = cfg_roi[i].x;
+                encode_info.tahoe_enc_pic.roi_config[i].region_y = cfg_roi[i].y;
+                encode_info.tahoe_enc_pic.roi_config[i].region_w = cfg_roi[i].w;
+                encode_info.tahoe_enc_pic.roi_config[i].region_h = cfg_roi[i].h;
+                encode_info.tahoe_enc_pic.roi_config[i].region_inv = cfg_roi[i].region_inv;
+                encode_info.tahoe_enc_pic.roi_config[i].QpMode = cfg_roi[i].QpMode;
+                encode_info.tahoe_enc_pic.roi_config[i].roiQp = cfg_roi[i].roiQp;
+                encode_info.tahoe_enc_pic.roi_config[i].lossless = cfg_roi[i].lossless;
+                encode_info.tahoe_enc_pic.roi_config[i].EncBiasMode = cfg_roi[i].EncBiasMode;
+                encode_info.tahoe_enc_pic.roi_config[i].maxQp = cfg_roi[i].maxQp;
+                encode_info.tahoe_enc_pic.roi_config[i].minQp = cfg_roi[i].minQp;
+            }
+        }
+    }
+
     if (cfg_encode->fmt == IMG_FMT_NV12) {
         printf("img_format is IMG_FMT_NV12 \n");
         encode_info.mfdin_input_fmt = MFDI_INPUT_FMT_NV12;
@@ -1034,6 +1135,8 @@ exit:
         close(outfd);
     if (fp)
         fclose(fp);
+    if (fp_roimap)
+        fclose(fp_roimap);
 
     for (i = 0; i < MAX_OSD_NUM; i++) {
         if (osd_buffer[i]) {
@@ -1069,6 +1172,7 @@ int main(int argc, char **argv)
     int arg_count = 0;
     int len = 0;
     FILE *fp_cfg_encode = NULL;
+    int roi_type;
     encodecCfgParam cfg_encode[MAX_INSTANCE];
 
     tahoe_set_log_level(NONE);
@@ -1163,15 +1267,20 @@ int main(int argc, char **argv)
         }
         if (argc > 14) {
             arg_count = 14;
-            /*if ((cfg_opt & 0x1) == 0x1 && argc > arg_count) {
+            if ((cfg_encode[0].cfg_opt & 0x1) && argc > arg_count) {
                 if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
                     printf("Warning: roi filename too long (max length: %d), will be truncated\n",
                             ENCODER_STRING_LEN_MAX - 1);
                 }
-                snprintf(roifile, ENCODER_STRING_LEN_MAX, "%s", argv[arg_count]);
-                printf("roi_url is\t: %s ;\n", roifile);
+                roi_type = atoi(argv[arg_count]); arg_count++; // roi_type: 1 region, 2 map;
+                if (roi_type == 1)
+                    cfg_encode[0].roi_enabled = 1;
+                else if (roi_type == 2)
+                    cfg_encode[0].roi_map_enabled = 1;
+                snprintf(cfg_encode[0].roifile, ENCODER_STRING_LEN_MAX, "%s", argv[arg_count]);
+                printf("roi_url is\t: %s ;\n", cfg_encode[0].roifile);
                 arg_count ++;
-            }*/
+            }
             if ((cfg_encode[0].cfg_opt & 0x2) == 0x2 && argc > arg_count) {
                 if (strlen(argv[arg_count]) >= ENCODER_STRING_LEN_MAX) {
                     printf("Warning: config filename too long (max length: %d), will be truncated\n",
@@ -1579,6 +1688,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
     char valueStr[ENCODER_STRING_LEN_MAX] = {0};
     int i = 0;
     int len = 0;
+    int roi_type;
     while (1) {
         if (i >= MAX_INSTANCE)
             return 0;
@@ -1718,6 +1828,30 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
                    cfg_encode[i].frame_rotation, cfg_encode[i].frame_mirroring);
         }
 
+        if ((cfg_encode[i].cfg_opt & 0x1) == 0x1) {
+            roi_type = atoi(token);// roi_type: 1 region, 2 map;
+            token = strtok(NULL, delim);
+            if (token == NULL) {
+                printf("missing forcePicQpPB\n");
+                continue;
+            }
+            if (roi_type == 1)
+                cfg_encode[i].roi_enabled = 1;
+            else if (roi_type == 2)
+                cfg_encode[i].roi_map_enabled = 1;
+
+            len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
+            mystrncpy(cfg_encode[i].roifile, token, len);
+            printf("roi_url is\t: %s ;\n", cfg_encode[i].roifile);
+            token = strtok(NULL, delim);
+            if (token == NULL) {
+                i++;
+                cfg_encode[0].seqNum++;
+                lineStr[0] = 0x0;
+                continue;
+            }
+        }
+
         if ((cfg_encode[i].cfg_opt & 0x2) == 0x2) {
             len = strlen(token) > ENCODER_STRING_LEN_MAX ? ENCODER_STRING_LEN_MAX : strlen(token);
             mystrncpy(cfg_encode[i].cfg_file, token, len);
@@ -1853,6 +1987,132 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
             lineStr[0] = 0x0;
             continue;
         }
+    }
+    return 0;
+}
+
+//#roifile enable x y w h region_inv QpMode roiQp lossless EncBiasMode maxQp minQp
+static int ParseRoiCfgFile(FILE *fp, roiCfgParam *cfg_roi)
+{
+    char* token = NULL;
+    const char *delim = " ";
+    static char lineStr[ENCODER_STRING_LEN_MAX*4] = {0};
+    char valueStr[ENCODER_STRING_LEN_MAX] = {0};
+    int i = 0;
+
+    while (1) {
+        if (i >= MAX_ROI_NUM)
+            return 0;
+        if (lineStr[0] == 0x0) { //need a new line;
+            if (fgets(lineStr, ENCODER_STRING_LEN_MAX*4, fp) == NULL) {
+                if (feof(fp))
+                    return 0;
+                continue;
+            }
+        }
+        if (strlen(lineStr) == 1) { // skip null
+            lineStr[0] = 0x0;
+            continue;
+        }
+
+        if ((lineStr[0] == '#')
+        ||(lineStr[0] == ';')||(lineStr[0] == ':')) { // skip comments
+            lineStr[0] = 0x0;
+            continue;
+        }
+
+        printf("[%s][%d]:%s\n",__func__,__LINE__,lineStr);
+        // keep the original
+        memcpy(valueStr, lineStr, strlen(lineStr));
+        //param is separated by ' '
+        token = strtok(valueStr, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].enable = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].x = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].y = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].w = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].h = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].region_inv = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].QpMode = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].roiQp = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].lossless = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].EncBiasMode = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].maxQp = atoi(token);
+
+        token = strtok(NULL, delim);
+        if (token == NULL) {
+            lineStr[0] = 0x0;
+            continue;
+        }
+        cfg_roi[i].minQp = atoi(token);
+
+        i++;
+        cfg_roi[0].roiNum++;
+        lineStr[0] = 0x0;
+        continue;
     }
     return 0;
 }

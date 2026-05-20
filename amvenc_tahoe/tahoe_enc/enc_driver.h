@@ -48,7 +48,7 @@ void encode_header(handle_t *handle);
 void osd_config(handle_t *handle);
 void dynamic_parameter_set(handle_t *handle);
 void ds_config(handle_t *handle);
-
+void roi_config(handle_t *handle);
 void encode_one_frame(handle_t *handle);
 void firmware_load(char *filename);
 void firmware_boot();

@@ -383,6 +383,7 @@ int vl_tahoe_encoder_encode(handle_t *encode_info)
     //vdi_debug(encode_info->chn_id);
 
     venc_lock();
+    roi_config(encode_info);
     osd_config(encode_info);
     if (encode_info->cfg_update == 1) {
         dynamic_parameter_set(encode_info);

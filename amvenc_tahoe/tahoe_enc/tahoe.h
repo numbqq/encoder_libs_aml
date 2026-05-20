@@ -153,6 +153,27 @@ typedef struct {
 } venc_osd_element_t;
 
 typedef struct {
+    u32 enable;
+    u32 region_x;
+    u32 region_y;
+    u32 region_w;
+    u32 region_h;
+    u8  region_inv;
+    u8  QpMode;
+    s32 roiQp;
+    u8  lossless;
+    u8  EncBiasMode;
+    u32 maxQp;
+    u32 minQp;
+} roi_config_t;
+
+typedef struct {
+    s32 prp_roi_region_start;
+    s32 prp_roi_region_size;
+    s32 prp_roi_region_param;
+} venc_roi_element_t;
+
+typedef struct {
     ulong inpt_buf_addr[3];
     s32 input_stride[3];
     s32 inpt_buff_pts;
@@ -160,6 +181,11 @@ typedef struct {
     s32 osd_init;
     venc_osd_element_t osd[8];
     osd_config_t osd_config[8];
+    s32 roi_enable;
+    venc_roi_element_t roi[4];
+    roi_config_t roi_config[4];
+    s32 prp_roi_map_enable;
+    ulong prp_roi_map_addr;
 } venc_pic_t;
 
 typedef struct {
@@ -315,6 +341,7 @@ typedef struct tahoe_dma_buf_info_t {
 } tahoe_dma_buf_info_t;
 
 #define MAX_OSD_NUM 8
+#define MAX_ROI_NUM 4
 
 #define VENC_DRV_BUF_LEN venc_buffer_t
 

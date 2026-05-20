@@ -33,6 +33,7 @@
 #ifndef _VDI_H_
 #define _VDI_H_
 
+#include <stdbool.h>
 #include "tahoe.h"
 
 typedef enum
@@ -93,6 +94,8 @@ int vdi_allocate_dma_memory(venc_buffer_t *vb);
 int venc_destroy(void);
 int vdi_config_dma(tahoe_dma_buf_info_t *info);
 int vdi_unmap_dma(tahoe_dma_buf_info_t *info);
-
+void set_instance_valid(int id,bool bvalid);
+bool find_valid_id(int *id);
+int get_cur_instance();
 
 #endif /* _VDI_H_ */

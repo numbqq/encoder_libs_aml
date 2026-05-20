@@ -45,8 +45,11 @@
 #include "vdi.h"
 #include "tahoe.h"
 
+#define MAX_INSTANCE  4
+
 extern venc_info_t s_venc_info;
 /*extern */int venc_init_flag = 0;
+int instance_info[MAX_INSTANCE] = {0};
 
 debug_log_level_t g_tahoe_log_level = ERR;
 
@@ -378,4 +381,40 @@ int vdi_unmap_dma(tahoe_dma_buf_info_t *info)
     ret = ioctl(venc->venc_fd, IOC_UNMAP_DMA, (void*)info);
 
     return ret;
+}
+
+void set_instance_valid(int id,bool bvalid) {
+    if (id < 0 || id >= MAX_INSTANCE) {
+        VLOG(ERR,"set_instance_valid,id invalid:%d",id);
+        return;
+    }
+    venc_lock();
+    instance_info[id] = bvalid;
+    VLOG(INFO,"set_instance_valid %d %d",id,bvalid);
+    venc_unlock();
+}
+
+bool find_valid_id(int *id) {
+    bool bfind = false;
+    for (int i = 0;i < MAX_INSTANCE;i++) {
+        if (instance_info[i] == 0) {
+            (*id) = i;
+            bfind = true;
+            set_instance_valid(i,true);
+            VLOG(INFO,"%d find valid instance id:%d",instance_info[i],i);
+            break;
+        }
+    }
+    return bfind;
+}
+
+int get_cur_instance() {
+    int num = 0;
+    for (int i = 0;i < MAX_INSTANCE;i++) {
+        if (instance_info[i] != 0) {
+            num++;
+        }
+    }
+    VLOG(INFO,"get_cur_instance %d",num);
+    return num;
 }

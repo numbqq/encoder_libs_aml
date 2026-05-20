@@ -46,6 +46,7 @@
 
 #define FW_STRING_LEN_MAX  256
 #define HE_BUF_SIZE  0x100000
+
 int input_fd_dump = -1;
 int output_fd_dump = -1;
 
@@ -59,6 +60,7 @@ int output_fd_dump = -1;
 #endif
 
 
+
 vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t encode_param) {
     venc_buffer_t hdBuffer[3] = {0};
     char fwfile[FW_STRING_LEN_MAX] = {0};
@@ -67,7 +69,6 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     //venc_buffer_t input_buf = {0};
 
     tahoe_set_log_level(ERR);
-
     handle_t *encode_info = (handle_t *)malloc(sizeof(handle_t));
     if (!encode_info) {
         VLOG(ERR,"alloc encoder handle failed!");
@@ -94,7 +95,6 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
         encode_info->fix_qp_I = encode_param.forcePicQpI;
         encode_info->fix_qp_P = encode_param.forcePicQpP;
     }
-    encode_info->chn_id = 0; //fix me!!!
 
     encode_info->enc_rc_mode = 1; //cbr by default
     encode_info->init_qp = 30;
@@ -128,8 +128,15 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     }*/
     snprintf(fwfile, FW_STRING_LEN_MAX, "%s", FW_PATH);
 
-    VLOG(INFO,"loading fw:%s\n",fwfile);
-    encoder_open(fwfile);
+    if (0 == get_cur_instance()) {
+        VLOG(INFO,"loading fw:%s\n",fwfile);
+        encoder_open(fwfile);
+    }
+
+    if (!find_valid_id(&encode_info->chn_id)) {
+        VLOG(ERR,"have no valid instance to use!");
+        return -1;
+    }
 
     ret = vl_tahoe_encoder_init(codec_id,*encode_info);
     if (ret < 0) {
@@ -360,10 +367,10 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
                 return result;
             }
             dma_info_map.fd[i] = dma_info->shared_fd[i];
-            VLOG(INFO,"**shared_fd %d\n", dma_info->shared_fd[i]);
+            VLOG(INFO,"instance %d:**shared_fd %d\n", encode_info->chn_id,dma_info->shared_fd[i]);
         }
         vdi_config_dma(&dma_info_map);
-        VLOG(INFO,"dma map num_planes:%d\n",dma_info_map.num_planes);
+        VLOG(INFO,"instance %d:dma map num_planes:%d\n",encode_info->chn_id,dma_info_map.num_planes);
 
         encode_info->buf_stride = ((encode_info->enc_width + 15) >> 4) << 4;
         encode_info->tahoe_enc_pic.inpt_buf_addr[0] = dma_info_map.phys_addr[0];
@@ -423,7 +430,6 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
             VLOG(ERR,"vdi_unmap_dma src buffer failed!!\n");
         }
     }
-
     return result;
 }
 
@@ -436,6 +442,8 @@ void vt_tahoe_encoder_destroy(vl_codec_tahoe_handle_t codec_handle)  {
     VLOG(INFO,"destroy tahoe!!");
     vl_tahoe_encoder_destroy(*m_handle);
     encoder_close();
+
+    set_instance_valid(m_handle->chn_id,false);
 
     if (m_handle) {
         free(m_handle);
@@ -451,6 +459,7 @@ void vt_tahoe_encoder_destroy(vl_codec_tahoe_handle_t codec_handle)  {
         close(output_fd_dump);
         output_fd_dump = -1;
     }
+
     VLOG(INFO,"destroy tahoe end!!");
 }
 

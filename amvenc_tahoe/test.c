@@ -75,9 +75,9 @@
 #define CFG_ENCODE_NUM_MAX 6
 
 #if VENDOR_FW
-#define FW_PATH  "/vendor/lib/firmware/video/fw.bin"
+#define FW_PATH  "/vendor/lib/firmware/encoder/fw.bin"
 #else
-#define FW_PATH  "/lib/firmware/video/fw.bin"
+#define FW_PATH  "/lib/firmware/encoder/fw.bin"
 #endif
 
 typedef struct {

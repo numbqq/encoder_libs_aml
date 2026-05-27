@@ -38,6 +38,7 @@
 #define MAX_CHANNEL 1
 
 #define MAX_VPU_BUFFER_POOL (1000)
+#define MAX_INSTANCE  4
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -53,6 +54,15 @@ typedef struct venc_drv_buffer_t {
     ulong base; /* kernel logical address in use kernel */
     ulong virt_addr; /* virtual user space address */
 }venc_buffer_t;
+
+typedef struct {
+    u32 chnid;
+    u32 size;
+    u32 cached;
+    ulong phys_addr;
+    ulong base; /* kernel logical address in use kernel */
+    ulong virt_addr; /* virtual user space address */
+}venc_common_buffer_t;
 
 struct venc_bit_firmware_info_t {
     u32 size;                       /* size of this structure*/
@@ -292,7 +302,7 @@ typedef struct  {
     int venc_fd;
     venc_buffer_t venc_register;
     venc_buffer_t fw_buffer;
-    venc_buffer_t common_buffer;
+    venc_common_buffer_t common_buffer[MAX_INSTANCE];
     int vpu_buffer_pool_count;
     vpudrv_buffer_pool_t vpu_buffer_pool[MAX_VPU_BUFFER_POOL];
     pthread_mutex_t vmem_mutex;

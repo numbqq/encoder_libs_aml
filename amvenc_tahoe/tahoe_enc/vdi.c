@@ -45,7 +45,6 @@
 #include "vdi.h"
 #include "tahoe.h"
 
-#define MAX_INSTANCE  4
 
 extern venc_info_t s_venc_info;
 /*extern */int venc_init_flag = 0;
@@ -239,17 +238,6 @@ int venc_init(void)
     }
     VLOG(INFO,"[VENC] map venc_register paddr=0x%lx, virtaddr=0x%lx, size=0x%x\n", venc->venc_register.phys_addr,venc->venc_register.virt_addr, venc->venc_register.size);
 
-    if (ioctl(venc->venc_fd, IOC_GET_COMMON_BUF_INFO, &venc->common_buffer) < 0)
-    {
-        VLOG(ERR,"[VENC] fail to get common buffer info\n");
-    }
-    venc->common_buffer.virt_addr = (unsigned long)mmap(NULL, venc->common_buffer.size, PROT_READ | PROT_WRITE, MAP_SHARED, venc->venc_fd, venc->common_buffer.phys_addr);
-    if ((void *)venc->common_buffer.virt_addr == MAP_FAILED)
-    {
-        VLOG(ERR,"[VENC] fail to map common buffer\n");
-    }
-    VLOG(INFO,"[VENC] map common buffer paddr=0x%lx, virtaddr=0x%lx, size=0x%x\n", venc->common_buffer.phys_addr,venc->common_buffer.virt_addr, venc->common_buffer.size);
-
     if (ioctl(venc->venc_fd, IOC_GET_FW_BUF_INFO, &venc->fw_buffer) < 0)
     {
         VLOG(ERR,"[VENC] fail to get common buffer info\n");
@@ -267,6 +255,26 @@ int venc_init(void)
     return 0;
 }
 
+int vdi_alloc_common_buffer(int chnid)
+{
+    venc_info_t *venc = &s_venc_info;
+
+    venc->common_buffer[chnid].chnid = chnid;
+    if (ioctl(venc->venc_fd, IOC_GET_COMMON_BUF_INFO, &venc->common_buffer[chnid]) < 0)
+    {
+        VLOG(ERR,"[VENC] fail to get common buffer info\n");
+    }
+
+    venc->common_buffer[chnid].virt_addr = (unsigned long)mmap(NULL, venc->common_buffer[chnid].size, PROT_READ | PROT_WRITE, MAP_SHARED, venc->venc_fd, venc->common_buffer[chnid].phys_addr);
+    if ((void *)venc->common_buffer[chnid].virt_addr == MAP_FAILED)
+    {
+        VLOG(ERR,"[VENC] fail to map common buffer\n");
+    }
+    VLOG(INFO,"[VENC] map common buffer paddr=0x%lx, virtaddr=0x%lx, size=0x%x\n", venc->common_buffer[chnid].phys_addr,venc->common_buffer[chnid].virt_addr, venc->common_buffer[chnid].size);
+
+    return 0;
+}
+
 int venc_destroy(void)
 {
     int i = 0;
@@ -279,8 +287,10 @@ int venc_destroy(void)
             munmap((void *)venc->venc_register.virt_addr, venc->venc_register.size);
         if (venc->fw_buffer.virt_addr)
             munmap((void *)venc->fw_buffer.virt_addr, venc->fw_buffer.size);
-        if (venc->common_buffer.virt_addr)
-            munmap((void *)venc->common_buffer.virt_addr, venc->common_buffer.size);
+        for (i = 0; i < MAX_INSTANCE; i++) {
+            if (venc->common_buffer[i].virt_addr)
+                munmap((void *)venc->common_buffer[i].virt_addr, venc->common_buffer[i].size);
+        }
 
         for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
         {

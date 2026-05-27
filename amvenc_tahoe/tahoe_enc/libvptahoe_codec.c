@@ -128,8 +128,8 @@ int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_
     slice_header_length = handle->enc_es.slice_header_length;
     esPhyAddr = handle->enc_es.esPhyAddr;
     eslength = handle->enc_es.eslength;
-    esaddr_offset = esPhyAddr - venc->common_buffer.phys_addr;
-    espVirAddr = venc->common_buffer.virt_addr + esaddr_offset;
+    esaddr_offset = esPhyAddr - venc->common_buffer[handle->chn_id].phys_addr;
+    espVirAddr = venc->common_buffer[handle->chn_id].virt_addr + esaddr_offset;
     VLOG(INFO,"[%s][%d]offset:0x%x\n", __func__, __LINE__, slice_header_length);
     VLOG(INFO,"[%s][%d]esPhyAddr:0x%lx\n", __func__, __LINE__, esPhyAddr);
     VLOG(INFO,"[%s][%d]esaddr_offset:0x%lx\n", __func__, __LINE__, esaddr_offset);
@@ -153,8 +153,8 @@ int get_dsframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_s
     if (!handle)
         return -1;
 
-    dsPhyAddr = venc->common_buffer.phys_addr;
-    dsVirAddr = venc->common_buffer.virt_addr;
+    dsPhyAddr = venc->common_buffer[handle->chn_id].phys_addr;
+    dsVirAddr = venc->common_buffer[handle->chn_id].virt_addr;
     if ((handle->mfdin_input_fmt == MFDI_INPUT_FMT_NV12) ||
         (handle->mfdin_input_fmt == MFDI_INPUT_FMT_NV21) ||
         (handle->mfdin_input_fmt == MFDI_INPUT_FMT_YUV420_PLANAR)) {
@@ -233,6 +233,7 @@ int vl_tahoe_encoder_init(int codec_id, handle_t encode_info) {
       return -1;
   }
 
+  vdi_alloc_common_buffer(encode_info.chn_id);
   venc_lock();
   create_channel(encode_info);
   venc_unlock();

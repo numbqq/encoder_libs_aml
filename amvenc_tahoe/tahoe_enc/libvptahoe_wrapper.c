@@ -85,7 +85,7 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     if (0 == encode_param.gop) {//fix me ,infinite gop
         encode_info->enc_gop = encode_info->enc_fps;
     }
-    encode_info->enc_gop = encode_info->enc_fps;
+
     encode_info->enc_fmt = codec_id;
     encode_info->profile = 0;//encode_param.profile;
     encode_info->enc_bitrate = encode_param.bit_rate;

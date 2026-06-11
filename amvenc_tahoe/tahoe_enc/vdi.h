@@ -97,6 +97,7 @@ int vdi_unmap_dma(tahoe_dma_buf_info_t *info);
 void set_instance_valid(int id,bool bvalid);
 bool find_valid_id(int *id);
 int get_cur_instance();
+uint8_t find_valid_chn_cnt();
 int vdi_alloc_common_buffer(int chnid);
 
 #endif /* _VDI_H_ */

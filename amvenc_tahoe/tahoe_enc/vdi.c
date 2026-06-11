@@ -275,7 +275,7 @@ int vdi_alloc_common_buffer(int chnid)
     return 0;
 }
 
-int venc_destroy(void)
+int venc_destroy()
 {
     int i = 0;
     venc_info_t *venc = &s_venc_info;
@@ -283,6 +283,7 @@ int venc_destroy(void)
 
     if (NULL != venc && venc->venc_fd != -1)
     {
+        VLOG(INFO,"relese all resource!\n");
         if (venc->venc_register.virt_addr)
             munmap((void *)venc->venc_register.virt_addr, venc->venc_register.size);
         if (venc->fw_buffer.virt_addr)
@@ -427,4 +428,15 @@ int get_cur_instance() {
     }
     VLOG(INFO,"get_cur_instance %d",num);
     return num;
+}
+
+uint8_t find_valid_chn_cnt() {
+    uint8_t cnt = 0;
+    for (int i = 0;i < MAX_INSTANCE;i++) {
+        if (instance_info[i] == 1) {
+            cnt++;
+        }
+    }
+    VLOG(INFO,"now have %d instance running",cnt);
+    return cnt;
 }

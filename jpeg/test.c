@@ -78,6 +78,7 @@ int main(int argc, const char *argv[])
     int h_stride = 0;
     int w_alignment = 0;
     int h_alignment = 0;
+    int num = 1;
 
     unsigned int output_size  = 0;
     unsigned char *output_buffer = NULL;
@@ -88,6 +89,7 @@ int main(int argc, const char *argv[])
     unsigned int uvsize;
     jpegenc_result_e result = ENC_FAILED;
     jpegenc_handle_t handle = 0;
+    int End_status = 0;
 
     if (argc < 11) {
         printf("Amlogic AVC Encode API \n");
@@ -103,6 +105,7 @@ int main(int argc, const char *argv[])
         printf("         width alignment  : width alignment \n");
         printf("         height alignment : height alignment \n");
         printf("         memory type   : memory type for input data, 0:vmalloc, 3:dma\n");
+        printf("         num      \t: encode frame count \n");
         printf("         num_planes \t: used for dma buffer case. 2 : nv12/nv21, 3 : yuv420p(yv12/yu12)\n");
 
         return -1;
@@ -112,12 +115,12 @@ int main(int argc, const char *argv[])
     }
     width =  atoi(argv[3]);
     if (width < 1) {
-        printf("invalid width \n");
+        printf("Encode Failed! invalid width \n");
         return -1;
     }
     height = atoi(argv[4]);
     if (height < 1) {
-        printf("invalid height \n");
+        printf("Encode Failed! invalid height \n");
         return -1;
     }
     quality	= atoi(argv[5]);
@@ -128,7 +131,9 @@ int main(int argc, const char *argv[])
 
     jpegenc_mem_type_e mem_type = (jpegenc_mem_type_e)atoi(argv[10]);
     if (argc > 11)
-        num_planes = atoi(argv[11]);
+        num = atoi(argv[11]);
+    if (argc > 12)
+        num_planes = atoi(argv[12]);
 
     printf("src url: %s \n", argv[1]);
     printf("out url: %s \n", argv[2]);
@@ -140,6 +145,7 @@ int main(int argc, const char *argv[])
     printf("width alignment: %d \n", w_alignment);
     printf("height alignment: %d \n", h_alignment);
     printf("memory type: %s\n", mem_type == JPEGENC_LOCAL_BUFF ? "VMALLOC" : mem_type == JPEGENC_DMA_BUFF ? "DMA" : "unsupported mem type");
+    printf("num: %d \n", num);
     if (w_alignment > 0)
         w_stride = (width % w_alignment) == 0 ? width : (((width / w_alignment)+1)*w_alignment);
     else
@@ -154,7 +160,7 @@ int main(int argc, const char *argv[])
     printf("align: %d->%d\n", height, h_stride);
 
     if (mem_type != JPEGENC_LOCAL_BUFF && mem_type != JPEGENC_DMA_BUFF) {
-        printf("unsupported mem type\n");
+        printf("Encode Failed! unsupported mem type\n");
         return -1;
     }
     memset(&frame_info, 0, sizeof(frame_info));
@@ -175,6 +181,7 @@ int main(int argc, const char *argv[])
         ret = create_ctx(&ctx);
         if (ret < 0) {
             printf("gdc create fail ret=%d\n", ret);
+            End_status = -1;
             goto exit;
         }
         if (num_planes == 3)
@@ -182,6 +189,7 @@ int main(int argc, const char *argv[])
             if (iformat != FMT_YUV420)
             {
                 printf("error fmt %d\n", iformat);
+                End_status = -1;
                 goto exit;
             }
             ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, ysize);
@@ -189,12 +197,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        ysize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[0];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
 
@@ -206,12 +216,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        usize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[1];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
             shared_fd[1] = ret;
@@ -222,12 +234,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        vsize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[2];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
 
@@ -240,12 +254,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        ysize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[0];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
             shared_fd[0] = ret;
@@ -253,6 +269,7 @@ int main(int argc, const char *argv[])
             if (iformat != FMT_NV12 && iformat != FMT_NV21)
             {
                 printf("error fmt %d\n", iformat);
+                End_status = -1;
                 goto exit;
             }
             ret = alloc_dma_buffer(&ctx, INPUT_BUFF_TYPE, uvsize);
@@ -260,12 +277,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        uvsize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[1];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
             shared_fd[1] = ret;
@@ -278,12 +297,14 @@ int main(int argc, const char *argv[])
             {
                 printf("alloc fail ret=%d, len=%u\n", ret,
                        framesize);
+                End_status = -1;
                 goto exit;
             }
             vaddr = (unsigned char *) ctx.i_buff[0];
             if (!vaddr)
             {
                 printf("mmap failed,Not enough memory\n");
+                End_status = -1;
                 goto exit;
             }
             shared_fd[0] = ret;
@@ -298,6 +319,7 @@ int main(int argc, const char *argv[])
         inputBuffer = (unsigned char *) malloc(framesize);
         if (inputBuffer == NULL) {
             printf("Can not allocat inputBuffer\n");
+            End_status = -1;
             goto exit;
         }
         frame_info.YCbCr[0] = (ulong) (inputBuffer);
@@ -311,18 +333,21 @@ int main(int argc, const char *argv[])
     output_buffer = (unsigned char *)malloc(output_size);
     if (!output_buffer) {
         printf("alloc buffer for output jpeg failed\n");
+        End_status = -1;
         goto exit;
     }
 
     fp = fopen(argv[1], "rb");
     if (!fp) {
         printf("open input file %s failed: %s\n", argv[1], strerror(errno));
+        End_status = -1;
         goto exit;
     }
     outfd = open(argv[2], O_CREAT | O_RDWR | O_TRUNC, 0644);
     if (outfd < 0)
     {
         printf("open dist file error!\n");
+        End_status = -1;
         goto exit;
     }
 
@@ -339,6 +364,7 @@ int main(int argc, const char *argv[])
 
     if (handle == (long)NULL) {
         printf("jpegenc_init failed\n");
+        End_status = -1;
         goto exit;
     }
 
@@ -349,6 +375,7 @@ int main(int argc, const char *argv[])
                 framesize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
         } else if (num_planes == 2)
@@ -356,11 +383,13 @@ int main(int argc, const char *argv[])
             if (fread(input[0], 1, ysize, fp) != ysize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
             if (fread(input[1], 1, uvsize, fp) != uvsize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
         } else if (num_planes == 3)
@@ -368,16 +397,19 @@ int main(int argc, const char *argv[])
             if (fread(input[0], 1, ysize, fp) != ysize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
             if (fread(input[1], 1, usize, fp) != usize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
             if (fread(input[2], 1, vsize, fp) != vsize)
             {
                 printf("read input file error!\n");
+                End_status = -1;
                 goto exit;
             }
         }
@@ -385,24 +417,29 @@ int main(int argc, const char *argv[])
         if (fread(inputBuffer, 1, framesize, fp) != framesize)
         {
             printf("read input file error!\n");
+            End_status = -1;
             goto exit;
         }
     }
     memset(output_buffer, 0, output_size);
 
-    //int64_t t_1=GetNowUs();
+    for (int i = 0; i < num; i++) {
+        int64_t t_1=GetNowUs();
+        result = jpegenc_encode(handle, frame_info, output_buffer, &datalen);
 
-    result = jpegenc_encode(handle, frame_info, output_buffer, &datalen);
-
-    //int64_t t_2=GetNowUs();
-    //fprintf(stderr, "jpegenc_encode time: %lld\n", t_2-t_1);
-    if (result != ENC_FAILED) {
-        write(outfd, (unsigned char *)output_buffer, datalen);
-        enc_frame++;
-        //encoding_time+=t_2-t_1;
+        int64_t t_2=GetNowUs();
+        fprintf(stderr, "jpegenc_encode time: %lld\n", t_2-t_1);
+        if (result != ENC_FAILED) {
+            write(outfd, (unsigned char *)output_buffer, datalen);
+            enc_frame++;
+            encoding_time+=t_2-t_1;
+        } else {
+            End_status = ENC_FAILED;
+            goto exit;
+        }
     }
 
-    //fprintf(stderr, "encode time:%lld, fps:%3.1f\n", encoding_time, enc_frame*1.0/(encoding_time/1000000.0));
+    fprintf(stderr, "encode time:%lld, fps:%3.1f\n", encoding_time, enc_frame*1.0/(encoding_time/1000000.0));
 
 exit:
     if (handle)
@@ -433,5 +470,12 @@ exit:
         if (inputBuffer)
             free(inputBuffer);
     }
+
+    if (End_status == 0)
+        printf("Encode End Succeeded!\n");
+    else if (End_status == -1)
+        printf("Encode Failed!\n");
+    else
+        printf("Encode End with unknown status:%d\n", End_status);
     return 0;
 }

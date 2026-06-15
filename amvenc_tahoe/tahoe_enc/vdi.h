@@ -34,6 +34,7 @@
 #define _VDI_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "tahoe.h"
 
 typedef enum

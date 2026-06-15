@@ -439,10 +439,11 @@ void vt_tahoe_encoder_destroy(vl_codec_tahoe_handle_t codec_handle)  {
         VLOG(ERR,"destroy handle not valid!\n");
         return;
     }
-    VLOG(INFO,"destroy tahoe!!");
+    VLOG(INFO,"destroy tahoe!!,chn_id:%d",m_handle->chn_id);
     vl_tahoe_encoder_destroy(*m_handle);
-    encoder_close();
-
+    if (find_valid_chn_cnt() == 1) {
+        encoder_close();
+    }
     set_instance_valid(m_handle->chn_id,false);
 
     if (m_handle) {

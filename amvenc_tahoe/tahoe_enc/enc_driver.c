@@ -173,7 +173,7 @@ void create_channel(handle_t handle)
     venc_write_register(ENC_PIC_W, handle.enc_width);
     venc_write_register(ENC_PIC_H, handle.enc_height);
 
-    fw_addr = venc->common_buffer.phys_addr + (handle.chn_id * 0x2000000);
+    fw_addr = venc->common_buffer[handle.chn_id].phys_addr;
     venc_write_register(MEM_POOL_ADDR_MSB, fw_addr >> 32 & 0x03);
     venc_write_register(MEM_POOL_ADDR_LSB, fw_addr); //fw memory pool
     VLOG(ERR,"msb:%x,lsb:%x\n",venc_read_register(MEM_POOL_ADDR_MSB),venc_read_register(MEM_POOL_ADDR_LSB));

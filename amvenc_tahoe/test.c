@@ -73,7 +73,6 @@
 #define FRAMERATE 60
 
 #define ENC_STREAM_BUF_SIZE  0x100000
-#define CFG_ENCODE_NUM_MAX 6
 
 #if VENDOR_FW
 #define FW_PATH  "/vendor/lib/firmware/encoder/fw.bin"
@@ -1070,7 +1069,7 @@ int main(int argc, char **argv)
     int arg_count = 0;
     int len = 0;
     FILE *fp_cfg_encode = NULL;
-    encodecCfgParam cfg_encode[CFG_ENCODE_NUM_MAX];
+    encodecCfgParam cfg_encode[MAX_INSTANCE];
 
     tahoe_set_log_level(NONE);
 
@@ -1136,7 +1135,7 @@ int main(int argc, char **argv)
             printf("open encode cfg file error!\n");
             return 0;
         }
-        memset(cfg_encode, 0, CFG_ENCODE_NUM_MAX * sizeof(encodecCfgParam));
+        memset(cfg_encode, 0, MAX_INSTANCE * sizeof(encodecCfgParam));
         ParseEncodeCfgFile(fp_cfg_encode, cfg_encode);
         fclose(fp_cfg_encode);
         if (cfg_encode[0].seqNum == 0)
@@ -1296,15 +1295,15 @@ int main(int argc, char **argv)
     encoder_open(/*"fw.bin"*/FW_PATH);
     printf("==%s, %d, cfg_encode[0].seqNum:%d\n", __func__, __LINE__, cfg_encode[0].seqNum);
 
-    pthread_t tid[CFG_ENCODE_NUM_MAX];
+    pthread_t tid[MAX_INSTANCE];
     for (i = 0; i < cfg_encode[0].seqNum; i ++) {
-        if (i >= CFG_ENCODE_NUM_MAX)
+        if (i >= MAX_INSTANCE)
             break;
         cfg_encode[i].chnid = i;
         pthread_create(&tid[i], NULL, encode_thread, &cfg_encode[i]);
     }
     for (i = 0; i < cfg_encode[0].seqNum; i ++) {
-        if (i >= CFG_ENCODE_NUM_MAX)
+        if (i >= MAX_INSTANCE)
             break;
         pthread_join(tid[i], NULL);
     }
@@ -1581,7 +1580,7 @@ static int ParseEncodeCfgFile(FILE *fp, encodecCfgParam *cfg_encode)
     int i = 0;
     int len = 0;
     while (1) {
-        if (i >= CFG_ENCODE_NUM_MAX)
+        if (i >= MAX_INSTANCE)
             return 0;
         if (lineStr[0] == 0x0) { //need a new line;
             if (fgets(lineStr, ENCODER_STRING_LEN_MAX*4, fp) == NULL) {

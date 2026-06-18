@@ -33,6 +33,7 @@
 
 #include <stdio.h>
 #include <pthread.h>
+#include <sys/mman.h>
 #include "tahoe.h"
 #include "vp_codec_tahoe.h"
 #include "vdi.h"
@@ -195,6 +196,16 @@ void encoder_open(char *fwfile) {
   firmware_load(fwfile);
   firmware_boot();
 }
+
+void encoder_unmap(int inst_id) {
+    venc_info_t *venc = &s_venc_info;
+
+    if (venc->common_buffer[inst_id].virt_addr) {
+        VLOG(ERR,"munmap memory common_buffer!,pool count:%d\n",venc->vpu_buffer_pool_count);
+        munmap((void *)venc->common_buffer[inst_id].virt_addr, venc->common_buffer[inst_id].size);
+    }
+}
+
 
 void encoder_close() {
     venc_destroy();

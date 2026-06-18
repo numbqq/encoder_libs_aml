@@ -443,6 +443,7 @@ void vt_tahoe_encoder_destroy(vl_codec_tahoe_handle_t codec_handle)  {
     }
     VLOG(INFO,"destroy tahoe!!,chn_id:%d",m_handle->chn_id);
     vl_tahoe_encoder_destroy(*m_handle);
+    encoder_unmap(m_handle->chn_id);
     if (find_valid_chn_cnt() == 1) {
         encoder_close();
     }

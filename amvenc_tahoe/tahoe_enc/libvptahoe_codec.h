@@ -37,6 +37,7 @@
 
 void encoder_open(char *fwfile);
 void encoder_close();
+void encoder_unmap(int inst_id);
 int vl_tahoe_encoder_init(int codec_id, handle_t encode_info);
 int vl_tahoe_encoder_destroy(handle_t encode_info);
 int vl_video_encoder_change_bitrate(handle_t *encode_info, int bitRate);

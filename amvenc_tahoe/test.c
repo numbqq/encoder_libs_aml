@@ -722,8 +722,13 @@ static void *encode_thread(void *param)
     encode_info.level = cfg_encode->level;
     encode_info.tier = cfg_encode->tier;
     encode_info.enc_bitrate = cfg_encode->bitrate;
-    if (cfg_encode->rc_mode)
-        encode_info.enc_rc_mode = cfg_encode->rc_mode;
+    if (cfg_encode->rc_mode == 3) {
+        encode_info.svc_enable = 1;
+    }
+    else {
+        if (cfg_encode->rc_mode)
+            encode_info.enc_rc_mode = cfg_encode->rc_mode;
+    }
     if (cfg_encode->buf_type == 0)
         encode_info.golden_match_flag = 1;
 

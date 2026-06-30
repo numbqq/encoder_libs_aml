@@ -243,6 +243,7 @@ typedef union TAHOE_VRISC_MISC_FIELD {
 #define ENC_PARAM_FPS                      TAHOE_VRISC_SCRATCH_4
 #define ENC_PARAM_RC_MODE                  TAHOE_VRISC_SCRATCH_5
 #define GOLDEN_MATCH_FLAG                  TAHOE_VRISC_SCRATCH_28
+#define CRE_SVC_LTR                        TAHOE_VRISC_SCRATCH_22
 
 #define CMD_CREATE_CHN              1
 #define CMD_DESTROY_CHN             2

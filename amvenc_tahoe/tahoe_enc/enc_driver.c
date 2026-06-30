@@ -197,6 +197,11 @@ void create_channel(handle_t handle)
                                             (handle.crop_h & 0x3fff) << 16);
     venc_write_register(GOLDEN_MATCH_FLAG, handle.golden_match_flag);
 
+    if (handle.svc_enable) {
+        venc_write_register(CRE_SVC_LTR,0x03);
+        VLOG(ERR,"svc_enable! 3 layers\n");
+    }
+
     enable_vrisc_scrw_irq();
 
     venc_write_register(CMD_OPT_CODE, CMD_CREATE_CHN);

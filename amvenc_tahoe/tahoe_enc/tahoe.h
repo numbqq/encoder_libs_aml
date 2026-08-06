@@ -270,6 +270,11 @@ typedef struct {
     u8 golden_match_flag;
     venc_buffer_t input_buf[3];
     u8 svc_enable;
+    unsigned char *out;
+    unsigned char *input_yuvbuf;
+    int data_len;
+    unsigned char v4l2_enable;
+    unsigned char current_mode;
 } handle_t;
 
 #define TAHOE_REG_BASE_ADDR 0xFE370000

@@ -34,6 +34,7 @@
 #define _VP_CODEC_TAHOE_H_
 
 #include "vp_codec_tahoe.h"
+#include <linux/videodev2.h>
 
 void encoder_open(char *fwfile);
 void encoder_close();
@@ -47,11 +48,14 @@ int vl_video_encoder_change_qp(handle_t *encode_info,
                                 int minQpI, int maxQpI, int maxDeltaQp,
                                 int minQpP, int maxQpP,
                                 int minQpB, int maxQpB);
-int vl_tahoe_encoder_encode(handle_t *encode_info);
+int vl_tahoe_encoder_encode(handle_t *encode_info,struct v4l2_buffer *src_buf);
 int get_dsframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_size);
 int get_bsbframe(handle_t *handle, unsigned char *buffer, unsigned int *buf_nal_size, signed char *frame_type);
 int get_header(handle_t *handle, unsigned char *pHeader, unsigned int *pLength);
 int check_initparam(handle_t handle);
 int vl_tahoe_encoder_generate_header(handle_t *encode_info);
+bool get_input_buf_forv4l(ulong *pInput,struct v4l2_buffer *src_buf, handle_t *encode_info);
+void detectV4l2Support(handle_t *encode_info);
+int vl_v4l2_switch_to_dmamode( handle_t encode_info,int plane_num) ;
 
 #endif

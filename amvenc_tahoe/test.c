@@ -504,6 +504,7 @@ static void *encode_thread(void *param)
     int frame_num;
     int End_status = 0;
     int pw = 0;
+    struct v4l2_buffer src_buf;
 
     if (NULL != param)
         cfg_encode = (encodecCfgParam *)param;
@@ -634,6 +635,7 @@ static void *encode_thread(void *param)
         End_status = -1;
         goto exit;
     }
+    printf("open success,fd:%d\n",fp);
 
     if (cfg_encode->cfg_upd_enabled) {
         fp_cfg = fopen((const char*)cfg_encode->cfg_file, "r");
@@ -709,6 +711,9 @@ static void *encode_thread(void *param)
     }
 
     memset(&encode_info, 0, sizeof(handle_t));
+
+    detectV4l2Support(&encode_info);
+
     encode_info.init_qp = 30;
     encode_info.enc_rc_mode = 2;
     encode_info.chn_id = cfg_encode->chnid;
@@ -965,29 +970,31 @@ static void *encode_thread(void *param)
             }
         }
     } else {
-        memset(&pFbSrcMem, 0, sizeof(pFbSrcMem));
-        pFbSrcMem.size = framesize;
-        pFbSrcMem.cached = 1;
+        if (!encode_info.v4l2_enable) {
+            memset(&pFbSrcMem, 0, sizeof(pFbSrcMem));
+            pFbSrcMem.size = framesize;
+            pFbSrcMem.cached = 1;
 
-        if (vdi_allocate_dma_memory(&pFbSrcMem) < 0) {
-            printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
-            End_status = -1;
-            goto end;
+            if (vdi_allocate_dma_memory(&pFbSrcMem) < 0) {
+                printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+                End_status = -1;
+                goto end;
+            }
         }
     }
 
     //for vps/sps/pps
-    for (i = 0; i < 3; i++) {
-        memset(&bsBuffer[i], 0, sizeof(bsBuffer[i]));
-        bsBuffer[i].size = ENC_STREAM_BUF_SIZE;
-        if (vdi_allocate_dma_memory(&bsBuffer[i]) < 0) {
-            printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
-            End_status = -1;
-            goto end;
-        }
-        printf("[%s][%d]bsBuffer[%d].phys_addr:0x%x\n", \
-            __func__,__LINE__, i, bsBuffer[i].phys_addr);
-    }
+//    for (i = 0; i < 3; i++) {
+//        memset(&bsBuffer[i], 0, sizeof(bsBuffer[i]));
+//        bsBuffer[i].size = ENC_STREAM_BUF_SIZE;
+//        if (vdi_allocate_dma_memory(&bsBuffer[i]) < 0) {
+//            printf("Can not allocat dma Buffer chnid %d\n", encode_info.chn_id);
+//            End_status = -1;
+//            goto end;
+//        }
+//        printf("[%s][%d]bsBuffer[%d].phys_addr:0x%x\n", \
+//            __func__,__LINE__, i, bsBuffer[i].phys_addr);
+//    }
 
     if (!encode_info.buf_stride)
     {
@@ -1013,28 +1020,42 @@ static void *encode_thread(void *param)
     printf("header buf addr:%lx %lx %lx\n",encode_info.header_buf_addr[0],encode_info.header_buf_addr[1],encode_info.header_buf_addr[2]);
     printf("New allocate frame address y:0x%x cb:0x%x cr:0x%x\n",
                encode_info.tahoe_enc_pic.inpt_buf_addr[0], encode_info.tahoe_enc_pic.inpt_buf_addr[1], encode_info.tahoe_enc_pic.inpt_buf_addr[2]);
+#if 0
+    encode_info.out = (unsigned char *) malloc(outbuffer_len);
+    if (encode_info.out == NULL) {
+        printf("Can not malloc outbuffer\n");
+        End_status = -1;
+        goto end;
+    }
 
+    encode_info.input_yuvbuf = (unsigned char *) malloc(framesize);
+    if (encode_info.input_yuvbuf == NULL) {
+        printf("Can not allocat inputBuffer\n");
+        End_status = -1;
+        goto exit;
+    }
+#endif
     if (vl_tahoe_encoder_init(encode_info.enc_fmt, encode_info) < 0) {
         printf("vl_tahoe_encoder_init failed chnid %d\n", encode_info.chn_id);
         End_status = -1;
         goto exit;
     }
 
-    if (cfg_encode->power_test_enabled) {
-        for (pw = 0; pw < POWER_TEST_NUM_MAX; pw++) {
-            if (fread(inputBuffer, 1, framesize, fp) != framesize)
-            {
-                rewind(fp);
-                clearerr(fp);
-                if (fread(inputBuffer, 1, framesize, fp) != framesize) {
-                    printf("read input file error!\n");
-                    End_status = -1;
-                    goto exit;
-                }
-            }
-            memcpy((void *)((unsigned long)pFbPwSrcMem[pw].virt_addr), inputBuffer, framesize);
-        }
-    }
+//    if (cfg_encode->power_test_enabled) {
+//        for (pw = 0; pw < POWER_TEST_NUM_MAX; pw++) {
+//            if (fread(inputBuffer, 1, framesize, fp) != framesize)
+//            {
+//                rewind(fp);
+//                clearerr(fp);
+//                if (fread(inputBuffer, 1, framesize, fp) != framesize) {
+//                    printf("read input file error!\n");
+//                    End_status = -1;
+//                    goto exit;
+//                }
+//            }
+//            memcpy((void *)((unsigned long)pFbPwSrcMem[pw].virt_addr), inputBuffer, framesize);
+//        }
+//    }
 
     gettimeofday(&timeStart, NULL);
     for (i = 0; i < cfg_encode->num; i++) {
@@ -1051,6 +1072,12 @@ static void *encode_thread(void *param)
                 encode_info.tahoe_enc_pic.inpt_buf_addr[2] = pFbPwSrcMem[pw].phys_addr + (encode_info.buf_stride * encode_info.enc_height * 5 / 4);
             }
         } else {
+            if (encode_info.v4l2_enable) {
+                if (!get_input_buf_forv4l(&pFbSrcMem.virt_addr,&src_buf,&encode_info)) {
+                    VLOG(ERR,"get_input_buf_forv4l failed\n");
+                }
+            }
+
             if (fread(inputBuffer, 1, framesize, fp) != framesize)
             {
                 rewind(fp);
@@ -1062,6 +1089,7 @@ static void *encode_thread(void *param)
                 }
             }
             memcpy((void *)((unsigned long)pFbSrcMem.virt_addr), inputBuffer, framesize);
+
         }
 
         if (cfg_encode->osd_enabled) {
@@ -1090,27 +1118,34 @@ static void *encode_thread(void *param)
             encode_info.poc = 0;
         if (encode_info.enc_frame_type == FRAME_TYPE_IDR || encode_info.enc_frame_type == FRAME_TYPE_I)
         {
-            vl_tahoe_encoder_generate_header(&encode_info);
-            ret = get_header(&encode_info, outbuffer, (unsigned int *)&dataLength);
-            if (ret == 0) {
-                write(outfd, (unsigned char *) outbuffer, dataLength);
+            if (!encode_info.v4l2_enable) {
+                vl_tahoe_encoder_generate_header(&encode_info);
+                ret = get_header(&encode_info, outbuffer, (unsigned int *)&dataLength);
+                if (ret == 0) {
+                    write(outfd, (unsigned char *) outbuffer, dataLength);
+                }
             }
         }
 
-        vl_tahoe_encoder_encode(&encode_info);
+        if (encode_info.v4l2_enable) {
+            vl_tahoe_encoder_encode(&encode_info,&src_buf);
+        }
+        else {
+            vl_tahoe_encoder_encode(&encode_info,0);
+        }
+        
         ret = get_bsbframe(&encode_info, outbuffer, (unsigned int *)&dataLength, &frame_type);
         gettimeofday(&writeStart, NULL);
         if (ret == 0) {
-            write(outfd, (unsigned char *) outbuffer,
-                  dataLength);
+            write(outfd, outbuffer, dataLength);
         }
-        if (cfg_encode->ds_enabled) {
-            ret = get_dsframe(&encode_info, outbuffer, (unsigned int *)&dataLength);
-            if (ret == 0) {
-                write(dsfd, (unsigned char *) outbuffer,
-                      dataLength);
-            }
-        }
+//        if (cfg_encode->ds_enabled) {
+//            ret = get_dsframe(&encode_info, outbuffer, (unsigned int *)&dataLength);
+//            if (ret == 0) {
+//                write(dsfd, (unsigned char *) outbuffer,
+//                      dataLength);
+//            }
+//        }
         gettimeofday(&writeEnd, NULL);
         frameWriteTime = uTimeDiff(writeEnd, writeStart);
         ioTime += frameWriteTime;

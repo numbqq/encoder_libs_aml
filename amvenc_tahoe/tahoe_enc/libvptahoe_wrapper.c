@@ -45,6 +45,8 @@
 #include <string.h>
 #include <sys/poll.h>
 #include <fcntl.h>
+#include <linux/videodev2.h>
+#include <linux/v4l2-controls.h>
 
 #define FW_STRING_LEN_MAX  256
 #define HE_BUF_SIZE  0x100000
@@ -60,7 +62,6 @@ int output_fd_dump = -1;
 #else
 #define FW_PATH  "/lib/firmware/encoder/fw.bin"
 #endif
-
 
 
 vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t encode_param) {
@@ -130,6 +131,8 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
     }*/
     snprintf(fwfile, FW_STRING_LEN_MAX, "%s", FW_PATH);
 
+    detectV4l2Support(encode_info);
+
     if (0 == get_cur_instance()) {
         VLOG(INFO,"loading fw:%s\n",fwfile);
         encoder_open(fwfile);
@@ -158,22 +161,25 @@ vl_codec_tahoe_handle_t vt_tahoe_encoder_init(int codec_id, vt_encode_info_t enc
         encode_info->input_buf[0].size = encode_info->enc_width * encode_info->enc_height * 4;//fix me!!!
     }
 
-    if (vdi_allocate_dma_memory(&encode_info->input_buf[0]) < 0) {
-        VLOG(ERR,"Can not allocat input Buffer in vmalloc mode!\n");
-        return -1;
-    }
-
-    for (i = 0; i < 3; i++) {
-        memset(&hdBuffer[i], 0, sizeof(hdBuffer[i]));
-        hdBuffer[i].size = HE_BUF_SIZE;
-        if (vdi_allocate_dma_memory(&hdBuffer[i]) < 0) {
-            printf("Can not allocat hd Buffer chnid %d\n", encode_info->chn_id);
+    if (!encode_info->v4l2_enable) {
+        if (vdi_allocate_dma_memory(&encode_info->input_buf[0]) < 0) {
+            VLOG(ERR,"Can not allocat input Buffer in vmalloc mode!\n");
             return -1;
         }
-        VLOG(INFO,"[%s][%d]hdBuffer[%d].phys_addr:0x%x\n", \
-            __func__,__LINE__, i, hdBuffer[i].phys_addr);
-        encode_info->header_buf_addr[i] = hdBuffer[i].phys_addr;
+
+        for (i = 0; i < 3; i++) {
+            memset(&hdBuffer[i], 0, sizeof(hdBuffer[i]));
+            hdBuffer[i].size = HE_BUF_SIZE;
+            if (vdi_allocate_dma_memory(&hdBuffer[i]) < 0) {
+                printf("Can not allocat hd Buffer chnid %d\n", encode_info->chn_id);
+                return -1;
+            }
+            VLOG(INFO,"[%s][%d]hdBuffer[%d].phys_addr:0x%x\n", \
+                __func__,__LINE__, i, hdBuffer[i].phys_addr);
+            encode_info->header_buf_addr[i] = hdBuffer[i].phys_addr;
+        }
     }
+
 #if DUMP_FILE_ENABLE
     input_fd_dump = open("/data/tahoe_dump_input.yuv", O_CREAT | O_RDWR | O_TRUNC, 0644);
     if (input_fd_dump < 0)
@@ -288,6 +294,7 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     //venc_buffer_t input_buf = {0};
     int header_length = 0;
     int i = 0;
+    struct v4l2_buffer src_buf;
     tahoe_dma_buf_info_t dma_info_map;
 
     memset(&result,0,sizeof(result));
@@ -300,6 +307,12 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
     }
 
     if (VMALLOC_TYPE == in_buffer_info->buf_type) {
+        encode_info->current_mode = VMALLOC_TYPE;
+        if (encode_info->v4l2_enable) {
+            if (!get_input_buf_forv4l(&encode_info->input_buf[0].virt_addr,&src_buf,encode_info)) {
+                VLOG(ERR,"get_input_buf_forv4l failed\n");
+            }
+        }
         if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV12 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV21 ||
             encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_YUV420_PLANAR) {
             //need fix
@@ -323,11 +336,21 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
         encode_info->buf_stride = encode_info->enc_width; //fix me!!!
         VLOG(INFO,"vmalloc mode,input data addr:%x %x %x\n",encode_info->tahoe_enc_pic.inpt_buf_addr[0],encode_info->tahoe_enc_pic.inpt_buf_addr[1],encode_info->tahoe_enc_pic.inpt_buf_addr[2]);
     }
-    #if 1
     else if (DMA_TYPE == in_buffer_info->buf_type) {
-      vt_dma_info_t *dma_info;
-      dma_info = &(in_buffer_info->buf_info.dma_info);
+        vt_dma_info_t *dma_info;
+        dma_info = &(in_buffer_info->buf_info.dma_info);
 
+        if (encode_info->v4l2_enable && (DMA_TYPE != encode_info->current_mode)) {
+            encode_info->current_mode = DMA_TYPE;
+            vl_v4l2_switch_to_dmamode(*encode_info,dma_info->num_planes);
+        }
+
+        if (encode_info->v4l2_enable) {
+            if (!get_input_buf_forv4l(&encode_info->input_buf[0].virt_addr,&src_buf,encode_info)) {
+                VLOG(ERR,"get_input_buf_forv4l failed\n");
+            }
+        }
+      
         if (encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV12 || encode_info->mfdin_input_fmt == MFDI_INPUT_FMT_NV21) {
             if (dma_info->num_planes != 1 && dma_info->num_planes != 2) {
                 VLOG(ERR,"invalid num_planes %d\n", dma_info->num_planes);
@@ -371,7 +394,10 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
             dma_info_map.fd[i] = dma_info->shared_fd[i];
             VLOG(INFO,"instance %d:**shared_fd %d\n", encode_info->chn_id,dma_info->shared_fd[i]);
         }
-        vdi_config_dma(&dma_info_map);
+
+        if (!encode_info->v4l2_enable) {
+            vdi_config_dma(&dma_info_map);
+        }
         VLOG(INFO,"instance %d:dma map num_planes:%d\n",encode_info->chn_id,dma_info_map.num_planes);
 
         encode_info->buf_stride = ((encode_info->enc_width + 15) >> 4) << 4;
@@ -385,15 +411,51 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
                   encode_info->tahoe_enc_pic.inpt_buf_addr[2] = encode_info->tahoe_enc_pic.inpt_buf_addr[1] +
                                                                     encode_info->buf_stride * encode_info->enc_height / 4;
               }
+
+              if (encode_info->v4l2_enable) {
+                src_buf.m.planes[0].bytesused = encode_info->buf_stride * encode_info->enc_height * 3 / 2;
+                src_buf.m.planes[0].length = encode_info->buf_stride * encode_info->enc_height * 3 / 2;
+                src_buf.m.planes[0].m.fd = dma_info->shared_fd[0];
+              }
             }
         }
-        if (dma_info_map.num_planes > 1 )
+        if (dma_info_map.num_planes > 1 ) 
             encode_info->tahoe_enc_pic.inpt_buf_addr[1]= dma_info_map.phys_addr[1];
         if (dma_info_map.num_planes > 2)
             encode_info->tahoe_enc_pic.inpt_buf_addr[2]= dma_info_map.phys_addr[2];
+
+        if (encode_info->v4l2_enable && (dma_info_map.num_planes == 2)) {
+            src_buf.m.planes[0].bytesused = encode_info->buf_stride * encode_info->enc_height;
+            src_buf.m.planes[0].length = encode_info->buf_stride * encode_info->enc_height;
+            src_buf.m.planes[0].m.fd = dma_info->shared_fd[0];
+
+            src_buf.m.planes[1].bytesused = encode_info->buf_stride * encode_info->enc_height / 2;
+            src_buf.m.planes[1].m.fd = dma_info->shared_fd[1];
+            src_buf.m.planes[1].length = encode_info->buf_stride * encode_info->enc_height / 2;
+        }
+
+        if (encode_info->v4l2_enable && (dma_info_map.num_planes == 3)) {
+            src_buf.m.planes[0].bytesused = encode_info->buf_stride * encode_info->enc_height;
+            src_buf.m.planes[0].length = encode_info->buf_stride * encode_info->enc_height;
+            src_buf.m.planes[0].m.fd = dma_info->shared_fd[0];
+
+            src_buf.m.planes[1].bytesused = encode_info->buf_stride * encode_info->enc_height / 4;
+            src_buf.m.planes[1].length = encode_info->buf_stride * encode_info->enc_height / 4;
+            src_buf.m.planes[1].m.fd = dma_info->shared_fd[1];
+
+            src_buf.m.planes[2].bytesused = encode_info->buf_stride * encode_info->enc_height / 4;
+            src_buf.m.planes[2].length = encode_info->buf_stride * encode_info->enc_height / 4;
+            src_buf.m.planes[2].m.fd = dma_info->shared_fd[2];
+        }
     }
-#endif
-    ret = vl_tahoe_encoder_encode(encode_info);
+
+    if (encode_info->v4l2_enable) {
+        ret = vl_tahoe_encoder_encode(encode_info,&src_buf);
+    }
+    else {
+        ret = vl_tahoe_encoder_encode(encode_info, 0);
+    }
+    
     if (ret < 0) {
         VLOG(ERR,"send encode cmd to encoder failed!ret:%d \n",ret);
         result.is_valid = 0;
@@ -403,7 +465,9 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
 
     if (0 == encode_info->enc_es.frame_type || 1 == encode_info->enc_es.frame_type) {
         VLOG(INFO,"IDR or I frame!!\n");
-        vt_tahoe_encoder_generate_header(codec_handle, out, &header_length);
+        if (!encode_info->v4l2_enable) {
+            vt_tahoe_encoder_generate_header(codec_handle, out, &header_length);
+        }
 
         result.is_key_frame = 1;
     }
@@ -426,7 +490,7 @@ vt_encoding_metadata_t vt_tahoe_encoder_encode(vl_codec_tahoe_handle_t codec_han
         VLOG(INFO,"dump tahoe output file,%d",result.encoded_data_length_in_bytes);
     }
 #endif
-    if (DMA_TYPE == in_buffer_info->buf_type) {
+    if ((DMA_TYPE == in_buffer_info->buf_type) && (!encode_info->v4l2_enable)) {
         ret = vdi_unmap_dma(&dma_info_map);
         if (ret != 0) {
             VLOG(ERR,"vdi_unmap_dma src buffer failed!!\n");

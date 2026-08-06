@@ -17,6 +17,7 @@
 #define AMVENC_265_DEVICE   "/dev/HevcEnc"
 #define AMVENC_VERS_DEVICE   "/dev/vc8000"
 #define AMVENC_TAHOE_DEVICE  "/dev/tahoe"
+#define AMVENC_TAHOE_V4L_DEVICE  "/dev/video90"
 
 typedef enum amvenc_hw_e {
     AMVENC_UNKNOWN,
@@ -133,7 +134,7 @@ int selectHW(amvenc_codec_id_t codec_id, int *hw_type)
             VLOG(DEBUG, "amvenc_vers present");
             ret = 0;
         }
-        else if (access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) {
+        else if ((access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) || (access(AMVENC_TAHOE_V4L_DEVICE, F_OK )!= -1)) {
             *hw_type = AMVENC_TAHOE;
             VLOG(DEBUG, "amvenc_tahoe present");
             ret = 0;
@@ -158,7 +159,7 @@ int selectHW(amvenc_codec_id_t codec_id, int *hw_type)
             VLOG(DEBUG, "amvenc_vers present");
             ret = 0;
         }
-        else if (access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) {
+        else if ((access(AMVENC_TAHOE_DEVICE, F_OK ) != -1) || (access(AMVENC_TAHOE_V4L_DEVICE, F_OK )!= -1)) {
             *hw_type = AMVENC_TAHOE;
             VLOG(DEBUG, "amvenc_tahoe present");
             ret = 0;
